@@ -8,13 +8,13 @@ Space247 là nền tảng công nghệ bất động sản (PropTech) thế hệ
 
 ```mermaid
 graph TD
-    ClientWeb["Frontend Web (Next.js 16)"] -->|HTTP / JSON + Bearer JWT| API["Backend API (FastAPI / Uvicorn)"]
-    ClientMobile["Frontend Mobile (Flutter)"] -->|HTTP / JSON + Bearer JWT| API
+    ClientWeb["Frontend Web - Next.js 16"] -->|HTTP REST and Bearer JWT| API["Backend API - FastAPI / Uvicorn"]
+    ClientMobile["Frontend Mobile - Flutter"] -->|HTTP REST and Bearer JWT| API
     API -->|Async Session| DB[("PostgreSQL 16 + pgvector")]
-    API -->|Async Cache (15m TTL)| Redis[(Redis 7 Cache)]
-    API -->|Embeddings| FastEmbed["Embedding Service (768-dim)"]
+    API -->|Async Cache 15m TTL| Redis[("Redis 7 Cache")]
+    API -->|Embeddings| FastEmbed["Embedding Service - 768 dim"]
     DB -->|HNSW Vector Index| VectorSearch["Vector Cosine Search"]
-    DB -->|GIN Index / simple dict| FTS["Vietnamese Full-Text Search"]
+    DB -->|GIN Index simple dict| FTS["Vietnamese Full-Text Search"]
     VectorSearch -->|RRF Fusion| HybridResults["Hybrid Ranked Results"]
     FTS -->|RRF Fusion| HybridResults
 ```
