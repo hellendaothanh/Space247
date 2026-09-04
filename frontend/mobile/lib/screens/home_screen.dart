@@ -216,8 +216,6 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
           ),
-            ),
-          ),
         ],
       ),
       bottomNavigationBar: Consumer(

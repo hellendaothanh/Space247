@@ -1,10 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:space247/models/property.dart';
-import 'package:space247/providers/comparison_notifier.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:space247_mobile/models/property.dart';
+import 'package:space247_mobile/providers/comparison_notifier.dart';
 
 void main() {
   group('ComparisonNotifier Tests', () {
-    late ComparisonNotifier notifier;
+    late ProviderContainer container;
 
     final mockProperty1 = Property(
       id: '1',
@@ -18,8 +19,8 @@ void main() {
       address: 'Addr',
       city: 'City',
       status: 'active',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      createdAt: DateTime.now().toIso8601String(),
+      updatedAt: DateTime.now().toIso8601String(),
     );
 
     final mockProperty2 = Property(
@@ -34,8 +35,8 @@ void main() {
       address: 'Addr',
       city: 'City',
       status: 'active',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      createdAt: DateTime.now().toIso8601String(),
+      updatedAt: DateTime.now().toIso8601String(),
     );
 
     final mockProperty3 = Property(
@@ -50,8 +51,8 @@ void main() {
       address: 'Addr',
       city: 'City',
       status: 'active',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      createdAt: DateTime.now().toIso8601String(),
+      updatedAt: DateTime.now().toIso8601String(),
     );
 
     final mockProperty4 = Property(
@@ -66,51 +67,62 @@ void main() {
       address: 'Addr',
       city: 'City',
       status: 'active',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      createdAt: DateTime.now().toIso8601String(),
+      updatedAt: DateTime.now().toIso8601String(),
     );
 
     setUp(() {
-      notifier = ComparisonNotifier();
+      container = ProviderContainer();
+    });
+
+    tearDown(() {
+      container.dispose();
     });
 
     test('Initial state should be empty', () {
-      expect(notifier.state, isEmpty);
+      final state = container.read(comparisonProvider);
+      expect(state, isEmpty);
     });
 
     test('toggleProperty adds property when not selected', () {
-      notifier.toggleProperty(mockProperty1);
-      expect(notifier.state.length, 1);
-      expect(notifier.state.first.id, '1');
+      container.read(comparisonProvider.notifier).toggleProperty(mockProperty1);
+      final state = container.read(comparisonProvider);
+      expect(state.length, 1);
+      expect(state.first.id, '1');
     });
 
     test('toggleProperty removes property when already selected', () {
+      final notifier = container.read(comparisonProvider.notifier);
       notifier.toggleProperty(mockProperty1);
       notifier.toggleProperty(mockProperty1);
-      expect(notifier.state, isEmpty);
+      final state = container.read(comparisonProvider);
+      expect(state, isEmpty);
     });
 
     test('toggleProperty throws exception when trying to add more than 3', () {
+      final notifier = container.read(comparisonProvider.notifier);
       notifier.toggleProperty(mockProperty1);
       notifier.toggleProperty(mockProperty2);
       notifier.toggleProperty(mockProperty3);
-      
-      expect(notifier.state.length, 3);
-      
+
+      expect(container.read(comparisonProvider).length, 3);
       expect(() => notifier.toggleProperty(mockProperty4), throwsException);
-      expect(notifier.state.length, 3);
+      expect(container.read(comparisonProvider).length, 3);
     });
 
     test('clearComparison empties state', () {
+      final notifier = container.read(comparisonProvider.notifier);
       notifier.toggleProperty(mockProperty1);
       notifier.clearComparison();
-      expect(notifier.state, isEmpty);
+      expect(container.read(comparisonProvider), isEmpty);
     });
 
     test('isSelected returns correct boolean', () {
+      final notifier = container.read(comparisonProvider.notifier);
       notifier.toggleProperty(mockProperty1);
       expect(notifier.isSelected('1'), isTrue);
       expect(notifier.isSelected('2'), isFalse);
     });
   });
 }
+

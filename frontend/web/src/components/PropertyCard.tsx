@@ -139,6 +139,8 @@ export default function PropertyCard({ item, index = 0 }: PropertyCardProps) {
             <span>Chi tiết</span>
             <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
+        </div>
+
         {/* Comparison */}
         <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2">
           <input
