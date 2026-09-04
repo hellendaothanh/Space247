@@ -1,0 +1,28 @@
+{
+  "name": "space247-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.16.0",
+    "next": "16.3.4",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "tailwind-merge": "^3.5.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.3",
+    "@types/node": "^22.13.10",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^4.2.3",
+    "typescript": "^5.8.2"
+  }
+}

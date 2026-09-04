@@ -45,3 +45,7 @@
 - source_spec: `C:\Devsecops\Space247/_bmad-output/implementation-artifacts/spec-space247-seed-properties.md`
   summary: Implement batched title lookups and batched embedding generation for bulk property seed/import jobs.
   evidence: Reviewer noted sequential queries and embedding inference create unnecessary round trips for large datasets.
+
+- source_spec: `C:\Devsecops\Space247/_bmad-output/implementation-artifacts/spec-space247-frontend-web.md`
+  summary: Synchronize URL query parameters with homepage search state and add infinite scroll / pagination.
+  evidence: Reviewer noted navigation links set query params not read by client and results list is currently capped at single page.
