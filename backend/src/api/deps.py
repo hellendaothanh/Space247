@@ -64,3 +64,18 @@ async def get_current_active_user(
             detail="Inactive user account",
         )
     return current_user
+
+
+async def get_optional_current_user(
+    auth: HTTPAuthorizationCredentials | None = Depends(security),
+    db: AsyncSession = Depends(get_db_session),
+) -> User | None:
+    """Optionally validate Bearer token, returning User if valid or None if unauthenticated."""
+    if not auth or not auth.credentials:
+        return None
+    try:
+        user = await get_current_user(auth, db)
+        return user if user.is_active else None
+    except HTTPException:
+        return None
+

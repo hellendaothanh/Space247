@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.deps import get_current_active_user
+from src.api.deps import get_current_active_user, get_optional_current_user
 from src.core.config import settings
 from src.core.database import get_db_session
 from src.models.property import Property
@@ -335,6 +335,30 @@ async def list_properties(
 
 
 @router.get(
+    "/my",
+    response_model=list[PropertyResponse],
+    summary="List properties owned by the authenticated user (Requires Bearer token)",
+)
+async def list_my_properties(
+    skip: int = Query(0, ge=0, description="Offset for pagination"),
+    limit: int = Query(50, ge=1, le=100, description="Page limit"),
+    status: PropertyStatus | None = Query(None, description="Filter by listing status"),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> list[Property]:
+    """
+    Retrieve listings created by the currently authenticated user.
+    Supports optional status filtering (active, inactive, pending, sold).
+    """
+    stmt = select(Property).where(Property.user_id == current_user.id)
+    if status:
+        stmt = stmt.where(Property.status == status.value)
+    stmt = stmt.order_by(Property.created_at.desc()).offset(skip).limit(limit)
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
+
+
+@router.get(
     "/{property_id}",
     response_model=PropertyResponse,
     summary="Get property details by ID",
@@ -360,16 +384,18 @@ async def get_property(
 @router.put(
     "/{property_id}",
     response_model=PropertyResponse,
-    summary="Update property listing",
+    summary="Update property listing (Requires Bearer token)",
 )
 async def update_property(
     property_id: uuid.UUID,
     property_update: PropertyUpdate,
+    current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db_session),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
 ) -> Property:
     """
     Update property attributes.
+    Caller must be the listing owner or an administrator.
     If embedding is not explicitly provided, re-generates embedding whenever
     title, description, or address fields are modified.
     """
@@ -381,6 +407,19 @@ async def update_property(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Property with ID {property_id} not found",
         )
+
+    if property_obj.user_id:
+        if property_obj.user_id != current_user.id and current_user.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to update this property listing",
+            )
+    else:
+        if current_user.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only administrators can update unassigned property listings",
+            )
 
     if property_update.embedding is not None:
         if len(property_update.embedding) != settings.VECTOR_DIM:
@@ -456,14 +495,16 @@ async def update_property(
 @router.delete(
     "/{property_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Delete property listing",
+    summary="Delete property listing (Requires Bearer token)",
 )
 async def delete_property(
     property_id: uuid.UUID,
+    current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db_session),
 ) -> None:
     """
     Remove a property listing by ID.
+    Caller must be the listing owner or an administrator.
     """
     stmt = select(Property).where(Property.id == property_id)
     result = await db.execute(stmt)
@@ -473,5 +514,18 @@ async def delete_property(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Property with ID {property_id} not found",
         )
+
+    if property_obj.user_id:
+        if property_obj.user_id != current_user.id and current_user.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to delete this property listing",
+            )
+    else:
+        if current_user.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only administrators can delete unassigned property listings",
+            )
 
     await db.delete(property_obj)

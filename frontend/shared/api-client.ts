@@ -149,22 +149,37 @@ export class RealEstateApiClient {
     return this.request<PropertyResponse[]>(endpoint);
   }
 
+  async getMyProperties(params?: {
+    skip?: number;
+    limit?: number;
+    status?: PropertyStatus;
+  }): Promise<PropertyResponse[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.skip !== undefined) searchParams.set("skip", String(params.skip));
+    if (params?.limit !== undefined) searchParams.set("limit", String(params.limit));
+    if (params?.status) searchParams.set("status", params.status);
+
+    const queryStr = searchParams.toString();
+    const endpoint = `/api/v1/properties/my${queryStr ? `?${queryStr}` : ""}`;
+    return this.request<PropertyResponse[]>(endpoint);
+  }
+
   async getProperty(id: string): Promise<PropertyResponse> {
-    return this.request<PropertyResponse>(`/api/v1/properties/${id}`);
+    return this.request<PropertyResponse>(`/api/v1/properties/${encodeURIComponent(id)}`);
   }
 
   async updateProperty(
     id: string,
     data: PropertyUpdate
   ): Promise<PropertyResponse> {
-    return this.request<PropertyResponse>(`/api/v1/properties/${id}`, {
+    return this.request<PropertyResponse>(`/api/v1/properties/${encodeURIComponent(id)}`, {
       method: "PUT",
       body: JSON.stringify(data),
     });
   }
 
   async deleteProperty(id: string): Promise<void> {
-    return this.request<void>(`/api/v1/properties/${id}`, {
+    return this.request<void>(`/api/v1/properties/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
   }

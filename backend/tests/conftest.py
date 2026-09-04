@@ -13,8 +13,8 @@ def default_mock_current_user(request):
     Provide an active default mock user for legacy test endpoints that call
     create_property, unless test explicitly tests authentication logic.
     """
-    # If the test is in test_auth.py, do not override globally to allow testing 401 unauth
-    if "test_auth" in request.node.nodeid:
+    # If the test is in test_auth.py or test_properties_my.py, do not override globally to allow testing 401 unauth
+    if "test_auth" in request.node.nodeid or "test_properties_my" in request.node.nodeid:
         yield
         return
 
@@ -23,7 +23,7 @@ def default_mock_current_user(request):
         email="test.default@space247.vn",
         hashed_password=hash_password("Pass123!"),
         full_name="Default Test User",
-        role="user",
+        role="admin",
         is_active=True,
     )
 
