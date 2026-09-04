@@ -113,6 +113,9 @@ class SemanticSearchQuery(BaseModel):
 class SearchResultItem(BaseModel):
     property: PropertyResponse
     similarity_score: float = Field(..., ge=-1.0, le=1.0, description="Cosine similarity score (0 to 1)")
+    rrf_score: float | None = Field(default=None, description="Reciprocal Rank Fusion hybrid score")
+    vector_rank: int | None = Field(default=None, description="Rank in vector search results (1-indexed)")
+    fts_rank: int | None = Field(default=None, description="Rank in full-text search results (1-indexed)")
 
 
 class SemanticSearchResponse(BaseModel):
@@ -162,6 +165,17 @@ class PropertySearchQuery(BaseModel):
     threshold: float | None = Field(
         default=None, ge=0.0, le=1.0, description="Minimum cosine similarity threshold"
     )
+    enable_hybrid: bool = Field(
+        default=True,
+        description="Whether to run hybrid search (Reciprocal Rank Fusion of Vector + FTS)",
+    )
+    rrf_k: int = Field(
+        default=60,
+        ge=1,
+        le=1000,
+        description="Reciprocal Rank Fusion smoothing constant k (default 60)",
+    )
+
 
     @model_validator(mode="after")
     def validate_ranges(self) -> "PropertySearchQuery":

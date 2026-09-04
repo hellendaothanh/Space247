@@ -1,6 +1,8 @@
+import logging
+import re
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
@@ -19,7 +21,20 @@ from src.schemas.property import (
 )
 from src.services.embedding import EmbeddingService, get_embedding_service
 
+logger = logging.getLogger("space247_backend.properties")
 router = APIRouter()
+
+
+def _sanitize_tsquery(query_text: str) -> str:
+    """
+    Sanitize natural language string into a PostgreSQL tsquery matching format.
+    Splits into alphanumeric/accented tokens and joins with '|' (OR) for broad matching,
+    or returns empty string if no valid tokens.
+    """
+    clean_tokens = [w for w in re.split(r"[\s,.;:!?()\'\"\\/+\-_]+", query_text) if len(w) >= 2]
+    if not clean_tokens:
+        return ""
+    return " | ".join(clean_tokens)
 
 
 @router.post(
@@ -98,6 +113,8 @@ async def search_properties(
     Search property listings using natural language query.
     Converts query text into 768-dimensional embedding and matches via pgvector cosine distance (<=>),
     combined with filters for listing type (bán/cho thuê), price range, bedrooms, and location.
+    When enable_hybrid=True, executes both vector search and Full-Text Search (FTS), fusing
+    rankings using Reciprocal Rank Fusion (RRF) with smoothing constant k (default 60).
     """
     # Generate 768-dimensional embedding from the natural language query
     try:
@@ -114,63 +131,163 @@ async def search_properties(
             ),
         )
 
-    # Calculate cosine distance via pgvector <=> operator expression
-    cosine_dist = Property.embedding.cosine_distance(query_vector)
+    # Common filter builder for structured metadata
+    def apply_filters(base_stmt):
+        stmt = base_stmt
+        if search_in.listing_type:
+            stmt = stmt.where(Property.listing_type == search_in.listing_type.value)
+        if search_in.property_type:
+            stmt = stmt.where(Property.property_type == search_in.property_type.value)
+        if search_in.address:
+            stmt = stmt.where(Property.address.ilike(f"%{search_in.address.strip()}%"))
+        if search_in.city:
+            stmt = stmt.where(Property.city.ilike(f"%{search_in.city.strip()}%"))
+        if search_in.district:
+            stmt = stmt.where(Property.district.ilike(f"%{search_in.district.strip()}%"))
+        if search_in.num_bedrooms is not None:
+            stmt = stmt.where(Property.num_bedrooms == search_in.num_bedrooms)
+        elif search_in.min_bedrooms is not None:
+            stmt = stmt.where(Property.num_bedrooms >= search_in.min_bedrooms)
+        if search_in.min_price is not None:
+            stmt = stmt.where(Property.price >= search_in.min_price)
+        if search_in.max_price is not None:
+            stmt = stmt.where(Property.price <= search_in.max_price)
+        if search_in.min_area_sqm is not None:
+            stmt = stmt.where(Property.area_sqm >= search_in.min_area_sqm)
+        if search_in.max_area_sqm is not None:
+            stmt = stmt.where(Property.area_sqm <= search_in.max_area_sqm)
+        return stmt
 
-    # Base query: only active properties with non-null embedding
-    stmt = (
+    # 1. Vector Search Query
+    cosine_dist = Property.embedding.cosine_distance(query_vector)
+    vector_stmt = (
         select(Property, cosine_dist.label("distance"))
         .where(Property.status == PropertyStatus.ACTIVE.value)
         .where(Property.embedding.is_not(None))
     )
+    vector_stmt = apply_filters(vector_stmt)
+    candidate_limit = max(search_in.limit * 3, 50) if search_in.enable_hybrid else search_in.limit
+    vector_stmt = vector_stmt.order_by(cosine_dist.asc()).limit(candidate_limit)
 
-    # Multi-criteria filtering
-    if search_in.listing_type:
-        stmt = stmt.where(Property.listing_type == search_in.listing_type.value)
-    if search_in.property_type:
-        stmt = stmt.where(Property.property_type == search_in.property_type.value)
-    if search_in.address:
-        stmt = stmt.where(Property.address.ilike(f"%{search_in.address.strip()}%"))
-    if search_in.city:
-        stmt = stmt.where(Property.city.ilike(f"%{search_in.city.strip()}%"))
-    if search_in.district:
-        stmt = stmt.where(Property.district.ilike(f"%{search_in.district.strip()}%"))
-    if search_in.num_bedrooms is not None:
-        stmt = stmt.where(Property.num_bedrooms == search_in.num_bedrooms)
-    elif search_in.min_bedrooms is not None:
-        stmt = stmt.where(Property.num_bedrooms >= search_in.min_bedrooms)
-    if search_in.min_price is not None:
-        stmt = stmt.where(Property.price >= search_in.min_price)
-    if search_in.max_price is not None:
-        stmt = stmt.where(Property.price <= search_in.max_price)
-    if search_in.min_area_sqm is not None:
-        stmt = stmt.where(Property.area_sqm >= search_in.min_area_sqm)
-    if search_in.max_area_sqm is not None:
-        stmt = stmt.where(Property.area_sqm <= search_in.max_area_sqm)
+    vector_res = await db.execute(vector_stmt)
+    vector_rows = vector_res.all()
 
-    # Rank by cosine distance ascending (closest match first)
-    stmt = stmt.order_by(cosine_dist.asc()).limit(search_in.limit)
-
-    result = await db.execute(stmt)
-    rows = result.all()
-
-    search_results: list[SearchResultItem] = []
-    for prop_record, dist in rows:
+    # Map candidate properties: id -> (Property, similarity, vector_rank)
+    vector_map: dict[uuid.UUID, tuple[Property, float, int]] = {}
+    for idx, (prop_rec, dist) in enumerate(vector_rows, start=1):
         dist_float = float(dist) if dist is not None else 1.0
         similarity = round(1.0 - dist_float, 4)
-
         if search_in.threshold is not None and similarity < search_in.threshold:
             continue
+        vector_map[prop_rec.id] = (prop_rec, similarity, idx)
 
+    # If hybrid search is disabled or not enough candidates, return vector results directly
+    if not search_in.enable_hybrid:
+        search_results: list[SearchResultItem] = []
+        for prop_rec, sim, rank in list(vector_map.values())[: search_in.limit]:
+            search_results.append(
+                SearchResultItem(
+                    property=PropertyResponse.model_validate(prop_rec),
+                    similarity_score=sim,
+                    rrf_score=None,
+                    vector_rank=rank,
+                    fts_rank=None,
+                )
+            )
+        return PropertySearchResponse(
+            total=len(vector_map),
+            vector_dim=settings.VECTOR_DIM,
+            query=search_in.query,
+            results=search_results,
+        )
+
+    # 2. Full-Text Search (FTS) Query using PostgreSQL to_tsvector & to_tsquery
+    # Concatenate title, address, ward, district, city, description
+    search_tsquery_str = _sanitize_tsquery(search_in.query)
+    fts_map: dict[uuid.UUID, tuple[Property, float, int]] = {}
+
+    if search_tsquery_str:
+        ts_vector_expr = func.to_tsvector(
+            "simple",
+            func.coalesce(Property.title, "")
+            + " "
+            + func.coalesce(Property.address, "")
+            + " "
+            + func.coalesce(Property.ward, "")
+            + " "
+            + func.coalesce(Property.district, "")
+            + " "
+            + func.coalesce(Property.city, "")
+            + " "
+            + func.coalesce(Property.description, ""),
+        )
+        ts_query_expr = func.to_tsquery("simple", search_tsquery_str)
+        fts_rank_expr = func.ts_rank_cd(ts_vector_expr, ts_query_expr)
+
+        fts_stmt = (
+            select(Property, fts_rank_expr.label("fts_rank_score"))
+            .where(Property.status == PropertyStatus.ACTIVE.value)
+            .where(ts_vector_expr.op("@@")(ts_query_expr))
+        )
+        fts_stmt = apply_filters(fts_stmt)
+        fts_stmt = fts_stmt.order_by(fts_rank_expr.desc()).limit(candidate_limit)
+
+        try:
+            fts_res = await db.execute(fts_stmt)
+            fts_rows = fts_res.all()
+            for idx, (prop_rec, fts_score) in enumerate(fts_rows, start=1):
+                fts_map[prop_rec.id] = (prop_rec, float(fts_score or 0.0), idx)
+        except Exception as fts_exc:
+            # Log diagnostic info when FTS cannot execute (e.g. SQLite test runs without to_tsvector)
+            logger.debug("FTS search execution skipped or failed: %s", fts_exc)
+            fts_map = {}
+
+    # 3. Reciprocal Rank Fusion (RRF)
+    # RRF Score(d) = sum_{m in {vector, fts}} 1 / (k + rank_m(d))
+    k = search_in.rrf_k
+    all_prop_ids = sorted(list(set(vector_map.keys()).union(fts_map.keys())), key=lambda uid: str(uid))
+    fused_items: list[tuple[float, Property, float, int | None, int | None]] = []
+
+    for pid in all_prop_ids:
+        prop_obj: Property | None = None
+        sim_score: float = 0.0
+        v_rank: int | None = None
+        f_rank: int | None = None
+        rrf_score: float = 0.0
+
+        if pid in vector_map:
+            prop_obj, sim_score, v_rank = vector_map[pid]
+            rrf_score += 1.0 / (k + v_rank)
+
+        if pid in fts_map:
+            p_fts, _, f_rank = fts_map[pid]
+            if prop_obj is None:
+                prop_obj = p_fts
+            rrf_score += 1.0 / (k + f_rank)
+
+        if prop_obj is not None:
+            # If threshold is specified, only return items meeting the minimum similarity score
+            if search_in.threshold is not None and sim_score < search_in.threshold:
+                continue
+            fused_items.append((rrf_score, prop_obj, sim_score, v_rank, f_rank))
+
+    # Sort descending by RRF score, with deterministic tie-break on similarity_score and property ID
+    fused_items.sort(key=lambda x: (x[0], x[2], str(x[1].id)), reverse=True)
+
+    search_results: list[SearchResultItem] = []
+    for rrf_val, prop_rec, sim, v_rk, f_rk in fused_items[: search_in.limit]:
         search_results.append(
             SearchResultItem(
-                property=PropertyResponse.model_validate(prop_record),
-                similarity_score=similarity,
+                property=PropertyResponse.model_validate(prop_rec),
+                similarity_score=sim,
+                rrf_score=round(rrf_val, 6),
+                vector_rank=v_rk,
+                fts_rank=f_rk,
             )
         )
 
     return PropertySearchResponse(
-        total=len(search_results),
+        total=len(fused_items),
         vector_dim=settings.VECTOR_DIM,
         query=search_in.query,
         results=search_results,

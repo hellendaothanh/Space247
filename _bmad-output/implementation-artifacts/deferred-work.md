@@ -25,3 +25,11 @@
 - source_spec: `C:\Devsecops\Space247/_bmad-output/implementation-artifacts/spec-space247-core-vector-search-api.md`
   summary: Defer loading large embedding vector column on property listing endpoints (GET /properties).
   evidence: Fetching 768-float vectors for list views increases memory usage and payload size unnecessarily.
+
+- source_spec: `C:\Devsecops\Space247/_bmad-output/implementation-artifacts/spec-space247-hybrid-search-hnsw.md`
+  summary: Add ward and num_bathrooms filters to PropertySearchQuery and SemanticSearchQuery schemas.
+  evidence: Property model stores ward and num_bathrooms but search schemas and filter builders currently omit them.
+
+- source_spec: `C:\Devsecops\Space247/_bmad-output/implementation-artifacts/spec-space247-hybrid-search-hnsw.md`
+  summary: Migrate tsquery parsing from manual regex splitting to PostgreSQL websearch_to_tsquery or plainto_tsquery.
+  evidence: PostgreSQL native websearch_to_tsquery safely parses user boolean queries, quotes, and punctuation without custom regex.

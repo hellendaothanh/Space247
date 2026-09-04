@@ -4,11 +4,13 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     DateTime,
     Float,
+    Index,
     Integer,
     Numeric,
     String,
     Text,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -19,6 +21,22 @@ from src.core.database import Base
 
 class Property(Base):
     __tablename__ = "properties"
+    __table_args__ = (
+        Index(
+            "ix_properties_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_with={"m": 16, "ef_construction": 64},
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+        Index(
+            "ix_properties_fts",
+            text(
+                "to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(address, '') || ' ' || coalesce(ward, '') || ' ' || coalesce(district, '') || ' ' || coalesce(city, '') || ' ' || coalesce(description, ''))"
+            ),
+            postgresql_using="gin",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

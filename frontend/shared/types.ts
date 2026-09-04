@@ -85,11 +85,22 @@ export interface PropertySearchQuery {
   max_area_sqm?: number;
   limit?: number;
   threshold?: number;
+  /** Whether to execute hybrid search combining Vector Cosine Distance & Full-Text Search via RRF. Default: true */
+  enable_hybrid?: boolean;
+  /** Reciprocal Rank Fusion (RRF) smoothing constant k (default: 60). */
+  rrf_k?: number;
 }
 
 export interface SearchResultItem {
   property: PropertyResponse;
+  /** Cosine similarity score (1 - distance) between query vector and listing embedding. */
   similarity_score: number;
+  /** Fused reciprocal rank score (1/(k + rank_v) + 1/(k + rank_f)). Present when hybrid search is active. */
+  rrf_score?: number | null;
+  /** 1-indexed rank position in dense vector similarity search candidates. */
+  vector_rank?: number | null;
+  /** 1-indexed rank position in full-text keyword search candidates. */
+  fts_rank?: number | null;
 }
 
 export interface SemanticSearchResponse {
