@@ -220,38 +220,86 @@ class PropertyDetailScreen extends ConsumerWidget {
           );
         },
       ),
-      bottomSheet: propertyAsync.hasValue
-          ? Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    offset: const Offset(0, -4),
-                    blurRadius: 12,
+      bottomNavigationBar: propertyAsync.maybeWhen(
+        data: (property) => Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                offset: const Offset(0, -3),
+                blurRadius: 10,
+              ),
+            ],
+          ),
+          child: SafeArea(
+            top: false,
+            bottom: true,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  // Cột giá tiền bên trái
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Giá niêm yết',
+                          style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          Formatters.formatPrice(property.price, currency: property.currency),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Nút Liên Hệ Ngay bên phải
+                  Expanded(
+                    flex: 3,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Đang kết nối tới người đăng tin: ${property.title}'),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.phone_in_talk, size: 20),
+                      label: const Text(
+                        'Liên hệ ngay',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2,
+                      ),
+                    ),
                   ),
                 ],
               ),
-              child: SafeArea(
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Chức năng liên hệ người đăng tin đang kết nối...')),
-                          );
-                        },
-                        icon: const Icon(Icons.phone),
-                        label: const Text('Liên hệ ngay'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          : null,
+            ),
+          ),
+        ),
+        orElse: () => null,
+      ),
     );
   }
 

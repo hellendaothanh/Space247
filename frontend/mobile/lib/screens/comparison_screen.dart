@@ -33,7 +33,7 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
 
     try {
       final response = await dio.post(
-        '/api/v1/properties/compare',
+        '/properties/compare',
         data: {'property_ids': propertyIds},
       );
 

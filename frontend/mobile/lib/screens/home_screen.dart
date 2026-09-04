@@ -50,6 +50,11 @@ class HomeScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.settings_outlined, color: AppTheme.textSecondary),
+            tooltip: 'Cài đặt kết nối Server',
+            onPressed: () => _showServerSettingsDialog(context, ref),
+          ),
+          IconButton(
             icon: const Icon(Icons.favorite_outline, color: Colors.redAccent),
             tooltip: 'Tin đã lưu',
             onPressed: () {
@@ -164,7 +169,10 @@ class HomeScreen extends ConsumerWidget {
                     itemCount: response.results.length,
                     itemBuilder: (context, index) {
                       final item = response.results[index];
-                      return PropertyCard(item: item);
+                      return PropertyCard(
+                        key: ValueKey(item.property.id),
+                        item: item,
+                      );
                     },
                   );
                 },
@@ -218,66 +226,138 @@ class HomeScreen extends ConsumerWidget {
           ),
         ],
       ),
-      bottomNavigationBar: Consumer(
-        builder: (context, ref, child) {
-          final selectedProperties = ref.watch(comparisonProvider);
-          if (selectedProperties.isEmpty) return const SizedBox.shrink();
-
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: SafeArea(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Đã chọn ${selectedProperties.length}/3',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      GestureDetector(
-                        onTap: () => ref.read(comparisonProvider.notifier).clearComparison(),
-                        child: const Text(
-                          'Xóa tất cả',
-                          style: TextStyle(color: Colors.redAccent, fontSize: 12),
-                        ),
+      bottomNavigationBar: ref.watch(comparisonProvider).isEmpty
+          ? null
+          : Consumer(
+              builder: (context, ref, child) {
+                final selectedProperties = ref.watch(comparisonProvider);
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, -2),
                       ),
                     ],
                   ),
-                  ElevatedButton(
-                    onPressed: selectedProperties.length >= 2
-                        ? () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (ctx) => const ComparisonScreen(),
+                  child: SafeArea(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Đã chọn ${selectedProperties.length}/3',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            GestureDetector(
+                              onTap: () => ref.read(comparisonProvider.notifier).clearComparison(),
+                              child: const Text(
+                                'Xóa tất cả',
+                                style: TextStyle(color: Colors.redAccent, fontSize: 12),
                               ),
-                            );
-                          }
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
+                            ),
+                          ],
+                        ),
+                        ElevatedButton(
+                          onPressed: selectedProperties.length >= 2
+                              ? () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (ctx) => const ComparisonScreen(),
+                                    ),
+                                  );
+                                }
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('So sánh ngay'),
+                        ),
+                      ],
                     ),
-                    child: const Text('So sánh ngay'),
                   ),
-                ],
-              ),
+                );
+              },
             ),
-          );
-        },
+    );
+  }
+
+  void _showServerSettingsDialog(BuildContext context, WidgetRef ref) {
+    final currentUrl = ref.read(apiClientProvider).dio.options.baseUrl;
+    final controller = TextEditingController(text: currentUrl);
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.dns_outlined, color: AppTheme.primaryColor),
+            SizedBox(width: 8),
+            Text('Cài đặt API Server', style: TextStyle(fontSize: 18)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Nhập địa chỉ máy chủ Backend (API Base URL):',
+              style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'http://192.168.x.x:8080/api/v1',
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              children: [
+                ActionChip(
+                  label: const Text('localhost:8080', style: TextStyle(fontSize: 11)),
+                  onPressed: () => controller.text = 'http://localhost:8080/api/v1',
+                ),
+                ActionChip(
+                  label: const Text('10.0.2.2:8080', style: TextStyle(fontSize: 11)),
+                  onPressed: () => controller.text = 'http://10.0.2.2:8080/api/v1',
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final newUrl = controller.text.trim();
+              if (newUrl.isNotEmpty) {
+                ref.read(apiClientProvider).updateBaseUrl(newUrl);
+                ref.invalidate(searchResultsProvider);
+                Navigator.pop(dialogCtx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Đã cập nhật Server: $newUrl')),
+                );
+              }
+            },
+            child: const Text('Lưu & Kết nối lại'),
+          ),
+        ],
       ),
     );
   }

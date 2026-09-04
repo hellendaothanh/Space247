@@ -40,4 +40,8 @@ class ApiClient {
       ),
     );
   }
+
+  void updateBaseUrl(String newUrl) {
+    dio.options.baseUrl = newUrl;
+  }
 }
