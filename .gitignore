@@ -1,0 +1,159 @@
+# ==============================================================================
+# Environment & Secrets (CRITICAL: Do not commit sensitive keys or credentials)
+# ==============================================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+
+# ==============================================================================
+# Python & Backend
+# ==============================================================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+*.pyd
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Testing, Coverage & Quality Tools
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.ruff_cache/
+.mypy_cache/
+
+# Distribution / Packaging
+build/
+dist/
+*.egg-info/
+*.egg
+eggs/
+.eggs/
+
+# ==============================================================================
+# AI / ML Embedding Models & Cache
+# ==============================================================================
+.cache/
+hf_cache/
+fastembed_cache/
+models_cache/
+*.onnx_data
+*.bin
+*.pt
+*.safetensors
+
+# ==============================================================================
+# Node.js & Frontend (Web & Mobile)
+# ==============================================================================
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+.next/
+out/
+frontend/web/.next/
+frontend/web/out/
+
+# Mobile (React Native / Expo / Flutter)
+.expo/
+.expo-shared/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Android build outputs & IDE
+.gradle/
+**/android/app/build/
+**/android/.gradle/
+**/android/local.properties
+*.apk
+*.aab
+
+# iOS build outputs & Pods
+**/ios/Pods/
+**/ios/build/
+*.ipa
+
+# Package managers & logs
+.npm
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ==============================================================================
+# Database & Local Data Storage
+# ==============================================================================
+pgdata/
+postgres_data/
+data/
+*.sqlite
+*.sqlite3
+*.db
+
+# ==============================================================================
+# BMad Runtime Cache
+# ==============================================================================
+_bmad/render/*
+!_bmad/render/.gitignore
+_bmad/config.user.toml
+
+# ==============================================================================
+# General Logs & Temp
+# ==============================================================================
+logs/
+*.log
+tmp/
+temp/
+
+# ==============================================================================
+# Operating System & IDE Files
+# ==============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+desktop.ini
+
+# Editors
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# VS Code (preserve extensions & shared settings, ignore user-specific state)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
