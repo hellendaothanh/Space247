@@ -25,16 +25,17 @@ command -v uv >/dev/null 2>&1 || { echo "uv is required. Install: https://docs.a
 command -v npm >/dev/null 2>&1 || { echo "Node.js / npm is required for Next.js frontend." >&2; exit 1; }
 echo -e "\033[32mPrerequisites check passed (Docker, uv, Node.js).\033[0m"
 
-# 2. Start PostgreSQL container with pgvector
-echo -e "\n\033[33m[2/5] Starting PostgreSQL with pgvector container...\033[0m"
+# 2. Start PostgreSQL container with pgvector and Redis
+echo -e "\n\033[33m[2/5] Starting PostgreSQL (pgvector) and Redis containers...\033[0m"
 cd "${PROJECT_ROOT}"
-docker compose up -d postgres
+docker compose up -d postgres redis
 
-# 3. Wait for PostgreSQL readiness
-echo -e "\n\033[33m[3/5] Waiting for PostgreSQL to be ready...\033[0m"
+# 3. Wait for PostgreSQL and Redis readiness
+echo -e "\n\033[33m[3/5] Waiting for PostgreSQL and Redis to be ready...\033[0m"
 for i in {1..30}; do
-    STATUS=$(docker inspect --format="{{.State.Health.Status}}" real_estate_postgres 2>/dev/null || echo "unhealthy")
-    if [ "$STATUS" = "healthy" ]; then
+    PG_STATUS=$(docker inspect --format="{{.State.Health.Status}}" real_estate_postgres 2>/dev/null || echo "unhealthy")
+    REDIS_STATUS=$(docker inspect --format="{{.State.Health.Status}}" real_estate_redis 2>/dev/null || echo "unhealthy")
+    if [ "$PG_STATUS" = "healthy" ] && [ "$REDIS_STATUS" = "healthy" ]; then
         break
     fi
     sleep 1
@@ -45,7 +46,7 @@ docker exec real_estate_postgres pg_isready -U postgres -d real_estate_db >/dev/
     echo "PostgreSQL database failed to start." >&2
     exit 1
 }
-echo -e "\n\033[32mPostgreSQL database is ready!\033[0m"
+echo -e "\n\033[32mPostgreSQL and Redis services are ready!\033[0m"
 
 # 4. Run Alembic Database Migrations
 echo -e "\n\033[33m[4/5] Running Alembic migrations to head...\033[0m"

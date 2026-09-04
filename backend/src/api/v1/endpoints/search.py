@@ -2,6 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.cache import (
+    generate_search_cache_key,
+    get_cached_json,
+    set_cached_json,
+)
 from src.core.config import settings
 from src.core.database import get_db_session
 from src.models.property import Property
@@ -31,6 +36,15 @@ async def semantic_search(
     Validates that query vector matches configured embedding dimension (768).
     Supports multi-criteria filtering for sale/rent listings, location, and price ranges.
     """
+    # Check Redis cache for identical semantic search query
+    cache_key = generate_search_cache_key(query.model_dump())
+    cached_data = await get_cached_json(cache_key)
+    if cached_data is not None:
+        try:
+            return SemanticSearchResponse.model_validate(cached_data)
+        except Exception:
+            pass
+
     # Explicit dimension mismatch check before database query execution
     if len(query.query_vector) != settings.VECTOR_DIM:
         raise HTTPException(
@@ -97,8 +111,10 @@ async def semantic_search(
             )
         )
 
-    return SemanticSearchResponse(
+    response = SemanticSearchResponse(
         total=len(search_results),
         vector_dim=settings.VECTOR_DIM,
         results=search_results,
     )
+    await set_cached_json(cache_key, response.model_dump())
+    return response

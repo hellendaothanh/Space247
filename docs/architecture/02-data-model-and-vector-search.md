@@ -98,3 +98,34 @@ The platform architecture supports a **Hybrid Search Pipeline**:
 $$\text{RRF Score}(d) = \sum_{m \in \{\text{FTS}, \text{Vector}\}} \frac{1}{k + \text{rank}_m(d)}$$
 
 Where $k \approx 60$ is a smoothing constant preventing low-ranked outliers from dominating.
+
+## 5. Redis Caching & Invalidation Layer
+
+To prevent redundant embedding generation and expensive pgvector HNSW traversals on identical or high-frequency queries, an asynchronous Redis caching layer intercepts read requests:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as Web / Mobile Client
+    participant API as FastAPI Backend
+    participant Redis as Redis 7 In-Memory Cache
+    participant DB as PostgreSQL 16 + pgvector
+
+    Client->>API: POST /api/v1/properties/search (Query & Filters)
+    Note over API: Compute deterministic SHA-256 hash<br/>cache_key = "cache:search:<hash>"
+    API->>Redis: GET cache:search:<hash>
+    alt Cache Hit
+        Redis-->>API: Return cached JSON payload
+        API-->>Client: HTTP 200 JSON (sub-millisecond response)
+    else Cache Miss
+        API->>DB: Execute Vector + FTS Hybrid Search via pgvector HNSW
+        DB-->>API: Search results
+        API->>Redis: SETEX cache:search:<hash> (TTL: 900s)
+        API-->>Client: HTTP 200 JSON
+    end
+```
+
+### Invalidation Strategy
+- **`cache:search:*`**: When any property is created (`POST`), modified (`PUT`), or deleted (`DELETE`), all search query caches are scanned and invalidated via pattern deletion to ensure real-time consistency.
+- **`cache:property:{id}`**: Single-property detail caches are invalidated immediately on update or deletion of that specific property ID.
+

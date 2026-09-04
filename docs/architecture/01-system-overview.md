@@ -26,12 +26,14 @@ graph TD
         PostgreSQL[("PostgreSQL 16 Engine")]
         PGVector[("pgvector Extension<br/>768-dim Embeddings<br/>HNSW Cosine Index")]
         FTS[("PostgreSQL Full-Text Search<br/>Vietnamese Unaccent & Lexemes")]
+        Redis[("Redis 7 Cache Cluster<br/>- Search Queries (cache:search:*)<br/>- Property Details (cache:property:*)<br/>- 15-min TTL & Invalidation")]
     end
 
     Web -->|HTTPS / REST| Nginx
     Mobile -->|HTTPS / REST| Nginx
     Nginx -->|Reverse Proxy| FastAPI
     FastAPI -->|Async Session via asyncpg| PostgreSQL
+    FastAPI -->|Async Cache via redis-py| Redis
     PostgreSQL --- PGVector
     PostgreSQL --- FTS
     FastAPI -.->|Vector Embeddings| EmbeddingWorker
@@ -42,6 +44,7 @@ graph TD
 | Component | Technology | Primary Responsibilities |
 |-----------|------------|--------------------------|
 | **Backend API** | FastAPI, Python >=3.11, Uvicorn | High-performance asynchronous REST endpoints, request validation, business logic, semantic search orchestration. |
+| **Cache Layer** | Redis 7, `redis-py` (asyncio) | High-speed in-memory response caching for semantic search queries and property details with proactive invalidation on mutations. |
 | **Vector Database** | PostgreSQL 16 + `pgvector` | Persistent relational property storage, transactional integrity, 768-dimensional vector embeddings, HNSW indexing. |
 | **Web Frontend** | Next.js 14+ (App Router), TypeScript | Server-Side Rendering (SSR) for search engine indexing, property discovery, interactive listings, broker portals. |
 | **Mobile Frontend** | React Native / Flutter | Native iOS and Android apps, geolocation search, push notifications, saved listing offline caching. |

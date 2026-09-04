@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from src.api.v1.router import api_router
+from src.core.cache import close_redis_pool, init_redis_pool
 from src.core.config import settings
 from src.core.database import Base, engine
 
@@ -20,6 +21,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     1. Boots up and verifies database connectivity.
     2. Initializes pgvector extension if not exists.
     3. Scaffolds tables if needed in development.
+    4. Connects to Redis cache pool.
     """
     logger.info("Initializing Space247 Real Estate API...")
     try:
@@ -38,12 +40,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             exc,
         )
 
+    # Initialize Redis connection pool
+    try:
+        await init_redis_pool()
+    except Exception as exc:
+        logger.warning("Redis initialization skipped or failed: %s", exc)
+
     yield
 
     # Teardown
     logger.info("Shutting down Space247 Real Estate API...")
-    await engine.dispose()
-    logger.info("Database connection closed.")
+    try:
+        await close_redis_pool()
+    except Exception as exc:
+        logger.warning("Error closing Redis pool: %s", exc)
+    finally:
+        await engine.dispose()
+        logger.info("Database and cache connections closed.")
 
 
 def create_app() -> FastAPI:

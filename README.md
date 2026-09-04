@@ -10,6 +10,7 @@ Space247 là nền tảng công nghệ bất động sản (PropTech) thế hệ
 graph TD
     ClientWeb["Frontend Web (Next.js 16 App Router)"] -->|HTTP / JSON + Bearer JWT| API["Backend API (FastAPI / Uvicorn)"]
     API -->|Async Session| DB[("PostgreSQL 16 + pgvector")]
+    API -->|Async Cache (15m TTL)| Redis[("Redis 7 Cache")]
     API -->|Embeddings| FastEmbed["Embedding Service (768-dim)"]
     DB -->|HNSW Vector Index| VectorSearch["Vector Cosine Search"]
     DB -->|GIN Index / simple dict| FTS["Vietnamese Full-Text Search"]
@@ -18,6 +19,7 @@ graph TD
 ```
 
 * **Backend**: Python 3.11+, FastAPI, SQLAlchemy 2.0 Async, Pydantic v2, Alembic, FastEmbed (`sentence-transformers/paraphrase-multilingual-mpnet-base-v2` / `multilingual-e5-base`, vector 768 chiều).
+* **Cache Layer**: Redis 7 với driver `redis-py` async: cache kết quả tìm kiếm ngữ nghĩa/hybrid (`cache:search:*`) và chi tiết bất động sản (`cache:property:*`) TTL 15 phút, tự động xóa/invalidate cache khi có thay đổi dữ liệu.
 * **Database**: PostgreSQL 16 tích hợp extension `pgvector`, chỉ mục HNSW (`m=16, ef_construction=64, vector_cosine_ops`) kết hợp Full-Text Search GIN index đa trường.
 * **Frontend Web**: Next.js 16.3.4 (App Router), React 19, TypeScript, Tailwind CSS v4, Lucide Icons, Leaflet / React-Leaflet tương tác bản đồ.
 * **Authentication**: JWT Bearer Token (HS256) chuẩn bảo mật với `bcrypt` hashing, phân quyền Role (`user`, `agent`, `admin`).
@@ -63,9 +65,9 @@ Sau khi khởi chạy:
 
 Nếu bạn muốn kiểm soát chi tiết từng dịch vụ, hãy làm theo các bước dưới đây:
 
-### Bước 1: Khởi động Cơ sở dữ liệu PostgreSQL + pgvector
+### Bước 1: Khởi động Cơ sở dữ liệu PostgreSQL + pgvector và Redis Cache
 ```bash
-docker compose up -d postgres
+docker compose up -d postgres redis
 ```
 Kiểm tra container đang chạy:
 ```bash
@@ -148,7 +150,7 @@ Tất cả các endpoint được tiền tố bởi `/api/v1`. Tài liệu tươ
 cd backend
 uv run pytest
 ```
-*Bao gồm 45 test cases bao phủ Alembic migrations, JWT Auth, Hybrid Search RRF, Semantic Search và Seeding logic.*
+*Bao gồm hơn 55 test cases bao phủ Alembic migrations, JWT Auth, Hybrid Search RRF, Semantic Search, Redis Caching và Seeding logic.*
 
 ### Kiểm thử Frontend Web (TypeScript & Build):
 ```bash
@@ -168,11 +170,11 @@ Space247/
 │   ├── scripts/              # Data seeding & utility scripts
 │   ├── src/
 │   │   ├── api/              # API router, endpoints (auth, properties, search) & dependencies
-│   │   ├── core/             # Configuration, Database engine, Security (JWT/bcrypt)
+│   │   ├── core/             # Configuration, Database engine, Cache (Redis), Security (JWT/bcrypt)
 │   │   ├── models/           # SQLAlchemy models (User, Property)
 │   │   ├── schemas/          # Pydantic v2 request/response schemas
 │   │   └── services/         # Embedding service (768-dim FastEmbed)
-│   └── tests/                # Automated pytest suite
+│   └── tests/                # Automated pytest suite (Alembic, Auth, Cache, Search, Seeding)
 ├── frontend/
 │   ├── shared/               # Shared TypeScript SDK, DTOs & API Client
 │   └── web/                  # Next.js 16.3.4 App Router Web Application

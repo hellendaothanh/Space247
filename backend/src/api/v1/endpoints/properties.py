@@ -6,6 +6,13 @@ from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import get_current_active_user, get_optional_current_user
+from src.core.cache import (
+    generate_property_cache_key,
+    generate_search_cache_key,
+    get_cached_json,
+    invalidate_property_caches,
+    set_cached_json,
+)
 from src.core.config import settings
 from src.core.database import get_db_session
 from src.models.property import Property
@@ -101,6 +108,10 @@ async def create_property(
         await db.refresh(property_obj)
     except Exception:
         pass
+
+    # Invalidate search result caches
+    await invalidate_property_caches(property_obj.id)
+
     return property_obj
 
 
@@ -122,6 +133,15 @@ async def search_properties(
     When enable_hybrid=True, executes both vector search and Full-Text Search (FTS), fusing
     rankings using Reciprocal Rank Fusion (RRF) with smoothing constant k (default 60).
     """
+    # Check Redis cache for identical search parameters
+    cache_key = generate_search_cache_key(search_in.model_dump())
+    cached_data = await get_cached_json(cache_key)
+    if cached_data is not None:
+        try:
+            return PropertySearchResponse.model_validate(cached_data)
+        except Exception:
+            pass
+
     # Generate 768-dimensional embedding from the natural language query
     try:
         query_vector = embedding_service.generate_embedding(search_in.query, is_query=True)
@@ -200,12 +220,14 @@ async def search_properties(
                     fts_rank=None,
                 )
             )
-        return PropertySearchResponse(
+        response = PropertySearchResponse(
             total=len(vector_map),
             vector_dim=settings.VECTOR_DIM,
             query=search_in.query,
             results=search_results,
         )
+        await set_cached_json(cache_key, response.model_dump(mode="json"))
+        return response
 
     # 2. Full-Text Search (FTS) Query using PostgreSQL to_tsvector & to_tsquery
     # Concatenate title, address, ward, district, city, description
@@ -292,12 +314,14 @@ async def search_properties(
             )
         )
 
-    return PropertySearchResponse(
+    response = PropertySearchResponse(
         total=len(fused_items),
         vector_dim=settings.VECTOR_DIM,
         query=search_in.query,
         results=search_results,
     )
+    await set_cached_json(cache_key, response.model_dump(mode="json"))
+    return response
 
 
 @router.get(
@@ -366,10 +390,19 @@ async def list_my_properties(
 async def get_property(
     property_id: uuid.UUID,
     db: AsyncSession = Depends(get_db_session),
-) -> Property:
+) -> Any:
     """
     Fetch a single property record by its UUID.
+    Checks Redis cache first, falling back to database query.
     """
+    cache_key = generate_property_cache_key(property_id)
+    cached_data = await get_cached_json(cache_key)
+    if cached_data is not None:
+        try:
+            return PropertyResponse.model_validate(cached_data)
+        except Exception:
+            pass
+
     stmt = select(Property).where(Property.id == property_id)
     result = await db.execute(stmt)
     property_obj = result.scalar_one_or_none()
@@ -378,6 +411,14 @@ async def get_property(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Property with ID {property_id} not found",
         )
+
+    # Cache single property response in Redis
+    try:
+        response_dto = PropertyResponse.model_validate(property_obj)
+        await set_cached_json(cache_key, response_dto.model_dump(mode="json"))
+    except Exception:
+        pass
+
     return property_obj
 
 
@@ -489,6 +530,10 @@ async def update_property(
         await db.refresh(property_obj)
     except Exception:
         pass
+
+    # Invalidate single property cache and search caches
+    await invalidate_property_caches(property_obj.id)
+
     return property_obj
 
 
@@ -529,3 +574,7 @@ async def delete_property(
             )
 
     await db.delete(property_obj)
+    await db.flush()
+
+    # Invalidate single property cache and search caches
+    await invalidate_property_caches(property_id)

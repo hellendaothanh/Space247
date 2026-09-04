@@ -32,24 +32,25 @@ if (-not (Get-Command "npm" -ErrorAction SilentlyContinue)) {
 }
 Write-Host "Prerequisites check passed (Docker, uv, Node.js)." -ForegroundColor Green
 
-# 2. Start PostgreSQL container with pgvector
-Write-Host "`n[2/5] Starting PostgreSQL with pgvector container..." -ForegroundColor Yellow
+# 2. Start PostgreSQL with pgvector and Redis containers
+Write-Host "`n[2/5] Starting PostgreSQL (pgvector) and Redis containers..." -ForegroundColor Yellow
 Push-Location $ProjectRoot
 try {
-    docker compose up -d postgres
+    docker compose up -d postgres redis
 } finally {
     Pop-Location
 }
 
-# 3. Wait for PostgreSQL healthcheck
-Write-Host "`n[3/5] Waiting for PostgreSQL to be ready..." -ForegroundColor Yellow
+# 3. Wait for PostgreSQL and Redis healthchecks
+Write-Host "`n[3/5] Waiting for database and cache services to be ready..." -ForegroundColor Yellow
 $maxRetries = 30
 $retryCount = 0
 $dbReady = $false
 
 while ($retryCount -lt $maxRetries) {
-    $status = docker inspect --format="{{.State.Health.Status}}" real_estate_postgres 2>$null
-    if ($status -eq "healthy") {
+    $pgStatus = docker inspect --format="{{.State.Health.Status}}" real_estate_postgres 2>$null
+    $redisStatus = docker inspect --format="{{.State.Health.Status}}" real_estate_redis 2>$null
+    if ($pgStatus -eq "healthy" -and $redisStatus -eq "healthy") {
         $dbReady = $true
         break
     }
@@ -59,14 +60,14 @@ while ($retryCount -lt $maxRetries) {
 }
 
 if (-not $dbReady) {
-    Write-Warning "`nContainer healthcheck timed out. Attempting pg_isready..."
-    $pgReady = docker exec real_estate_postgres pg_isready -U postgres -d real_estate_db 2>$null
+    Write-Warning "`nContainer healthcheck timed out. Checking services directly..."
+    docker exec real_estate_postgres pg_isready -U postgres -d real_estate_db 2>$null
     if ($LASTEXITCODE -ne 0) {
         Write-Error "PostgreSQL database failed to start."
         exit 1
     }
 }
-Write-Host "`nPostgreSQL database is ready!" -ForegroundColor Green
+Write-Host "`nPostgreSQL and Redis services are ready!" -ForegroundColor Green
 
 # 4. Run Alembic Database Migrations
 Write-Host "`n[4/5] Running Alembic migrations to head..." -ForegroundColor Yellow

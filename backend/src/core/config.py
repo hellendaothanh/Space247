@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/real_estate_db"
 
+    # Redis Cache
+    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_CACHE_ENABLED: bool = True
+    PROPERTY_CACHE_TTL_SECONDS: int = 900  # 15 minutes default
+
     # pgvector embedding dimension (default 768 for multilingual models like multilingual-e5-base)
     VECTOR_DIM: int = 768
     EMBEDDING_MODEL: str = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
