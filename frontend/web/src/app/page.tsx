@@ -5,7 +5,8 @@ import { SearchResultItem, PropertyResponse } from "@shared/types";
 import { apiClient } from "@/lib/api";
 import SearchSection, { FilterState } from "@/components/SearchSection";
 import PropertyCard from "@/components/PropertyCard";
-import { Sparkles, Building, AlertCircle, RefreshCw } from "lucide-react";
+import PropertyMap from "@/components/PropertyMap";
+import { Sparkles, Building, AlertCircle, RefreshCw, LayoutGrid, Map as MapIcon } from "lucide-react";
 
 export default function HomePage() {
   const [results, setResults] = useState<(SearchResultItem | PropertyResponse)[]>([]);
@@ -13,6 +14,8 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [totalCount, setTotalCount] = useState<number>(0);
+  const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
 
   // Initial load: Fetch latest properties via list endpoint
   const loadInitialProperties = useCallback(async () => {
@@ -109,16 +112,47 @@ export default function HomePage() {
             </p>
           </div>
 
-          {isSearchActive && (
-            <button
-              type="button"
-              onClick={loadInitialProperties}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-xs hover:bg-slate-50 transition"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Đặt lại tìm kiếm
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {/* View Mode Toggle: Grid vs Map */}
+            <div className="flex rounded-xl bg-slate-200/80 p-1 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setViewMode("grid")}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition ${
+                  viewMode === "grid"
+                    ? "bg-white text-blue-700 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span>Danh sách</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewMode("map")}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition ${
+                  viewMode === "map"
+                    ? "bg-white text-blue-700 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <MapIcon className="h-3.5 w-3.5" />
+                <span>Bản đồ</span>
+              </button>
+            </div>
+
+            {isSearchActive && (
+              <button
+                type="button"
+                onClick={loadInitialProperties}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-xs hover:bg-slate-50 transition"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                <span>Đặt lại</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Error Alert */}
@@ -177,14 +211,31 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Property Grid */}
+        {/* Property Grid or Map View */}
         {!isLoading && results.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {results.map((item, index) => {
-              const id = "property" in item ? item.property.id : item.id;
-              return <PropertyCard key={id} item={item} index={index} />;
-            })}
-          </div>
+          <>
+            {viewMode === "grid" ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {results.map((item, index) => {
+                  const id = "property" in item ? item.property.id : item.id;
+                  return <PropertyCard key={id} item={item} index={index} />;
+                })}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-xs text-slate-500 px-1">
+                  <span>
+                    Hiển thị các bài đăng có tọa độ địa lý trên bản đồ tương tác. Nhấp vào điểm ghim để xem nhanh thông tin.
+                  </span>
+                </div>
+                <PropertyMap
+                  items={results}
+                  selectedId={selectedPropertyId}
+                  onSelectProperty={(id) => setSelectedPropertyId(id)}
+                />
+              </div>
+            )}
+          </>
         )}
       </section>
     </div>
