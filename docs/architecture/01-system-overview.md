@@ -49,6 +49,8 @@ graph TD
 | **Web Frontend** | Next.js 14+ (App Router), TypeScript | Server-Side Rendering (SSR) for search engine indexing, property discovery, interactive listings, broker portals. |
 | **Mobile Frontend** | React Native / Flutter | Native iOS and Android apps, geolocation search, push notifications, saved listing offline caching. |
 | **Shared Contracts** | TypeScript (`frontend/shared/`) | Single source of truth for DTO schemas, API client methods, and validation rules across frontend targets. |
+| **AI Chat Assistant** | FastAPI, FastEmbed, pgvector Hybrid Search | Conversational discovery agent extracting criteria from Vietnamese inquiries, fusing vector & FTS results with RRF, and returning natural advice with property cards. |
+
 
 ## 4. Architecture Decision Records (ADRs)
 

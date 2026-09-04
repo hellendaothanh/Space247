@@ -1,6 +1,6 @@
 # Space247 - Nền Tảng Bất Động Sản Trí Tuệ Nhân Tạo (AI Real Estate Platform)
 
-Space247 là nền tảng công nghệ bất động sản (PropTech) thế hệ mới tích hợp **AI Semantic Search (Tìm kiếm ngữ nghĩa)** và **Hybrid Search (Vector Cosine + Full-Text Search RRF)**, mang đến trải nghiệm tìm kiếm và kết nối bất động sản thông minh, trực quan và tốc độ cao.
+Space247 là nền tảng công nghệ bất động sản (PropTech) thế hệ mới tích hợp **Trợ lý AI Chatbot Tư Vấn Bất Động Sản Trực Tuyến**, **AI Semantic Search (Tìm kiếm ngữ nghĩa)** và **Hybrid Search (Vector Cosine + Full-Text Search RRF)**, mang đến trải nghiệm tìm kiếm và kết nối bất động sản thông minh, trực quan và tốc độ cao.
 
 ---
 
@@ -8,8 +8,10 @@ Space247 là nền tảng công nghệ bất động sản (PropTech) thế hệ
 
 ```mermaid
 graph TD
-    ClientWeb["Frontend Web - Next.js 16"] -->|HTTP REST and Bearer JWT| API["Backend API - FastAPI / Uvicorn"]
+    ClientWeb["Frontend Web - Next.js 16<br/>(Bản đồ, Dashboard, Chat Widget)"] -->|HTTP REST and Bearer JWT| API["Backend API - FastAPI / Uvicorn"]
     ClientMobile["Frontend Mobile - Flutter"] -->|HTTP REST and Bearer JWT| API
+    API -->|Chat Assistant Engine| Assistant["AI Chat Assistant Service<br/>(Intent & Criteria Extraction)"]
+    Assistant -->|Hybrid Search Trigger| HybridEngine["Hybrid Search Engine"]
     API -->|Async Session| DB[("PostgreSQL 16 + pgvector")]
     API -->|Async Cache 15m TTL| Redis[("Redis 7 Cache")]
     API -->|Embeddings| FastEmbed["Embedding Service - 768 dim"]
@@ -17,14 +19,17 @@ graph TD
     DB -->|GIN Index simple dict| FTS["Vietnamese Full-Text Search"]
     VectorSearch -->|RRF Fusion| HybridResults["Hybrid Ranked Results"]
     FTS -->|RRF Fusion| HybridResults
+    HybridResults --> Assistant
 ```
 
-* **Backend**: Python 3.11+, FastAPI, SQLAlchemy 2.0 Async, Pydantic v2, Alembic, FastEmbed (`sentence-transformers/paraphrase-multilingual-mpnet-base-v2` / `multilingual-e5-base`, vector 768 chiều).
+* **Backend**: Python 3.11+, FastAPI, SQLAlchemy 2.0 Async, Pydantic v2, Alembic, FastEmbed (`sentence-transformers/paraphrase-multilingual-mpnet-base-v2`, vector 768 chiều).
+* **AI Chat Assistant**: Trợ lý tư vấn bđs thông minh trích xuất tiêu chí (giá, vị trí, tiện ích, loại hình), tự động truy vấn cơ sở dữ liệu qua Hybrid Search RRF và phản hồi tự nhiên kèm thẻ bài đăng trực tiếp.
 * **Cache Layer**: Redis 7 với driver `redis-py` async: cache kết quả tìm kiếm ngữ nghĩa/hybrid (`cache:search:*`) và chi tiết bất động sản (`cache:property:*`) TTL 15 phút, tự động xóa/invalidate cache khi có thay đổi dữ liệu.
 * **Database**: PostgreSQL 16 tích hợp extension `pgvector`, chỉ mục HNSW (`m=16, ef_construction=64, vector_cosine_ops`) kết hợp Full-Text Search GIN index đa trường.
-* **Frontend Web**: Next.js 16.3.4 (App Router), React 19, TypeScript, Tailwind CSS v4, Lucide Icons, Leaflet / React-Leaflet tương tác bản đồ.
+* **Frontend Web**: Next.js 16.3.4 (App Router), React 19, TypeScript, Tailwind CSS v4, Lucide Icons, Leaflet tương tác bản đồ và Floating Chat Widget hỗ trợ mở rộng toàn màn hình.
 * **Authentication**: JWT Bearer Token (HS256) chuẩn bảo mật với `bcrypt` hashing, phân quyền Role (`user`, `agent`, `admin`).
 * **Shared SDK**: Bộ DTOs và TypeScript API Client tại `frontend/shared/` dùng chung đa nền tảng (Web & Mobile).
+
 
 ---
 
@@ -143,6 +148,7 @@ Tất cả các endpoint được tiền tố bởi `/api/v1`. Tài liệu tươ
 | **POST** | `/api/v1/properties/{id}/favorite` | Có (Bearer) | Bật / tắt (Toggle) lưu bài đăng bất động sản vào danh sách yêu thích |
 | **POST** | `/api/v1/properties/search` | Không | **Hybrid Search**: Nhận câu hỏi tự nhiên tiếng Việt, kết hợp Vector Cosine + Full-Text Search qua RRF và lọc giá/diện tích/phòng ngủ |
 | **POST** | `/api/v1/search/semantic` | Không | Tìm kiếm thuần vector embedding 768 chiều |
+| **POST** | `/api/v1/chat/assistant` | Không | **Trợ lý AI Tư vấn**: Nhận lịch sử chat & câu hỏi tự nhiên, tự động trích xuất tiêu chí (giá, quận, loại hình, tiện ích), gọi Hybrid Search và trả về phản hồi tự nhiên kèm thẻ bài đăng |
 
 ---
 
@@ -153,7 +159,7 @@ Tất cả các endpoint được tiền tố bởi `/api/v1`. Tài liệu tươ
 cd backend
 uv run pytest
 ```
-*Bao gồm hơn 55 test cases bao phủ Alembic migrations, JWT Auth, Hybrid Search RRF, Semantic Search, Redis Caching và Seeding logic.*
+*Bao gồm toàn bộ **71 test cases** (100% PASS) bao phủ AI Chatbot Assistant, Alembic migrations, JWT Auth, Hybrid Search RRF, Semantic Search, Redis Caching và Seeding logic.*
 
 ### Kiểm thử Frontend Web (TypeScript & Build):
 ```bash
@@ -183,25 +189,29 @@ Space247/
 │   ├── migrations/           # Alembic asyncpg migration versions
 │   ├── scripts/              # Data seeding & utility scripts
 │   ├── src/
-│   │   ├── api/              # API router, endpoints (auth, properties, search) & dependencies
+│   │   ├── api/              # API router, endpoints (auth, properties, search, chat) & dependencies
 │   │   ├── core/             # Configuration, Database engine, Cache (Redis), Security (JWT/bcrypt)
 │   │   ├── models/           # SQLAlchemy models (User, Property)
-│   │   ├── schemas/          # Pydantic v2 request/response schemas
-│   │   └── services/         # Embedding service (768-dim FastEmbed)
-│   └── tests/                # Automated pytest suite (Alembic, Auth, Cache, Search, Seeding)
+│   │   ├── schemas/          # Pydantic v2 schemas (property, user, chat)
+│   │   └── services/         # Embedding (FastEmbed 768-dim) & AI Chat Assistant Service
+│   └── tests/                # Automated pytest suite (Chat Assistant, Alembic, Auth, Cache, Search, Seeding)
 ├── frontend/
 │   ├── shared/               # Shared TypeScript SDK, DTOs & API Client
 │   ├── web/                  # Next.js 16.3.4 App Router Web Application
+│   │   ├── src/components/   # ChatAssistantWidget (mở rộng/thu nhỏ, format đẹp), Navbar, PropertyMap...
+│   │   └── src/app/          # App router pages (Trang chủ, chi tiết, quản lý tin đăng, favorites)
 │   └── mobile/               # Flutter Mobile Client (iOS & Android, Riverpod, Dio)
 ├── scripts/                  # One-click startup & standalone seed scripts
 │   ├── start-dev.ps1         # Windows one-click starter
 │   ├── start-dev.sh          # Linux/macOS one-click starter
 │   ├── seed-data.ps1         # Windows standalone seeder
 │   └── seed-data.sh          # Linux/macOS standalone seeder
-├── docs/                     # Architecture & design specifications
-├── docker-compose.yml        # PostgreSQL 16 + pgvector container definition
+├── docs/                     # Architecture & design specifications (01-04)
+│   └── architecture/         # System overview, Data model, Frontend & AI Chat Assistant specs
+├── docker-compose.yml        # PostgreSQL 16 + pgvector & Redis container definition
 └── README.md                 # System overview and getting started guide
 ```
+
 
 ---
 
