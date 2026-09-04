@@ -43,13 +43,13 @@ export default function Navbar() {
             <Compass className="h-4 w-4 text-slate-500" />
             Bản đồ
           </button>
-          <button
-            type="button"
+          <Link
+            href="/properties/create"
             className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition"
           >
             <PlusCircle className="h-4 w-4" />
             Đăng tin
-          </button>
+          </Link>
         </div>
       </div>
     </header>
