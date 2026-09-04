@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useComparison } from "@/lib/comparison";
-import { RealEstateApiClient } from "@shared/api-client";
+import { apiClient } from "@/lib/api";
 import { ComparePropertiesResponse } from "@shared/types";
 import { formatPrice, formatPropertyType, getPlaceholderImage } from "@/lib/utils";
 import { X, Sparkles, MapPin, Bed, Bath, Maximize2, CheckCircle2 } from "lucide-react";
@@ -19,9 +19,6 @@ export default function ComparisonModal({ onClose }: { onClose: () => void }) {
       try {
         setLoading(true);
         setError("");
-        const apiClient = new RealEstateApiClient({
-          baseUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
-        });
         const res = await apiClient.compareProperties({
           property_ids: selectedProperties.map((p) => p.id),
         });

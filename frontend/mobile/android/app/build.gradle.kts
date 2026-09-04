@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "vn.space247.space247_mobile"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

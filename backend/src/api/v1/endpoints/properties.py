@@ -707,20 +707,22 @@ async def compare_properties(
     properties_data = []
     properties_dicts = []
     for prop in properties_db:
-        price_per_sqm = prop.price / prop.area_sqm if prop.area_sqm > 0 else 0
+        price_val = float(prop.price) if prop.price is not None else 0.0
+        area_val = float(prop.area_sqm) if prop.area_sqm is not None else 0.0
+        price_per_sqm = price_val / area_val if area_val > 0 else 0.0
         comp_data = ComparisonData(
             property_id=prop.id,
             title=prop.title,
-            price=prop.price,
-            area_sqm=prop.area_sqm,
+            price=price_val,
+            area_sqm=area_val,
             price_per_sqm=price_per_sqm,
         )
         properties_data.append(comp_data)
         
         properties_dicts.append({
             "title": prop.title,
-            "price": prop.price,
-            "area_sqm": prop.area_sqm,
+            "price": price_val,
+            "area_sqm": area_val,
             "price_per_sqm": price_per_sqm,
             "address": prop.address,
             "property_type": prop.property_type,

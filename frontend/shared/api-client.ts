@@ -39,7 +39,7 @@ export class RealEstateApiClient {
   private getAuthToken?: () => Promise<string | null> | string | null;
 
   constructor(config: ApiClientConfig) {
-    this.baseUrl = config.baseUrl.replace(/\/$/, "");
+    this.baseUrl = config.baseUrl.replace(/\/$/, "").replace(/\/api\/v1\/?$/, "");
     this.timeoutMs = config.timeoutMs ?? 15000;
     this.getAuthToken = config.getAuthToken;
   }
