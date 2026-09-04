@@ -5,6 +5,8 @@
 
 import {
   AuthTokenResponse,
+  ChatAssistantRequest,
+  ChatAssistantResponse,
   HealthResponse,
   ListingType,
   PropertyCreate,
@@ -21,6 +23,7 @@ import {
   UserRegisterRequest,
   UserResponse,
 } from "./types";
+
 
 export interface ApiClientConfig {
   baseUrl: string;
@@ -224,4 +227,15 @@ export class RealEstateApiClient {
       body: JSON.stringify(query),
     });
   }
+
+  // AI Chatbot Assistant
+  async chatAssistant(
+    request: ChatAssistantRequest
+  ): Promise<ChatAssistantResponse> {
+    return this.request<ChatAssistantResponse>("/api/v1/chat/assistant", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  }
 }
+

@@ -10,6 +10,12 @@ from src.schemas.property import (
     SemanticSearchQuery,
     SemanticSearchResponse,
 )
+from src.schemas.chat import (
+    ChatMessage,
+    ChatAssistantRequest,
+    ChatAssistantResponse,
+    ExtractedCriteria,
+)
 
 __all__ = [
     "ListingType",
@@ -22,4 +28,9 @@ __all__ = [
     "SearchResultItem",
     "SemanticSearchQuery",
     "SemanticSearchResponse",
+    "ChatMessage",
+    "ChatAssistantRequest",
+    "ChatAssistantResponse",
+    "ExtractedCriteria",
 ]
+

@@ -61,3 +61,21 @@ export function getPlaceholderImage(propertyType: string, index: number = 0): st
   const list = images[propertyType] || images.apartment;
   return list[index % list.length];
 }
+
+export function sanitizeUrl(url?: string | null): string {
+  if (!url) return "";
+  const trimmed = url.trim();
+  if (trimmed.startsWith("/") || trimmed.startsWith("#")) {
+    return trimmed;
+  }
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return trimmed;
+    }
+  } catch {
+    return "";
+  }
+  return "";
+}
+

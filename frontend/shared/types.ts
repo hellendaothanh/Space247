@@ -166,3 +166,39 @@ export interface ToggleFavoriteResponse {
   is_favorite: boolean;
   message: string;
 }
+
+// ---------------------------------------------------------------------------
+// Chat Assistant Types
+// ---------------------------------------------------------------------------
+
+export type ChatRole = "user" | "assistant" | "system";
+
+export interface ChatMessage {
+  role: ChatRole | string;
+  content: string;
+}
+
+export interface ExtractedCriteria {
+  listing_type?: ListingType | null;
+  property_type?: PropertyType | null;
+  city?: string | null;
+  district?: string | null;
+  min_price?: number | null;
+  max_price?: number | null;
+  min_bedrooms?: number | null;
+  amenities?: string[];
+  raw_query?: string;
+}
+
+export interface ChatAssistantRequest {
+  messages: ChatMessage[];
+  limit?: number;
+}
+
+export interface ChatAssistantResponse {
+  message: string;
+  properties: PropertyResponse[];
+  criteria?: ExtractedCriteria | null;
+  suggestions: string[];
+}
+
