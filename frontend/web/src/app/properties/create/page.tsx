@@ -84,6 +84,7 @@ const propertyFormSchema = z.object({
     .max(180, "Kinh độ từ -180 đến 180")
     .nullable()
     .optional(),
+  images: z.array(z.string()).optional().default([]),
 });
 
 type PropertyFormValues = z.infer<typeof propertyFormSchema>;
@@ -278,6 +279,7 @@ export default function CreatePropertyPage() {
       city,
       latitude: isNaN(latNum as number) ? null : latNum,
       longitude: isNaN(lngNum as number) ? null : lngNum,
+      images: uploadedImages,
     };
 
     const validation = propertyFormSchema.safeParse(payloadCandidate);

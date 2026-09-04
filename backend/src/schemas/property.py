@@ -41,6 +41,7 @@ class PropertyBase(BaseModel):
     city: str = Field(..., min_length=2, max_length=100, description="City or province")
     latitude: float | None = Field(default=None, ge=-90.0, le=90.0, description="Latitude")
     longitude: float | None = Field(default=None, ge=-180.0, le=180.0, description="Longitude")
+    images: list[str] = Field(default_factory=list, description="List of property image URLs")
 
 
 class PropertyCreate(PropertyBase):
@@ -66,16 +67,36 @@ class PropertyUpdate(BaseModel):
     city: str | None = Field(default=None, min_length=2, max_length=100)
     latitude: float | None = Field(default=None, ge=-90.0, le=90.0)
     longitude: float | None = Field(default=None, ge=-180.0, le=180.0)
+    images: list[str] | None = Field(default=None, description="List of property image URLs")
     status: PropertyStatus | None = None
     embedding: list[float] | None = None
+
+
+class PropertyAgentResponse(BaseModel):
+    id: uuid.UUID
+    full_name: str
+    email: str
+    phone_number: str | None = None
+    phone: str | None = None
+    avatar_url: str | None = None
+    role: str = "agent"
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PropertyResponse(PropertyBase):
     id: uuid.UUID
     user_id: uuid.UUID | None = None
     status: PropertyStatus
+    agent: PropertyAgentResponse | None = None
     created_at: datetime
     updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PropertyDetailResponse(PropertyResponse):
+    agent: PropertyAgentResponse | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

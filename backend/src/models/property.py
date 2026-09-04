@@ -13,9 +13,10 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    inspect,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.config import settings
@@ -82,6 +83,14 @@ class Property(Base):
     )
     owner = relationship("User", back_populates="properties")
 
+    # Listing images
+    images: Mapped[list[str]] = mapped_column(
+        ARRAY(Text),
+        nullable=False,
+        default=list,
+        server_default="{}",
+    )
+
     # 768-dimensional vector embedding for semantic search
     embedding = mapped_column(Vector(settings.VECTOR_DIM), nullable=True)
 
@@ -99,11 +108,30 @@ class Property(Base):
         nullable=False,
     )
 
+    @property
+    def agent(self) -> dict[str, Any] | None:
+        state = inspect(self)
+        if "owner" in state.dict and self.owner is not None:
+            return {
+                "id": self.owner.id,
+                "full_name": self.owner.full_name,
+                "email": self.owner.email,
+                "phone_number": self.owner.phone,
+                "phone": self.owner.phone,
+                "avatar_url": self.owner.avatar_url,
+                "role": self.owner.role,
+            }
+        return None
+
     def __init__(self, **kwargs):
         if "id" not in kwargs or kwargs["id"] is None:
             kwargs["id"] = uuid.uuid4()
         if "status" not in kwargs or kwargs["status"] is None:
             kwargs["status"] = "active"
+        if "currency" not in kwargs or kwargs["currency"] is None:
+            kwargs["currency"] = "VND"
+        if "images" not in kwargs or kwargs["images"] is None:
+            kwargs["images"] = []
         now = datetime.now(timezone.utc)
         if "created_at" not in kwargs or kwargs["created_at"] is None:
             kwargs["created_at"] = now

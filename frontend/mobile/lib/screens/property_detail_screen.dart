@@ -1,20 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import '../models/property.dart';
 import '../providers/app_providers.dart';
 import '../core/utils.dart';
 import '../core/theme.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 
-class PropertyDetailScreen extends ConsumerWidget {
+class PropertyDetailScreen extends ConsumerStatefulWidget {
   final String propertyId;
 
   const PropertyDetailScreen({super.key, required this.propertyId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final propertyAsync = ref.watch(propertyDetailProvider(propertyId));
+  ConsumerState<PropertyDetailScreen> createState() => _PropertyDetailScreenState();
+}
+
+class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
+  int _currentImageIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final propertyAsync = ref.watch(propertyDetailProvider(widget.propertyId));
 
     return Scaffold(
       appBar: propertyAsync.hasError
@@ -43,12 +54,33 @@ class PropertyDetailScreen extends ConsumerWidget {
           ),
         ),
         data: (property) {
+          final displayImages = property.images.isNotEmpty
+              ? property.images
+              : const [
+                  'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80',
+                ];
+
           return CustomScrollView(
             slivers: [
               SliverAppBar(
                 expandedHeight: 280.0,
                 pinned: true,
                 actions: [
+                  // Native Share Action
+                  CircleAvatar(
+                    backgroundColor: Colors.black.withValues(alpha: 0.5),
+                    child: IconButton(
+                      icon: const Icon(Icons.share, color: Colors.white),
+                      onPressed: () {
+                        Share.share(
+                          'Xem bất động sản: ${property.title}\nĐịa chỉ: ${property.address}, ${property.city}',
+                          subject: property.title,
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Favorite Action
                   Consumer(
                     builder: (context, ref, _) {
                       final favoriteIds = ref.watch(favoriteIdsProvider);
@@ -85,14 +117,49 @@ class PropertyDetailScreen extends ConsumerWidget {
                   const SizedBox(width: 8),
                 ],
                 flexibleSpace: FlexibleSpaceBar(
-                  background: CachedNetworkImage(
-                    imageUrl: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80',
-                    fit: BoxFit.cover,
-                    placeholder: (_, _) => Container(color: Colors.grey.shade200),
-                    errorWidget: (_, _, _) => Container(
-                      color: Colors.grey.shade300,
-                      child: const Icon(Icons.home_work, size: 64, color: Colors.grey),
-                    ),
+                  background: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      PageView.builder(
+                        itemCount: displayImages.length,
+                        onPageChanged: (idx) {
+                          setState(() {
+                            _currentImageIndex = idx;
+                          });
+                        },
+                        itemBuilder: (context, index) {
+                          return CachedNetworkImage(
+                            imageUrl: displayImages[index],
+                            fit: BoxFit.cover,
+                            placeholder: (_, _) => Container(color: Colors.grey.shade200),
+                            errorWidget: (_, _, _) => Container(
+                              color: Colors.grey.shade300,
+                              child: const Icon(Icons.home_work, size: 64, color: Colors.grey),
+                            ),
+                          );
+                        },
+                      ),
+                      if (displayImages.length > 1)
+                        Positioned(
+                          bottom: 16,
+                          right: 16,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.65),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${_currentImageIndex + 1} / ${displayImages.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
@@ -206,13 +273,22 @@ class PropertyDetailScreen extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: 24),
-                      // Description
+                      // Description with Markdown
                       const Text('Mô tả bất động sản', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
-                      Text(
-                        property.description,
-                        style: const TextStyle(fontSize: 15, height: 1.6, color: AppTheme.textPrimary),
+                      MarkdownBody(
+                        data: property.description,
+                        styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+                          p: const TextStyle(fontSize: 15, height: 1.6, color: AppTheme.textPrimary),
+                        ),
                       ),
+
+                      // Dynamic Agent Card
+                      const SizedBox(height: 24),
+                      const Text('Thông tin người đăng tin', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
+                      _buildAgentCard(context, property),
+
                       if (property.latitude != null && property.longitude != null) ...[
                         const SizedBox(height: 24),
                         Row(
@@ -273,86 +349,233 @@ class PropertyDetailScreen extends ConsumerWidget {
         },
       ),
       bottomNavigationBar: propertyAsync.maybeWhen(
-        data: (property) => Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                offset: const Offset(0, -3),
-                blurRadius: 10,
-              ),
-            ],
-          ),
-          child: SafeArea(
-            top: false,
-            bottom: true,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  // Cột giá tiền bên trái
-                  Expanded(
-                    flex: 2,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Giá niêm yết',
-                          style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          Formatters.formatPrice(property.price, currency: property.currency),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryColor,
+        data: (property) {
+          final agentPhone = property.agent?.phoneNumber ?? '1900247247';
+          return Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  offset: const Offset(0, -3),
+                  blurRadius: 10,
+                ),
+              ],
+            ),
+            child: SafeArea(
+              top: false,
+              bottom: true,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    // Cột giá tiền bên trái
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Giá niêm yết',
+                            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Nút Liên Hệ Ngay bên phải
-                  Expanded(
-                    flex: 3,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Đang kết nối tới người đăng tin: ${property.title}'),
-                            duration: const Duration(seconds: 2),
+                          const SizedBox(height: 2),
+                          Text(
+                            Formatters.formatPrice(property.price, currency: property.currency),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryColor,
+                            ),
                           ),
-                        );
-                      },
-                      icon: const Icon(Icons.phone_in_talk, size: 20),
-                      label: const Text(
-                        'Liên hệ ngay',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 2,
+                        ],
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    // Nút Liên Hệ Ngay bên phải
+                    Expanded(
+                      flex: 3,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _callPhoneNumber(context, agentPhone),
+                        icon: const Icon(Icons.phone_in_talk, size: 20),
+                        label: const Text(
+                          'Liên hệ ngay',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 2,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
         orElse: () => null,
       ),
     );
+  }
+
+  Widget _buildAgentCard(BuildContext context, Property property) {
+    final agent = property.agent;
+    final agentName = (agent?.fullName != null && agent!.fullName.isNotEmpty)
+        ? agent.fullName
+        : 'Chuyên viên Space247';
+    final agentRole = agent?.role == 'agent'
+        ? 'Chuyên viên tư vấn Space247'
+        : agent?.role == 'admin'
+            ? 'Quản trị viên Space247'
+            : 'Người đăng tin Space247';
+    final agentPhone = agent?.phoneNumber ?? '1900 247 247';
+    final agentEmail = (agent?.email != null && agent!.email.isNotEmpty)
+        ? agent.email
+        : 'support@space247.vn';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              if (agent?.avatarUrl != null && agent!.avatarUrl!.isNotEmpty)
+                ClipOval(
+                  child: CachedNetworkImage(
+                    imageUrl: agent.avatarUrl!,
+                    width: 52,
+                    height: 52,
+                    fit: BoxFit.cover,
+                    errorWidget: (_, _, _) => _defaultAvatar(agentName),
+                  ),
+                )
+              else
+                _defaultAvatar(agentName),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      agentName,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      agentRole,
+                      style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                    ),
+                    const SizedBox(height: 4),
+                    const Row(
+                      children: [
+                        Icon(Icons.verified, size: 14, color: Colors.green),
+                        SizedBox(width: 4),
+                        Text('Đã xác minh', style: TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _callPhoneNumber(context, agentPhone),
+                  icon: const Icon(Icons.phone, size: 16),
+                  label: Text(agentPhone),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primaryColor,
+                    side: const BorderSide(color: AppTheme.primaryColor),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _sendEmail(context, agentEmail),
+                  icon: const Icon(Icons.email_outlined, size: 16),
+                  label: const Text('Email'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.textPrimary,
+                    side: BorderSide(color: Colors.grey.shade300),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _defaultAvatar(String name) {
+    final words = name.split(' ').where((w) => w.isNotEmpty).toList();
+    final initials = words.isNotEmpty
+        ? words.map((w) => w[0]).take(2).join('').toUpperCase()
+        : 'SP';
+    return CircleAvatar(
+      radius: 26,
+      backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.15),
+      child: Text(
+        initials,
+        style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold, fontSize: 16),
+      ),
+    );
+  }
+
+  Future<void> _callPhoneNumber(BuildContext context, String phone) async {
+    final cleanPhone = phone.replaceAll(RegExp(r'\s+'), '');
+    final uri = Uri.parse('tel:$cleanPhone');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể thực hiện cuộc gọi tới $phone')),
+        );
+      }
+    }
+  }
+
+  Future<void> _sendEmail(BuildContext context, String email) async {
+    final uri = Uri.parse('mailto:$email');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể mở ứng dụng email tới $email')),
+        );
+      }
+    }
   }
 
   Widget _buildSpecCard(IconData icon, String text) {

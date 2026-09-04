@@ -52,7 +52,6 @@ class _MortgageCalculatorSheetState extends State<MortgageCalculatorSheet> {
     } else {
       // Fixed payment (annuity)
       if (monthlyRate <= 0) return _loanAmount / _totalMonths;
-      import_math_pow(monthlyRate, _totalMonths);
       final factor = (1 + monthlyRate);
       double powVal = 1.0;
       for (int i = 0; i < _totalMonths; i++) {
@@ -62,7 +61,7 @@ class _MortgageCalculatorSheetState extends State<MortgageCalculatorSheet> {
     }
   }
 
-  void import_math_pow(double r, int n) {}
+  String formatCurrency(num value) => Formatters.formatPrice(value);
 
   double get _totalInterest {
     if (_loanAmount <= 0 || _totalMonths <= 0) return 0;

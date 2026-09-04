@@ -7,19 +7,21 @@ import {
   Bath,
   Maximize2,
   Calendar,
-  Share2,
-  Heart,
   Phone,
   Mail,
   ShieldCheck,
   Building,
 } from "lucide-react";
-import { PropertyResponse } from "@shared/types";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { PropertyDetailResponse } from "@shared/types";
 import { apiClient } from "@/lib/api";
-import { formatPrice, formatPropertyType, getPlaceholderImage } from "@/lib/utils";
+import { formatPrice, formatPropertyType } from "@/lib/utils";
 import PropertyFavoriteButton from "@/components/PropertyFavoriteButton";
 import PropertyDetailMap from "@/components/PropertyDetailMap";
 import MortgageCalculator from "@/components/MortgageCalculator";
+import PropertyGallery from "@/components/PropertyGallery";
+import PropertyShareButton from "@/components/PropertyShareButton";
 
 interface PropertyDetailPageProps {
   params: Promise<{ id: string }>;
@@ -42,7 +44,7 @@ export async function generateMetadata({ params }: PropertyDetailPageProps) {
 
 export default async function PropertyDetailPage({ params }: PropertyDetailPageProps) {
   const { id } = await params;
-  let property: PropertyResponse;
+  let property: PropertyDetailResponse;
 
   try {
     property = await apiClient.getProperty(id);
@@ -50,8 +52,6 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
     console.error(`Error fetching property ${id}:`, error);
     notFound();
   }
-
-  const imageUrl = getPlaceholderImage(property.property_type, 0);
 
   return (
     <div className="space-y-8 pb-16">
@@ -66,13 +66,7 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
         </Link>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 shadow-xs hover:bg-slate-50"
-          >
-            <Share2 className="h-4 w-4 text-slate-500" />
-            <span>Chia sẻ</span>
-          </button>
+          <PropertyShareButton title={property.title} />
           <PropertyFavoriteButton propertyId={property.id} />
         </div>
       </div>
@@ -81,28 +75,13 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left 2 Cols: Gallery & Details */}
         <div className="lg:col-span-2 space-y-8">
-          {/* Main Photo Hero */}
-          <div className="relative aspect-16/9 w-full overflow-hidden rounded-3xl bg-slate-100 shadow-lg">
-            <img
-              src={imageUrl}
-              alt={property.title}
-              className="h-full w-full object-cover"
-            />
-            <div className="absolute top-4 left-4 flex gap-2">
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-bold shadow-md backdrop-blur-md ${
-                  property.listing_type === "sale"
-                    ? "bg-blue-600/90 text-white"
-                    : "bg-emerald-600/90 text-white"
-                }`}
-              >
-                {property.listing_type === "sale" ? "Bán" : "Cho thuê"}
-              </span>
-              <span className="rounded-full bg-slate-900/80 px-3 py-1 text-xs font-medium text-white backdrop-blur-md">
-                {formatPropertyType(property.property_type)}
-              </span>
-            </div>
-          </div>
+          {/* Photo Gallery Carousel with Thumbnail Selector and Fallback */}
+          <PropertyGallery
+            images={property.images}
+            propertyType={property.property_type}
+            title={property.title}
+            listingType={property.listing_type}
+          />
 
           {/* Title & Location Header */}
           <div className="rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-xs">
@@ -179,8 +158,10 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
           {/* Description Section */}
           <div className="rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-xs space-y-4">
             <h2 className="text-lg font-bold text-slate-900">Thông tin chi tiết</h2>
-            <div className="prose max-w-none text-slate-700 text-sm sm:text-base leading-relaxed whitespace-pre-line">
-              {property.description}
+            <div className="prose max-w-none text-slate-700 text-sm sm:text-base leading-relaxed">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {property.description}
+              </ReactMarkdown>
             </div>
           </div>
 
@@ -223,48 +204,78 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
 
         {/* Right 1 Col: Contact & Safety Sidebar */}
         <div className="space-y-6">
-          {/* Agent Card */}
-          <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="h-14 w-14 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-md">
-                SP
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-900">Chuyên viên Space247</h3>
-                <p className="text-xs text-slate-500">Tư vấn bất động sản chuyên nghiệp</p>
-                <div className="flex items-center gap-1 mt-1 text-xs text-emerald-600 font-semibold">
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  <span>Đã xác minh</span>
+          {/* Dynamic Agent Card */}
+          {(() => {
+            const agent = property.agent;
+            const agentName = agent?.full_name || "Chuyên viên Space247";
+            const agentPhone = agent?.phone_number || agent?.phone || "1900 247 247";
+            const agentEmail = agent?.email || "support@space247.vn";
+            const agentRoleLabel =
+              agent?.role === "admin"
+                ? "Quản trị viên Space247"
+                : agent?.role === "agent"
+                ? "Chuyên viên tư vấn Space247"
+                : "Người đăng tin Space247";
+            const initials = agentName
+              .split(" ")
+              .filter(Boolean)
+              .map((w) => w[0])
+              .slice(-2)
+              .join("")
+              .toUpperCase() || "SP";
+
+            return (
+              <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs space-y-6">
+                <div className="flex items-center gap-4">
+                  {agent?.avatar_url ? (
+                    <img
+                      src={agent.avatar_url}
+                      alt={agentName}
+                      className="h-14 w-14 rounded-full object-cover shadow-md"
+                    />
+                  ) : (
+                    <div className="h-14 w-14 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-md">
+                      {initials}
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="font-bold text-slate-900">{agentName}</h3>
+                    <p className="text-xs text-slate-500">{agentRoleLabel}</p>
+                    <div className="flex items-center gap-1 mt-1 text-xs text-emerald-600 font-semibold">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      <span>Đã xác minh</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <a
+                    href={`tel:${agentPhone.replace(/\s+/g, "")}`}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white shadow-xs hover:bg-blue-700 transition"
+                  >
+                    <Phone className="h-4 w-4" />
+                    <span>Gọi {agentPhone}</span>
+                  </a>
+
+                  <a
+                    href={`mailto:${agentEmail}`}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition"
+                  >
+                    <Mail className="h-4 w-4 text-slate-500" />
+                    <span>Gửi email liên hệ</span>
+                  </a>
+                </div>
+
+                <div className="border-t border-slate-100 pt-4 text-xs text-slate-400 flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span>Ngày đăng:</span>
+                  </div>
+                  <span>{new Date(property.created_at).toLocaleDateString("vi-VN")}</span>
                 </div>
               </div>
-            </div>
-
-            <div className="space-y-3">
-              <a
-                href="tel:1900247247"
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white shadow-xs hover:bg-blue-700 transition"
-              >
-                <Phone className="h-4 w-4" />
-                <span>Gọi 1900 247 247</span>
-              </a>
-
-              <a
-                href="mailto:support@space247.vn"
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition"
-              >
-                <Mail className="h-4 w-4 text-slate-500" />
-                <span>Gửi email liên hệ</span>
-              </a>
-            </div>
-
-            <div className="border-t border-slate-100 pt-4 text-xs text-slate-400 flex items-center justify-between">
-              <div className="flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />
-                <span>Ngày đăng:</span>
-              </div>
-              <span>{new Date(property.created_at).toLocaleDateString("vi-VN")}</span>
-            </div>
-          </div>
+            );
+          })()}
 
           {/* Safety Box */}
           <div className="rounded-3xl border border-amber-200/80 bg-amber-50/50 p-6 text-xs text-amber-900 space-y-2">

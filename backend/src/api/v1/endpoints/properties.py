@@ -3,6 +3,7 @@ import re
 import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select, text
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.alert_service import background_evaluate_property_alerts
@@ -23,7 +24,9 @@ from src.models.property import Property
 from src.models.user import User
 from src.schemas.property import (
     ListingType,
+    PropertyAgentResponse,
     PropertyCreate,
+    PropertyDetailResponse,
     PropertyResponse,
     PropertySearchQuery,
     PropertySearchResponse,
@@ -478,26 +481,30 @@ async def toggle_favorite_property(
 
 @router.get(
     "/{property_id}",
-    response_model=PropertyResponse,
+    response_model=PropertyDetailResponse,
     summary="Get property details by ID",
 )
 async def get_property(
     property_id: uuid.UUID,
     db: AsyncSession = Depends(get_db_session),
-) -> PropertyResponse:
+) -> PropertyDetailResponse:
     """
     Fetch a single property record by its UUID.
-    Checks Redis cache first, falling back to database query.
+    Checks Redis cache first, falling back to database query with eager-loaded owner.
     """
     cache_key = generate_property_cache_key(property_id)
     cached_data = await get_cached_json(cache_key)
     if cached_data is not None:
         try:
-            return PropertyResponse.model_validate(cached_data)
+            return PropertyDetailResponse.model_validate(cached_data)
         except Exception:
             pass
 
-    stmt = select(Property).where(Property.id == property_id)
+    stmt = (
+        select(Property)
+        .options(selectinload(Property.owner))
+        .where(Property.id == property_id)
+    )
     result = await db.execute(stmt)
     property_obj = result.scalar_one_or_none()
     if not property_obj:
@@ -506,14 +513,15 @@ async def get_property(
             detail=f"Property with ID {property_id} not found",
         )
 
+    response_dto = PropertyDetailResponse.model_validate(property_obj)
+
     # Cache single property response in Redis
     try:
-        response_dto = PropertyResponse.model_validate(property_obj)
         await set_cached_json(cache_key, response_dto.model_dump(mode="json"))
     except Exception:
         pass
 
-    return property_obj
+    return response_dto
 
 
 @router.put(

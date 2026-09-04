@@ -9,7 +9,7 @@ from src.core.config import settings
 from src.core.database import get_db_session
 from src.core.security import create_access_token, hash_password, verify_password
 from src.models.user import User, UserRole
-from src.schemas.user import Token, UserLogin, UserRegister, UserResponse
+from src.schemas.user import Token, UserLogin, UserRegister, UserResponse, UserUpdate
 
 logger = logging.getLogger("space247_backend.auth")
 router = APIRouter()
@@ -121,4 +121,34 @@ async def get_me(
     current_user: User = Depends(get_current_active_user),
 ) -> User:
     """Return the profile of the authenticated user requesting the token."""
+    return current_user
+
+
+@router.put(
+    "/me",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update current authenticated user profile",
+)
+async def update_me(
+    user_update: UserUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> User:
+    """Update current user's profile (full_name, phone/phone_number, avatar_url)."""
+    if user_update.full_name is not None:
+        current_user.full_name = user_update.full_name.strip()
+    if user_update.phone_number is not None:
+        current_user.phone = user_update.phone_number.strip()
+    elif user_update.phone is not None:
+        current_user.phone = user_update.phone.strip()
+    if user_update.avatar_url is not None:
+        current_user.avatar_url = user_update.avatar_url.strip()
+
+    db.add(current_user)
+    await db.flush()
+    try:
+        await db.refresh(current_user)
+    except Exception:
+        pass
     return current_user

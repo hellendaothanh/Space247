@@ -1,3 +1,43 @@
+class PropertyAgent {
+  final String id;
+  final String fullName;
+  final String email;
+  final String? phoneNumber;
+  final String? avatarUrl;
+  final String role;
+
+  PropertyAgent({
+    required this.id,
+    required this.fullName,
+    required this.email,
+    this.phoneNumber,
+    this.avatarUrl,
+    this.role = 'agent',
+  });
+
+  factory PropertyAgent.fromJson(Map<String, dynamic> json) {
+    return PropertyAgent(
+      id: (json['id'] as String?) ?? '',
+      fullName: (json['full_name'] as String?) ?? '',
+      email: (json['email'] as String?) ?? '',
+      phoneNumber: (json['phone_number'] ?? json['phone']) as String?,
+      avatarUrl: json['avatar_url'] as String?,
+      role: (json['role'] as String?) ?? 'agent',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'full_name': fullName,
+      'email': email,
+      'phone_number': phoneNumber,
+      'avatar_url': avatarUrl,
+      'role': role,
+    };
+  }
+}
+
 class Property {
   final String id;
   final String? userId;
@@ -16,6 +56,8 @@ class Property {
   final String city;
   final double? latitude;
   final double? longitude;
+  final List<String> images;
+  final PropertyAgent? agent;
   final String status;
   final String? createdAt;
   final String? updatedAt;
@@ -38,6 +80,8 @@ class Property {
     required this.city,
     this.latitude,
     this.longitude,
+    this.images = const [],
+    this.agent,
     required this.status,
     this.createdAt,
     this.updatedAt,
@@ -62,6 +106,13 @@ class Property {
       city: (json['city'] as String?) ?? '',
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
+      images: (json['images'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      agent: json['agent'] != null
+          ? PropertyAgent.fromJson(json['agent'] as Map<String, dynamic>)
+          : null,
       status: (json['status'] as String?) ?? 'active',
       createdAt: json['created_at'] as String?,
       updatedAt: json['updated_at'] as String?,
@@ -87,6 +138,8 @@ class Property {
       'city': city,
       'latitude': latitude,
       'longitude': longitude,
+      'images': images,
+      'agent': agent?.toJson(),
       'status': status,
       'created_at': createdAt,
       'updated_at': updatedAt,

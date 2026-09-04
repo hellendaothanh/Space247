@@ -27,6 +27,7 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     role: Mapped[str] = mapped_column(String(20), nullable=False, default=UserRole.USER.value)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
@@ -47,6 +48,14 @@ class User(Base):
     # Relationships
     properties = relationship("Property", back_populates="owner")
 
+    @property
+    def phone_number(self) -> str | None:
+        return self.phone
+
+    @phone_number.setter
+    def phone_number(self, value: str | None) -> None:
+        self.phone = value
+
     def __init__(self, **kwargs):
         if "id" not in kwargs or kwargs["id"] is None:
             kwargs["id"] = uuid.uuid4()
@@ -54,6 +63,10 @@ class User(Base):
             kwargs["role"] = UserRole.USER.value
         if "is_active" not in kwargs or kwargs["is_active"] is None:
             kwargs["is_active"] = True
+        if "avatar_url" not in kwargs:
+            kwargs["avatar_url"] = None
+        if "phone_number" in kwargs and "phone" not in kwargs:
+            kwargs["phone"] = kwargs.pop("phone_number")
         now = datetime.now(timezone.utc)
         if "created_at" not in kwargs or kwargs["created_at"] is None:
             kwargs["created_at"] = now

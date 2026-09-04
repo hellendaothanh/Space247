@@ -114,6 +114,23 @@ async def test_register_and_login_flow():
         )
         assert invalid_token_resp.status_code == 401
 
+        # 7. Update profile with PUT /auth/me
+        update_resp = await client.put(
+            "/api/v1/auth/me",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "phone_number": "0912345678",
+                "avatar_url": "https://images.unsplash.com/photo-agent.jpg",
+                "full_name": "Nguyễn Văn Chuyên Nghiệp Updated",
+            },
+        )
+        assert update_resp.status_code == 200
+        update_data = update_resp.json()
+        assert update_data["full_name"] == "Nguyễn Văn Chuyên Nghiệp Updated"
+        assert update_data["phone_number"] == "0912345678"
+        assert update_data["phone"] == "0912345678"
+        assert update_data["avatar_url"] == "https://images.unsplash.com/photo-agent.jpg"
+
     app.dependency_overrides.clear()
 
 

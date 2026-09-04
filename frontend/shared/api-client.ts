@@ -10,6 +10,7 @@ import {
   HealthResponse,
   ListingType,
   PropertyCreate,
+  PropertyDetailResponse,
   PropertyResponse,
   PropertySearchQuery,
   PropertySearchResponse,
@@ -22,6 +23,7 @@ import {
   UserLoginRequest,
   UserRegisterRequest,
   UserResponse,
+  UserUpdate,
   ComparePropertiesRequest,
   ComparePropertiesResponse,
   IsochroneSearchRequest,
@@ -136,6 +138,13 @@ export class RealEstateApiClient {
     return this.request<UserResponse>("/api/v1/auth/me");
   }
 
+  async updateCurrentUser(data: UserUpdate): Promise<UserResponse> {
+    return this.request<UserResponse>("/api/v1/auth/me", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
   // Health
   async getHealth(): Promise<HealthResponse> {
     return this.request<HealthResponse>("/api/v1/health");
@@ -205,8 +214,8 @@ export class RealEstateApiClient {
     );
   }
 
-  async getProperty(id: string): Promise<PropertyResponse> {
-    return this.request<PropertyResponse>(`/api/v1/properties/${encodeURIComponent(id)}`);
+  async getProperty(id: string): Promise<PropertyDetailResponse> {
+    return this.request<PropertyDetailResponse>(`/api/v1/properties/${encodeURIComponent(id)}`);
   }
 
   async updateProperty(

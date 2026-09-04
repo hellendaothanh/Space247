@@ -30,8 +30,17 @@ class UserLogin(BaseModel):
     password: str = Field(..., min_length=1, max_length=72, description="Account password")
 
 
+class UserUpdate(BaseModel):
+    full_name: str | None = Field(default=None, min_length=2, max_length=255, description="Full name of user")
+    phone: str | None = Field(default=None, max_length=50, description="Contact phone number")
+    phone_number: str | None = Field(default=None, max_length=50, description="Contact phone number")
+    avatar_url: str | None = Field(default=None, max_length=500, description="Avatar image URL")
+
+
 class UserResponse(UserBase):
     id: uuid.UUID
+    phone_number: str | None = None
+    avatar_url: str | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime

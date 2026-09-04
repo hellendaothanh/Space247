@@ -35,6 +35,7 @@ export interface PropertyBase {
   city: string;
   latitude?: number | null;
   longitude?: number | null;
+  images?: string[];
 }
 
 export interface PropertyCreate extends PropertyBase {
@@ -46,12 +47,28 @@ export interface PropertyUpdate extends Partial<PropertyBase> {
   embedding?: number[] | null;
 }
 
+export interface PropertyAgent {
+  id: string; // UUID
+  full_name: string;
+  email: string;
+  phone_number?: string | null;
+  phone?: string | null;
+  avatar_url?: string | null;
+  role: string;
+}
+
 export interface PropertyResponse extends PropertyBase {
   id: string; // UUID
   user_id?: string | null; // UUID of owner user
   status: PropertyStatus;
+  images: string[];
+  agent?: PropertyAgent | null;
   created_at: string; // ISO 8601 string
   updated_at: string;
+}
+
+export interface PropertyDetailResponse extends PropertyResponse {
+  agent?: PropertyAgent | null;
 }
 
 export interface SemanticSearchQuery {
@@ -147,9 +164,18 @@ export interface UserLoginRequest {
   password: string;
 }
 
+export interface UserUpdate {
+  full_name?: string;
+  phone?: string | null;
+  phone_number?: string | null;
+  avatar_url?: string | null;
+}
+
 export interface UserResponse extends UserBase {
   id: string; // UUID
   role: UserRole;
+  phone_number?: string | null;
+  avatar_url?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
