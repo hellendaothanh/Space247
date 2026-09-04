@@ -4,6 +4,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/app_providers.dart';
 import '../core/utils.dart';
 import '../core/theme.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 class PropertyDetailScreen extends ConsumerWidget {
   final String propertyId;
@@ -211,6 +213,56 @@ class PropertyDetailScreen extends ConsumerWidget {
                         property.description,
                         style: const TextStyle(fontSize: 15, height: 1.6, color: AppTheme.textPrimary),
                       ),
+                      if (property.latitude != null && property.longitude != null) ...[
+                        const SizedBox(height: 24),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Vị trí địa lý & Bản đồ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            Text(
+                              '${property.latitude!.toStringAsFixed(4)}, ${property.longitude!.toStringAsFixed(4)}',
+                              style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: SizedBox(
+                            height: 220,
+                            child: FlutterMap(
+                              options: MapOptions(
+                                initialCenter: LatLng(property.latitude!, property.longitude!),
+                                initialZoom: 15.0,
+                              ),
+                              children: [
+                                TileLayer(
+                                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                  userAgentPackageName: 'com.space247.mobile',
+                                ),
+                                MarkerLayer(
+                                  markers: [
+                                    Marker(
+                                      point: LatLng(property.latitude!, property.longitude!),
+                                      width: 40,
+                                      height: 40,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.primaryColor,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(color: Colors.white, width: 2.5),
+                                          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                                        ),
+                                        child: const Icon(Icons.home, color: Colors.white, size: 22),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 100), // Bottom padding for contact button
                     ],
                   ),

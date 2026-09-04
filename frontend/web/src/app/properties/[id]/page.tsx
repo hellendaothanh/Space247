@@ -18,6 +18,7 @@ import { PropertyResponse } from "@shared/types";
 import { apiClient } from "@/lib/api";
 import { formatPrice, formatPropertyType, getPlaceholderImage } from "@/lib/utils";
 import PropertyFavoriteButton from "@/components/PropertyFavoriteButton";
+import PropertyDetailMap from "@/components/PropertyDetailMap";
 
 interface PropertyDetailPageProps {
   params: Promise<{ id: string }>;
@@ -183,15 +184,31 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
           </div>
 
           {/* Map / Coordinates Info */}
-          {(property.latitude || property.longitude) && (
-            <div className="rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-xs space-y-3">
-              <h2 className="text-lg font-bold text-slate-900">Tọa độ vị trí địa lý</h2>
-              <p className="text-xs text-slate-500">
-                Kinh độ: {property.longitude}, Vĩ độ: {property.latitude}
-              </p>
-              <div className="rounded-2xl bg-slate-100 p-8 text-center text-slate-400 text-xs">
-                Bản đồ tương tác OpenStreetMap / Mapbox được tích hợp tại tọa độ này.
+          {property.latitude && property.longitude && (
+            <div className="rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-xs space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">Vị trí trên bản đồ tương tác</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Kinh độ: <span className="font-semibold text-slate-700">{property.longitude}</span>, Vĩ độ:{" "}
+                    <span className="font-semibold text-slate-700">{property.latitude}</span>
+                  </p>
+                </div>
+                <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1 rounded-xl">
+                  Bán kính khám phá tiện ích: 1.0 km
+                </div>
               </div>
+              <PropertyDetailMap
+                latitude={property.latitude}
+                longitude={property.longitude}
+                title={property.title}
+                address={[property.address, property.ward, property.district, property.city]
+                  .filter(Boolean)
+                  .join(", ")}
+                price={property.price}
+                currency={property.currency}
+                propertyType={property.property_type}
+              />
             </div>
           )}
         </div>

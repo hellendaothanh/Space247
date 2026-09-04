@@ -8,6 +8,19 @@ import '../core/theme.dart';
 import '../core/utils.dart';
 import 'property_detail_screen.dart';
 
+// Helper aliases to maintain consistency with theme & utils
+class AppColors {
+  static const Color primary = AppTheme.primaryColor;
+  static const Color textPrimary = AppTheme.textPrimary;
+  static const Color textSecondary = AppTheme.textSecondary;
+  static const Color surface = AppTheme.surfaceColor;
+  static const Color background = AppTheme.backgroundColor;
+}
+
+class AppUtils {
+  static String formatPrice(num price) => Formatters.formatPrice(price);
+}
+
 class MapExplorerScreen extends ConsumerStatefulWidget {
   const MapExplorerScreen({super.key});
 
@@ -257,7 +270,7 @@ class _MapExplorerScreenState extends ConsumerState<MapExplorerScreen> {
                     ),
                     const SizedBox(height: 16),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.between,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
                           'Thời gian di chuyển tối đa',
@@ -333,7 +346,7 @@ class _MapExplorerScreenState extends ConsumerState<MapExplorerScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.grey[100],
+            color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : Colors.grey[100],
             border: Border.all(
               color: isSelected ? AppColors.primary : Colors.grey[300]!,
               width: isSelected ? 1.5 : 1,
@@ -380,7 +393,7 @@ class _MapExplorerScreenState extends ConsumerState<MapExplorerScreen> {
             options: MapOptions(
               initialCenter: _landmarkLocation ?? const LatLng(21.0169, 105.7839),
               initialZoom: 13.5,
-              onTap: (_, __) {
+              onTap: (tapPosition, point) {
                 setState(() {
                   _selectedProperty = null;
                 });
@@ -400,7 +413,6 @@ class _MapExplorerScreenState extends ConsumerState<MapExplorerScreen> {
                       color: const Color(0x336366F1), // Translucent indigo
                       borderColor: const Color(0xFF4F46E5),
                       borderStrokeWidth: 2.5,
-                      isDotted: true,
                     ),
                   ],
                 ),
@@ -533,7 +545,7 @@ class _MapExplorerScreenState extends ConsumerState<MapExplorerScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.95),
+                      color: Colors.white.withValues(alpha: 0.95),
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
                     ),
@@ -553,7 +565,7 @@ class _MapExplorerScreenState extends ConsumerState<MapExplorerScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (_isLoadingIsochrone)
+                        if (_isLoadingIsochrone || _isLoadingAmenities)
                           const SizedBox(
                             width: 16,
                             height: 16,
@@ -678,7 +690,7 @@ class _MapExplorerScreenState extends ConsumerState<MapExplorerScreen> {
           color: isAct ? Colors.white : Colors.grey[800],
         ),
       ),
-      backgroundColor: isAct ? AppColors.primary : Colors.white.withOpacity(0.9),
+      backgroundColor: isAct ? AppColors.primary : Colors.white.withValues(alpha: 0.9),
       side: BorderSide(color: isAct ? AppColors.primary : Colors.grey[300]!),
       onPressed: () => _toggleAmenity(category),
     );
