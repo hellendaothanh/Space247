@@ -33,3 +33,11 @@
 - source_spec: `C:\Devsecops\Space247/_bmad-output/implementation-artifacts/spec-space247-hybrid-search-hnsw.md`
   summary: Migrate tsquery parsing from manual regex splitting to PostgreSQL websearch_to_tsquery or plainto_tsquery.
   evidence: PostgreSQL native websearch_to_tsquery safely parses user boolean queries, quotes, and punctuation without custom regex.
+
+- source_spec: `C:\Devsecops\Space247/_bmad-output/implementation-artifacts/spec-space247-alembic-migrations.md`
+  summary: Add domain-level database check constraints (positive price/area, coordinate bounds).
+  evidence: Reviewer identified absence of check constraints allowing potentially invalid raw values to bypass ORM.
+
+- source_spec: `C:\Devsecops\Space247/_bmad-output/implementation-artifacts/spec-space247-alembic-migrations.md`
+  summary: Add composite index for geospatial coordinates (latitude, longitude).
+  evidence: Map-based bounding-box queries benefit from composite B-tree or GiST spatial indexing.
