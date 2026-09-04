@@ -3,6 +3,7 @@ import { Bed, Bath, Maximize2, MapPin, Sparkles, ArrowUpRight, Heart } from "luc
 import { PropertyResponse, SearchResultItem } from "@shared/types";
 import { formatPrice, formatPropertyType, getPlaceholderImage } from "@/lib/utils";
 import { useFavorites } from "@/lib/favorites";
+import { useComparison } from "@/lib/comparison";
 
 interface PropertyCardProps {
   item: SearchResultItem | PropertyResponse;
@@ -11,6 +12,7 @@ interface PropertyCardProps {
 
 export default function PropertyCard({ item, index = 0 }: PropertyCardProps) {
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { isSelected, toggleComparison, selectedProperties } = useComparison();
 
   // Support both SearchResultItem and raw PropertyResponse
   const isSearchResult = "property" in item;
@@ -137,6 +139,19 @@ export default function PropertyCard({ item, index = 0 }: PropertyCardProps) {
             <span>Chi tiết</span>
             <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
+        {/* Comparison */}
+        <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2">
+          <input
+            type="checkbox"
+            id={`compare-${property.id}`}
+            checked={isSelected(property.id)}
+            onChange={() => toggleComparison(property)}
+            disabled={!isSelected(property.id) && selectedProperties.length >= 3}
+            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer disabled:opacity-50"
+          />
+          <label htmlFor={`compare-${property.id}`} className={`text-xs font-medium cursor-pointer select-none ${isSelected(property.id) ? "text-blue-600" : "text-slate-600"} ${!isSelected(property.id) && selectedProperties.length >= 3 ? "opacity-50" : ""}`}>
+            {isSelected(property.id) ? "Đang chọn so sánh" : "So sánh"}
+          </label>
         </div>
       </div>
     </div>

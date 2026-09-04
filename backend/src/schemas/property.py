@@ -200,3 +200,24 @@ class ToggleFavoriteResponse(BaseModel):
     property_id: uuid.UUID
     is_favorite: bool
     message: str
+
+
+class ComparePropertiesRequest(BaseModel):
+    property_ids: list[uuid.UUID] = Field(
+        ...,
+        min_length=2,
+        max_length=3,
+        description="Exactly 2 to 3 property IDs to compare"
+    )
+
+class ComparisonData(BaseModel):
+    property_id: uuid.UUID
+    title: str
+    price: float
+    area_sqm: float
+    price_per_sqm: float
+
+class ComparePropertiesResponse(BaseModel):
+    properties: list[ComparisonData]
+    analysis_markdown: str
+

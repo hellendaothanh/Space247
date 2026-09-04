@@ -22,6 +22,8 @@ import {
   UserLoginRequest,
   UserRegisterRequest,
   UserResponse,
+  ComparePropertiesRequest,
+  ComparePropertiesResponse,
 } from "./types";
 
 
@@ -233,6 +235,16 @@ export class RealEstateApiClient {
     request: ChatAssistantRequest
   ): Promise<ChatAssistantResponse> {
     return this.request<ChatAssistantResponse>("/api/v1/chat/assistant", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  }
+
+  // AI Property Comparison
+  async compareProperties(
+    request: ComparePropertiesRequest
+  ): Promise<ComparePropertiesResponse> {
+    return this.request<ComparePropertiesResponse>("/api/v1/properties/compare", {
       method: "POST",
       body: JSON.stringify(request),
     });

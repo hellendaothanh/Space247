@@ -9,6 +9,7 @@ from src.api.deps import get_current_active_user, get_optional_current_user
 from src.core.cache import (
     generate_property_cache_key,
     generate_search_cache_key,
+    generate_comparison_cache_key,
     get_cached_json,
     invalidate_property_caches,
     set_cached_json,
@@ -29,8 +30,12 @@ from src.schemas.property import (
     PropertyUpdate,
     SearchResultItem,
     ToggleFavoriteResponse,
+    ComparePropertiesRequest,
+    ComparePropertiesResponse,
+    ComparisonData,
 )
 from src.services.embedding import EmbeddingService, get_embedding_service
+from src.services.ai_comparison import AIComparisonService
 
 logger = logging.getLogger("space247_backend.properties")
 router = APIRouter()
@@ -660,3 +665,78 @@ async def delete_property(
 
     # Invalidate single property cache and search caches
     await invalidate_property_caches(property_id)
+
+
+@router.post(
+    "/compare",
+    response_model=ComparePropertiesResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Compare 2 to 3 properties using AI",
+)
+async def compare_properties(
+    request: ComparePropertiesRequest,
+    db: AsyncSession = Depends(get_db_session),
+) -> ComparePropertiesResponse:
+    """
+    Compare 2 to 3 properties. Generates AI-based comparison matrix using Gemini.
+    """
+    if len(request.property_ids) < 2 or len(request.property_ids) > 3:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Exactly 2 to 3 properties must be selected for comparison.",
+        )
+
+    cache_key = generate_comparison_cache_key(request.property_ids)
+    cached_data = await get_cached_json(cache_key)
+    if cached_data is not None:
+        try:
+            return ComparePropertiesResponse.model_validate(cached_data)
+        except Exception:
+            pass
+
+    stmt = select(Property).where(Property.id.in_(request.property_ids))
+    result = await db.execute(stmt)
+    properties_db = result.scalars().all()
+
+    if len(properties_db) != len(set(request.property_ids)):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="One or more property IDs not found",
+        )
+
+    properties_data = []
+    properties_dicts = []
+    for prop in properties_db:
+        price_per_sqm = prop.price / prop.area_sqm if prop.area_sqm > 0 else 0
+        comp_data = ComparisonData(
+            property_id=prop.id,
+            title=prop.title,
+            price=prop.price,
+            area_sqm=prop.area_sqm,
+            price_per_sqm=price_per_sqm,
+        )
+        properties_data.append(comp_data)
+        
+        properties_dicts.append({
+            "title": prop.title,
+            "price": prop.price,
+            "area_sqm": prop.area_sqm,
+            "price_per_sqm": price_per_sqm,
+            "address": prop.address,
+            "property_type": prop.property_type,
+            "listing_type": prop.listing_type,
+            "description": prop.description,
+        })
+
+    ai_service = AIComparisonService()
+    analysis_markdown = await ai_service.generate_comparison(properties_dicts)
+
+    response = ComparePropertiesResponse(
+        properties=properties_data,
+        analysis_markdown=analysis_markdown,
+    )
+    
+    # Cache for 30 minutes
+    await set_cached_json(cache_key, response.model_dump(mode="json"), ttl=1800)
+    
+    return response

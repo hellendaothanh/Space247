@@ -6,6 +6,8 @@ import '../widgets/property_card.dart';
 import '../core/theme.dart';
 import 'login_screen.dart';
 import 'favorites_screen.dart';
+import 'comparison_screen.dart';
+import '../providers/comparison_notifier.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -214,7 +216,70 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
           ),
+            ),
+          ),
         ],
+      ),
+      bottomNavigationBar: Consumer(
+        builder: (context, ref, child) {
+          final selectedProperties = ref.watch(comparisonProvider);
+          if (selectedProperties.isEmpty) return const SizedBox.shrink();
+
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Đã chọn ${selectedProperties.length}/3',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      GestureDetector(
+                        onTap: () => ref.read(comparisonProvider.notifier).clearComparison(),
+                        child: const Text(
+                          'Xóa tất cả',
+                          style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                  ElevatedButton(
+                    onPressed: selectedProperties.length >= 2
+                        ? () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (ctx) => const ComparisonScreen(),
+                              ),
+                            );
+                          }
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('So sánh ngay'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

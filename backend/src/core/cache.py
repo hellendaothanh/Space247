@@ -77,6 +77,13 @@ def generate_property_cache_key(property_id: Any) -> str:
     """Generate cache key for a single property by UUID."""
     return f"cache:property:{str(property_id)}"
 
+def generate_comparison_cache_key(property_ids: list[Any]) -> str:
+    """Generate cache key for property comparison."""
+    sorted_ids = sorted([str(pid) for pid in property_ids])
+    serialized = json.dumps(sorted_ids)
+    hashed = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+    return f"cache:comparison:{hashed}"
+
 
 async def get_cached_json(key: str) -> Any | None:
     """

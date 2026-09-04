@@ -202,3 +202,19 @@ export interface ChatAssistantResponse {
   suggestions: string[];
 }
 
+export interface ComparePropertiesRequest {
+  property_ids: string[];
+}
+
+export interface ComparisonData {
+  property_id: string;
+  title: string;
+  price: number;
+  area_sqm: number;
+  price_per_sqm: number;
+}
+
+export interface ComparePropertiesResponse {
+  properties: ComparisonData[];
+  analysis_markdown: string;
+}

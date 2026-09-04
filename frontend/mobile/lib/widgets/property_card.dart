@@ -6,6 +6,7 @@ import '../providers/app_providers.dart';
 import '../core/utils.dart';
 import '../core/theme.dart';
 import '../screens/property_detail_screen.dart';
+import '../providers/comparison_notifier.dart';
 
 class PropertyCard extends ConsumerWidget {
   final SearchResultItem item;
@@ -226,6 +227,40 @@ class PropertyCard extends ConsumerWidget {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Divider(height: 1),
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final selectedProperties = ref.watch(comparisonProvider);
+                      final isSelected = selectedProperties.any((p) => p.id == property.id);
+                      final canSelect = isSelected || selectedProperties.length < 3;
+                      
+                      return CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          isSelected ? 'Đang chọn so sánh' : 'Chọn để so sánh',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,
+                          ),
+                        ),
+                        value: isSelected,
+                        activeColor: AppTheme.primaryColor,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        visualDensity: VisualDensity.compact,
+                        onChanged: canSelect ? (bool? value) {
+                          try {
+                            ref.read(comparisonProvider.notifier).toggleProperty(property);
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(e.toString())),
+                            );
+                          }
+                        } : null,
+                      );
+                    },
                   ),
                 ],
               ),
