@@ -390,7 +390,7 @@ async def list_my_properties(
 async def get_property(
     property_id: uuid.UUID,
     db: AsyncSession = Depends(get_db_session),
-) -> Any:
+) -> PropertyResponse:
     """
     Fetch a single property record by its UUID.
     Checks Redis cache first, falling back to database query.
