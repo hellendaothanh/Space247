@@ -8,9 +8,10 @@ Space247 là nền tảng công nghệ bất động sản (PropTech) thế hệ
 
 ```mermaid
 graph TD
-    ClientWeb["Frontend Web (Next.js 16 App Router)"] -->|HTTP / JSON + Bearer JWT| API["Backend API (FastAPI / Uvicorn)"]
+    ClientWeb["Frontend Web (Next.js 16)"] -->|HTTP / JSON + Bearer JWT| API["Backend API (FastAPI / Uvicorn)"]
+    ClientMobile["Frontend Mobile (Flutter)"] -->|HTTP / JSON + Bearer JWT| API
     API -->|Async Session| DB[("PostgreSQL 16 + pgvector")]
-    API -->|Async Cache (15m TTL)| Redis[("Redis 7 Cache")]
+    API -->|Async Cache (15m TTL)| Redis[(Redis 7 Cache)]
     API -->|Embeddings| FastEmbed["Embedding Service (768-dim)"]
     DB -->|HNSW Vector Index| VectorSearch["Vector Cosine Search"]
     DB -->|GIN Index / simple dict| FTS["Vietnamese Full-Text Search"]
@@ -159,6 +160,17 @@ npx tsc --noEmit
 npm run build
 ```
 
+### Khởi chạy Ứng dụng Di động (Flutter Mobile):
+```bash
+cd frontend/mobile
+flutter pub get
+flutter test
+# Khởi chạy trên Android Emulator hoặc iOS Simulator / Thiết bị thật
+flutter run
+# Hoặc truyền URL API backend tùy chỉnh:
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080/api/v1
+```
+
 ---
 
 ## 7. Cấu Trúc Thư Mục Dự Án (Repository Structure)
@@ -177,7 +189,8 @@ Space247/
 │   └── tests/                # Automated pytest suite (Alembic, Auth, Cache, Search, Seeding)
 ├── frontend/
 │   ├── shared/               # Shared TypeScript SDK, DTOs & API Client
-│   └── web/                  # Next.js 16.3.4 App Router Web Application
+│   ├── web/                  # Next.js 16.3.4 App Router Web Application
+│   └── mobile/               # Flutter Mobile Client (iOS & Android, Riverpod, Dio)
 ├── scripts/                  # One-click startup & standalone seed scripts
 │   ├── start-dev.ps1         # Windows one-click starter
 │   ├── start-dev.sh          # Linux/macOS one-click starter

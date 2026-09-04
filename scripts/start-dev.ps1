@@ -113,8 +113,8 @@ Write-Host "`nPress Ctrl+C to stop services." -ForegroundColor DarkGray
 # Launch backend in a background PowerShell job or process
 $backendProcess = Start-Process -FilePath "uv" -ArgumentList "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload" -WorkingDirectory $BackendDir -PassThru
 
-# Launch frontend in a background process
-$frontendProcess = Start-Process -FilePath "npm" -ArgumentList "run", "dev" -WorkingDirectory $FrontendDir -PassThru
+# Launch frontend in a background process (using cmd.exe /c npm to handle npm.cmd on Windows)
+$frontendProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "npm", "run", "dev" -WorkingDirectory $FrontendDir -PassThru
 
 try {
     Write-Host "`n[SUCCESS] Space247 services are running! Monitoring processes..." -ForegroundColor Green
