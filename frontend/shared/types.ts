@@ -160,3 +160,9 @@ export interface AuthTokenResponse {
   token_type: string;
   user: UserResponse;
 }
+
+export interface ToggleFavoriteResponse {
+  property_id: string;
+  is_favorite: boolean;
+  message: string;
+}

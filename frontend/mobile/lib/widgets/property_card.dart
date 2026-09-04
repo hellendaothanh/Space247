@@ -1,19 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/search_result.dart';
+import '../providers/app_providers.dart';
 import '../core/utils.dart';
 import '../core/theme.dart';
 import '../screens/property_detail_screen.dart';
 
-class PropertyCard extends StatelessWidget {
+class PropertyCard extends ConsumerWidget {
   final SearchResultItem item;
+  final bool showSimilarity;
 
-  const PropertyCard({super.key, required this.item});
+  const PropertyCard({
+    super.key,
+    required this.item,
+    this.showSimilarity = true,
+  });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final property = item.property;
     final matchScore = item.similarityPercentage;
+    final favoriteIds = ref.watch(favoriteIdsProvider);
+    final isFav = favoriteIds.contains(property.id);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -50,32 +59,73 @@ class PropertyCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                // AI Similarity Badge
+                // Top Right: Favorite Button & AI Similarity Badge
                 Positioned(
                   top: 12,
                   right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.75),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.6), width: 1.5),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.auto_awesome, color: Colors.greenAccent, size: 14),
-                        const SizedBox(width: 4),
-                        Text(
-                          '$matchScore% match',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (showSimilarity) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.75),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.6), width: 1.5),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.auto_awesome, color: Colors.greenAccent, size: 14),
+                              const SizedBox(width: 4),
+                              Text(
+                                '$matchScore% match',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                        const SizedBox(width: 6),
                       ],
-                    ),
+                      Material(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        shape: const CircleBorder(),
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: () async {
+                            final auth = ref.read(authStateProvider);
+                            if (auth.value == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Vui lòng đăng nhập để lưu bất động sản yêu thích')),
+                              );
+                              return;
+                            }
+                            try {
+                              await ref.read(favoriteIdsProvider.notifier).toggleFavorite(property.id);
+                            } catch (_) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Không thể cập nhật danh sách yêu thích')),
+                                );
+                              }
+                            }
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(6.0),
+                            child: Icon(
+                              isFav ? Icons.favorite : Icons.favorite_border,
+                              color: isFav ? Colors.redAccent : Colors.grey.shade700,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 // Listing Type Badge

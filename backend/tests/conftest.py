@@ -13,8 +13,8 @@ def default_mock_current_user(request):
     Provide an active default mock user for legacy test endpoints that call
     create_property, unless test explicitly tests authentication logic.
     """
-    # If the test is in test_auth.py or test_properties_my.py, do not override globally to allow testing 401 unauth
-    if "test_auth" in request.node.nodeid or "test_properties_my" in request.node.nodeid:
+    # If the test is in test_auth.py, test_properties_my.py, or test_favorites.py, do not override globally to allow testing 401 unauth
+    if any(k in request.node.nodeid for k in ["test_auth", "test_properties_my", "test_favorites"]):
         yield
         return
 

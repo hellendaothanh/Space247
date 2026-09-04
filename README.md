@@ -138,7 +138,9 @@ Tất cả các endpoint được tiền tố bởi `/api/v1`. Tài liệu tươ
 | **GET** | `/api/v1/properties/{id}` | Không | Xem chi tiết bài đăng bất động sản theo ID |
 | **POST** | `/api/v1/properties` | Có (Bearer) | Đăng tin bất động sản mới (tự động tạo vector 768-dim & gán owner) |
 | **PUT** | `/api/v1/properties/{id}` | Có (Bearer) | Cập nhật thông tin bất động sản (tự cập nhật lại vector nếu sửa nội dung) |
-| **DELETE**| `/api/v1/properties/{id}` | Có (Bearer) | Xóa bài đăng bất động sản theo ID |
+| **GET** | `/api/v1/properties/my` | Có (Bearer) | Danh sách bài đăng bất động sản do chính người dùng hiện tại tạo |
+| **GET** | `/api/v1/properties/favorites` | Có (Bearer) | Danh sách bất động sản đã lưu / đánh dấu yêu thích của người dùng |
+| **POST** | `/api/v1/properties/{id}/favorite` | Có (Bearer) | Bật / tắt (Toggle) lưu bài đăng bất động sản vào danh sách yêu thích |
 | **POST** | `/api/v1/properties/search` | Không | **Hybrid Search**: Nhận câu hỏi tự nhiên tiếng Việt, kết hợp Vector Cosine + Full-Text Search qua RRF và lọc giá/diện tích/phòng ngủ |
 | **POST** | `/api/v1/search/semantic` | Không | Tìm kiếm thuần vector embedding 768 chiều |
 

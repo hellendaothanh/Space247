@@ -15,6 +15,7 @@ from src.core.cache import (
 )
 from src.core.config import settings
 from src.core.database import get_db_session
+from src.models.favorite import FavoriteProperty
 from src.models.property import Property
 from src.models.user import User
 from src.schemas.property import (
@@ -27,6 +28,7 @@ from src.schemas.property import (
     PropertyType,
     PropertyUpdate,
     SearchResultItem,
+    ToggleFavoriteResponse,
 )
 from src.services.embedding import EmbeddingService, get_embedding_service
 
@@ -380,6 +382,86 @@ async def list_my_properties(
     stmt = stmt.order_by(Property.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(stmt)
     return list(result.scalars().all())
+
+
+@router.get(
+    "/favorites",
+    response_model=list[PropertyResponse],
+    summary="List properties bookmarked/favorited by the authenticated user",
+)
+async def list_favorite_properties(
+    skip: int = Query(0, ge=0, description="Offset for pagination"),
+    limit: int = Query(50, ge=1, le=100, description="Page limit"),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> list[Property]:
+    """
+    Retrieve listings marked as favorite by the currently authenticated user,
+    ordered by favorited timestamp descending.
+    """
+    stmt = (
+        select(Property)
+        .join(FavoriteProperty, FavoriteProperty.property_id == Property.id)
+        .where(FavoriteProperty.user_id == current_user.id)
+        .order_by(FavoriteProperty.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
+
+
+@router.post(
+    "/{property_id}/favorite",
+    response_model=ToggleFavoriteResponse,
+    summary="Toggle property bookmark/favorite for current user",
+)
+async def toggle_favorite_property(
+    property_id: uuid.UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> ToggleFavoriteResponse:
+    """
+    Toggle bookmark/favorite state for a given property by the authenticated user.
+    If the property is already favorited, removes it. If not, adds it.
+    """
+    # Verify property exists
+    prop_stmt = select(Property.id).where(Property.id == property_id)
+    prop_result = await db.execute(prop_stmt)
+    if not prop_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Property with ID {property_id} not found",
+        )
+
+    # Check if already favorited
+    fav_stmt = select(FavoriteProperty).where(
+        FavoriteProperty.user_id == current_user.id,
+        FavoriteProperty.property_id == property_id,
+    )
+    fav_result = await db.execute(fav_stmt)
+    existing_fav = fav_result.scalar_one_or_none()
+
+    if existing_fav:
+        await db.delete(existing_fav)
+        await db.flush()
+        return ToggleFavoriteResponse(
+            property_id=property_id,
+            is_favorite=False,
+            message="Đã xóa bất động sản khỏi danh sách yêu thích",
+        )
+    else:
+        new_fav = FavoriteProperty(
+            user_id=current_user.id,
+            property_id=property_id,
+        )
+        db.add(new_fav)
+        await db.flush()
+        return ToggleFavoriteResponse(
+            property_id=property_id,
+            is_favorite=True,
+            message="Đã lưu bất động sản vào danh sách yêu thích",
+        )
 
 
 @router.get(

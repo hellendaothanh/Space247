@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import '../core/api_client.dart';
 import '../models/property.dart';
 import '../models/search_result.dart';
+import '../models/favorite.dart';
 
 class PropertyService {
   final ApiClient apiClient;
@@ -66,6 +67,30 @@ class PropertyService {
     } on DioException catch (e) {
       final detail = e.response?.data is Map ? e.response?.data['detail'] : e.message;
       throw Exception(detail ?? 'Không thể lấy danh sách tin đăng của bạn');
+    }
+  }
+
+  Future<List<Property>> getFavorites({int skip = 0, int limit = 50}) async {
+    try {
+      final response = await apiClient.dio.get(
+        '/properties/favorites',
+        queryParameters: {'skip': skip, 'limit': limit},
+      );
+      final list = (response.data as List<dynamic>?) ?? [];
+      return list.map((item) => Property.fromJson(item as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      final detail = e.response?.data is Map ? e.response?.data['detail'] : e.message;
+      throw Exception(detail ?? 'Không thể lấy danh sách tin yêu thích');
+    }
+  }
+
+  Future<ToggleFavoriteResponse> toggleFavorite(String propertyId) async {
+    try {
+      final response = await apiClient.dio.post('/properties/$propertyId/favorite');
+      return ToggleFavoriteResponse.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      final detail = e.response?.data is Map ? e.response?.data['detail'] : e.message;
+      throw Exception(detail ?? 'Không thể cập nhật tin yêu thích');
     }
   }
 }

@@ -31,13 +31,13 @@ def test_alembic_configuration_and_paths():
 
 
 def test_alembic_script_directory_and_head_revision():
-    """Verify that migration scripts are discoverable and have a single clean head revision '0002'."""
+    """Verify that migration scripts are discoverable and have a single clean head revision '0003'."""
     cfg = get_alembic_config()
     script = ScriptDirectory.from_config(cfg)
 
     heads = script.get_heads()
     assert len(heads) == 1, f"Expected exactly 1 head revision, got {heads}"
-    assert heads[0] == "0002", f"Expected head revision to be '0002', got {heads[0]}"
+    assert heads[0] == "0003", f"Expected head revision to be '0003', got {heads[0]}"
 
     rev1 = script.get_revision("0001")
     assert rev1 is not None
@@ -49,6 +49,11 @@ def test_alembic_script_directory_and_head_revision():
     assert rev2 is not None
     assert "users" in rev2.doc.lower()
     assert rev2.down_revision == "0001"
+
+    rev3 = script.get_revision("0003")
+    assert rev3 is not None
+    assert "favorite" in rev3.doc.lower()
+    assert rev3.down_revision == "0002"
 
 
 def test_alembic_offline_sql_generation(capsys):
@@ -71,29 +76,34 @@ def test_alembic_offline_sql_generation(capsys):
     assert "CREATE TABLE users" in generated_sql
     assert "ALTER TABLE properties ADD COLUMN user_id UUID" in generated_sql
 
+    # Verify favorite_properties table
+    assert "CREATE TABLE favorite_properties" in generated_sql
+
     # Verify alembic version stamp
     assert "INSERT INTO alembic_version" in generated_sql
-    assert "'0002'" in generated_sql
+    assert "'0003'" in generated_sql
 
 
 def test_alembic_downgrade_offline_sql_generation(capsys):
-    """Verify that offline SQL generation for downgrade ('downgrade 0002:base --sql') produces clean rollback DDL."""
+    """Verify that offline SQL generation for downgrade ('downgrade 0003:base --sql') produces clean rollback DDL."""
     cfg = get_alembic_config()
 
-    # Generate downgrade SQL from 0002 to base using range syntax required by --sql mode
-    command.downgrade(cfg, "0002:base", sql=True)
+    # Generate downgrade SQL from 0003 to base using range syntax required by --sql mode
+    command.downgrade(cfg, "0003:base", sql=True)
     captured = capsys.readouterr()
     generated_sql = captured.out
 
+    assert "DROP TABLE favorite_properties;" in generated_sql
     assert "DROP TABLE users;" in generated_sql
     assert "DROP TABLE properties;" in generated_sql
 
 
 def test_models_metadata_aligned_with_properties():
-    """Verify that Base.metadata includes properties and users tables."""
+    """Verify that Base.metadata includes properties, users, and favorite_properties tables."""
     assert Base.metadata is not None
     assert "properties" in Base.metadata.tables
     assert "users" in Base.metadata.tables
+    assert "favorite_properties" in Base.metadata.tables
 
     prop_table = Base.metadata.tables["properties"]
     assert "embedding" in prop_table.c
@@ -104,3 +114,7 @@ def test_models_metadata_aligned_with_properties():
     assert "email" in user_table.c
     assert "hashed_password" in user_table.c
     assert "role" in user_table.c
+
+    fav_table = Base.metadata.tables["favorite_properties"]
+    assert "user_id" in fav_table.c
+    assert "property_id" in fav_table.c

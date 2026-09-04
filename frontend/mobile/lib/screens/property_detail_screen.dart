@@ -46,6 +46,42 @@ class PropertyDetailScreen extends ConsumerWidget {
               SliverAppBar(
                 expandedHeight: 280.0,
                 pinned: true,
+                actions: [
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final favoriteIds = ref.watch(favoriteIdsProvider);
+                      final isFav = favoriteIds.contains(property.id);
+                      return CircleAvatar(
+                        backgroundColor: Colors.black.withValues(alpha: 0.5),
+                        child: IconButton(
+                          icon: Icon(
+                            isFav ? Icons.favorite : Icons.favorite_border,
+                            color: isFav ? Colors.redAccent : Colors.white,
+                          ),
+                          onPressed: () async {
+                            final auth = ref.read(authStateProvider);
+                            if (auth.value == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Vui lòng đăng nhập để lưu bất động sản yêu thích')),
+                              );
+                              return;
+                            }
+                            try {
+                              await ref.read(favoriteIdsProvider.notifier).toggleFavorite(property.id);
+                            } catch (_) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Không thể cập nhật danh sách yêu thích')),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 flexibleSpace: FlexibleSpaceBar(
                   background: CachedNetworkImage(
                     imageUrl: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80',

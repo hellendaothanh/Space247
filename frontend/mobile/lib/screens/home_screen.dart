@@ -5,6 +5,7 @@ import '../widgets/search_and_filter.dart';
 import '../widgets/property_card.dart';
 import '../core/theme.dart';
 import 'login_screen.dart';
+import 'favorites_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -46,6 +47,16 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.favorite_outline, color: Colors.redAccent),
+            tooltip: 'Tin đã lưu',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (ctx) => const FavoritesScreen()),
+              );
+            },
+          ),
           authState.when(
             data: (user) {
               if (user != null) {

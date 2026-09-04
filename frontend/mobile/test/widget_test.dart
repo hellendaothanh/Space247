@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:space247_mobile/models/user.dart';
 import 'package:space247_mobile/models/property.dart';
 import 'package:space247_mobile/models/search_result.dart';
+import 'package:space247_mobile/models/favorite.dart';
 import 'package:space247_mobile/widgets/property_card.dart';
 import 'package:space247_mobile/core/utils.dart';
+import 'package:space247_mobile/providers/app_providers.dart';
+
+class FakeFavoriteIdsNotifier extends FavoriteIdsNotifier {
+  @override
+  Set<String> build() => <String>{};
+}
 
 void main() {
   group('Data Models & Formatters Test', () {
@@ -66,6 +74,18 @@ void main() {
       expect(Formatters.propertyTypeLabel('apartment'), 'Chung cư');
       expect(Formatters.listingTypeLabel('sale'), 'Mua bán');
     });
+
+    test('ToggleFavoriteResponse model parses correctly', () {
+      final json = {
+        'property_id': 'p1-1234',
+        'is_favorite': true,
+        'message': 'Đã lưu bất động sản vào danh sách yêu thích',
+      };
+      final res = ToggleFavoriteResponse.fromJson(json);
+      expect(res.propertyId, 'p1-1234');
+      expect(res.isFavorite, true);
+      expect(res.message, 'Đã lưu bất động sản vào danh sách yêu thích');
+    });
   });
 
   group('Widget Tests', () {
@@ -92,12 +112,18 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: PropertyCard(item: searchItem),
+        ProviderScope(
+          overrides: [
+            favoriteIdsProvider.overrideWith(FakeFavoriteIdsNotifier.new),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: PropertyCard(item: searchItem),
+            ),
           ),
         ),
       );
+      await tester.pump();
 
       expect(find.text('Căn hộ River Gate 2PN'), findsOneWidget);
       expect(find.text('18 triệu VND'), findsOneWidget);

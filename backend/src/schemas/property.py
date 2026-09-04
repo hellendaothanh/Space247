@@ -194,3 +194,9 @@ class PropertySearchResponse(BaseModel):
     vector_dim: int = 768
     query: str | None = None
     results: list[SearchResultItem]
+
+
+class ToggleFavoriteResponse(BaseModel):
+    property_id: uuid.UUID
+    is_favorite: bool
+    message: str

@@ -17,6 +17,7 @@ import {
 import { PropertyResponse } from "@shared/types";
 import { apiClient } from "@/lib/api";
 import { formatPrice, formatPropertyType, getPlaceholderImage } from "@/lib/utils";
+import PropertyFavoriteButton from "@/components/PropertyFavoriteButton";
 
 interface PropertyDetailPageProps {
   params: Promise<{ id: string }>;
@@ -70,13 +71,7 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
             <Share2 className="h-4 w-4 text-slate-500" />
             <span>Chia sẻ</span>
           </button>
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 shadow-xs hover:bg-slate-50"
-          >
-            <Heart className="h-4 w-4 text-slate-500" />
-            <span>Lưu tin</span>
-          </button>
+          <PropertyFavoriteButton propertyId={property.id} />
         </div>
       </div>
 

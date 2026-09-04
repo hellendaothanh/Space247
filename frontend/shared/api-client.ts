@@ -16,6 +16,7 @@ import {
   PropertyUpdate,
   SemanticSearchQuery,
   SemanticSearchResponse,
+  ToggleFavoriteResponse,
   UserLoginRequest,
   UserRegisterRequest,
   UserResponse,
@@ -162,6 +163,26 @@ export class RealEstateApiClient {
     const queryStr = searchParams.toString();
     const endpoint = `/api/v1/properties/my${queryStr ? `?${queryStr}` : ""}`;
     return this.request<PropertyResponse[]>(endpoint);
+  }
+
+  async listFavorites(params?: {
+    skip?: number;
+    limit?: number;
+  }): Promise<PropertyResponse[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.skip !== undefined) searchParams.set("skip", String(params.skip));
+    if (params?.limit !== undefined) searchParams.set("limit", String(params.limit));
+
+    const queryStr = searchParams.toString();
+    const endpoint = `/api/v1/properties/favorites${queryStr ? `?${queryStr}` : ""}`;
+    return this.request<PropertyResponse[]>(endpoint);
+  }
+
+  async toggleFavorite(propertyId: string): Promise<ToggleFavoriteResponse> {
+    return this.request<ToggleFavoriteResponse>(
+      `/api/v1/properties/${encodeURIComponent(propertyId)}/favorite`,
+      { method: "POST" }
+    );
   }
 
   async getProperty(id: string): Promise<PropertyResponse> {

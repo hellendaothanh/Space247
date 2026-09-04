@@ -136,3 +136,65 @@ final propertyDetailProvider = FutureProvider.family<Property, String>((ref, id)
   final propertyService = ref.watch(propertyServiceProvider);
   return propertyService.getPropertyById(id);
 });
+
+// Favorite Properties Provider
+final favoritePropertiesProvider = FutureProvider<List<Property>>((ref) async {
+  final authState = ref.watch(authStateProvider);
+  final user = authState.value;
+  if (user == null) {
+    return [];
+  }
+  final propertyService = ref.watch(propertyServiceProvider);
+  return propertyService.getFavorites();
+});
+
+// Set of favorite property IDs for fast O(1) bookmark lookup
+class FavoriteIdsNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() {
+    ref.listen<AsyncValue<List<Property>>>(
+      favoritePropertiesProvider,
+      (previous, next) {
+        next.whenData((list) {
+          state = list.map((p) => p.id).toSet();
+        });
+      },
+    );
+
+    final favAsync = ref.watch(favoritePropertiesProvider);
+    return favAsync.value?.map((p) => p.id).toSet() ?? <String>{};
+  }
+
+  Future<bool> toggleFavorite(String propertyId) async {
+    final propertyService = ref.read(propertyServiceProvider);
+    final isCurrentlyFav = state.contains(propertyId);
+
+    // Optimistic UI state update
+    if (isCurrentlyFav) {
+      state = Set.from(state)..remove(propertyId);
+    } else {
+      state = Set.from(state)..add(propertyId);
+    }
+
+    try {
+      final res = await propertyService.toggleFavorite(propertyId);
+      if (res.isFavorite) {
+        state = Set.from(state)..add(propertyId);
+      } else {
+        state = Set.from(state)..remove(propertyId);
+      }
+      ref.invalidate(favoritePropertiesProvider);
+      return res.isFavorite;
+    } catch (e) {
+      // Revert on error
+      if (isCurrentlyFav) {
+        state = Set.from(state)..add(propertyId);
+      } else {
+        state = Set.from(state)..remove(propertyId);
+      }
+      rethrow;
+    }
+  }
+}
+
+final favoriteIdsProvider = NotifierProvider<FavoriteIdsNotifier, Set<String>>(FavoriteIdsNotifier.new);

@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Bed, Bath, Maximize2, MapPin, Sparkles, ArrowUpRight } from "lucide-react";
+import { Bed, Bath, Maximize2, MapPin, Sparkles, ArrowUpRight, Heart } from "lucide-react";
 import { PropertyResponse, SearchResultItem } from "@shared/types";
 import { formatPrice, formatPropertyType, getPlaceholderImage } from "@/lib/utils";
+import { useFavorites } from "@/lib/favorites";
 
 interface PropertyCardProps {
   item: SearchResultItem | PropertyResponse;
@@ -9,13 +10,26 @@ interface PropertyCardProps {
 }
 
 export default function PropertyCard({ item, index = 0 }: PropertyCardProps) {
+  const { isFavorite, toggleFavorite } = useFavorites();
+
   // Support both SearchResultItem and raw PropertyResponse
   const isSearchResult = "property" in item;
   const property: PropertyResponse = isSearchResult ? (item as SearchResultItem).property : (item as PropertyResponse);
   const similarityScore = isSearchResult ? (item as SearchResultItem).similarity_score : null;
   const rrfScore = isSearchResult ? (item as SearchResultItem).rrf_score : null;
 
+  const favorited = isFavorite(property.id);
   const imageUrl = getPlaceholderImage(property.property_type, index);
+
+  const handleToggleFavorite = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await toggleFavorite(property.id);
+    } catch {
+      // Handled in context
+    }
+  };
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
@@ -44,13 +58,28 @@ export default function PropertyCard({ item, index = 0 }: PropertyCardProps) {
           </span>
         </div>
 
-        {/* Semantic Similarity Score Badge */}
-        {typeof similarityScore === "number" && !Number.isNaN(similarityScore) && (
-          <div className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-xs font-bold text-indigo-700 shadow-md backdrop-blur-md">
-            <Sparkles className="h-3.5 w-3.5 text-indigo-500 fill-indigo-500" />
-            <span>{Math.max(0, Math.min(100, similarityScore * 100)).toFixed(1)}% phù hợp</span>
-          </div>
-        )}
+        {/* Top Right Badges: Favorite Button & Semantic Match Badge */}
+        <div className="absolute top-3 right-3 flex items-center gap-1.5">
+          {typeof similarityScore === "number" && !Number.isNaN(similarityScore) && (
+            <div className="flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-xs font-bold text-indigo-700 shadow-md backdrop-blur-md">
+              <Sparkles className="h-3.5 w-3.5 text-indigo-500 fill-indigo-500" />
+              <span>{Math.max(0, Math.min(100, similarityScore * 100)).toFixed(1)}% phù hợp</span>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={handleToggleFavorite}
+            title={favorited ? "Xóa khỏi danh sách yêu thích" : "Lưu vào danh sách yêu thích"}
+            className={`flex h-8 w-8 items-center justify-center rounded-full shadow-md backdrop-blur-md transition cursor-pointer ${
+              favorited
+                ? "bg-rose-500 text-white hover:bg-rose-600"
+                : "bg-white/90 text-slate-600 hover:bg-white hover:text-rose-500"
+            }`}
+          >
+            <Heart className={`h-4 w-4 transition ${favorited ? "fill-current" : ""}`} />
+          </button>
+        </div>
       </div>
 
       {/* Content Container */}

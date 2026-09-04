@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from src.core.config import settings
 from src.core.database import Base
 # Ensure all models are imported so Base.metadata is fully populated
-from src.models.property import Property  # noqa: F401
+from src.models import FavoriteProperty, Property, User  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
