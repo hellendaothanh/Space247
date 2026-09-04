@@ -41,3 +41,7 @@
 - source_spec: `C:\Devsecops\Space247/_bmad-output/implementation-artifacts/spec-space247-alembic-migrations.md`
   summary: Add composite index for geospatial coordinates (latitude, longitude).
   evidence: Map-based bounding-box queries benefit from composite B-tree or GiST spatial indexing.
+
+- source_spec: `C:\Devsecops\Space247/_bmad-output/implementation-artifacts/spec-space247-seed-properties.md`
+  summary: Implement batched title lookups and batched embedding generation for bulk property seed/import jobs.
+  evidence: Reviewer noted sequential queries and embedding inference create unnecessary round trips for large datasets.
