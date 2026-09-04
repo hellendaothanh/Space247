@@ -159,7 +159,19 @@ Tất cả các endpoint được tiền tố bởi `/api/v1`. Tài liệu tươ
 cd backend
 uv run pytest
 ```
-*Bao gồm toàn bộ **71 test cases** (100% PASS) bao phủ AI Chatbot Assistant, Alembic migrations, JWT Auth, Hybrid Search RRF, Semantic Search, Redis Caching và Seeding logic.*
+*Bao gồm toàn bộ **81 test cases** (100% PASS) bao phủ PostGIS Spatial Isochrone Search & Amenity Heatmaps, AI Property Comparison, AI Chatbot Assistant, Alembic migrations, JWT Auth, Hybrid Search RRF, Semantic Search, Redis Caching và Seeding logic.*
+
+### Tính năng Địa Không Gian & Bản Đồ (Spatial & Geo-Intelligence):
+Space247 tích hợp công nghệ PostGIS với chỉ mục không gian GiST (SRID 4326) và hệ thống phân tích không gian thông minh:
+1. **Tìm kiếm BĐS theo vùng di chuyển thực tế (Isochrone Travel-Time Search)**:
+   * Endpoint: `POST /api/v1/spatial/isochrone-search`
+   * Geocoding các mốc địa danh hàng đầu Việt Nam (Keangnam, Chợ Bến Thành, Landmark 81, ĐH Bách Khoa, Hồ Gươm, Lotte Center...) hoặc tọa độ trực tiếp kèm OpenStreetMap Nominatim.
+   * Tạo đa giác di chuyển GeoJSON đa giác (5 - 30 phút) theo phương tiện: Xe máy (28 km/h), Ô tô (32 km/h), Đi bộ (4.5 km/h).
+   * Lọc chính xác các căn hộ nằm trong vùng bằng `ST_Within(Property.geom, ST_GeomFromGeoJSON(:polygon))`.
+2. **Bản đồ nhiệt mật độ tiện ích xung quanh (Amenity Density Heatmap)**:
+   * Endpoint: `GET /api/v1/spatial/amenities/heatmap?category={school|hospital|metro|supermarket|all}`
+   * Trả về danh sách POI kèm ma trận tọa độ trọng số `[lat, lng, weight]` cho `leaflet.heat` và markers tương tác.
+3. **Bộ nhớ đệm Redis**: Tự động cache Isochrone Polygons và POI data trong 1 giờ.
 
 ### Kiểm thử Frontend Web (TypeScript & Build):
 ```bash

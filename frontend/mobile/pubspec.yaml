@@ -40,6 +40,8 @@ dependencies:
   intl: ^0.20.3
   cached_network_image: ^4.0.0
   flutter_markdown: ^0.7.4
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
 
 
 dev_dependencies:

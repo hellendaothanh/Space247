@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 import uuid
+from typing import Any
+from geoalchemy2 import Geometry
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     DateTime,
@@ -62,6 +64,10 @@ class Property(Base):
     city: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    geom: Mapped[Any | None] = mapped_column(
+        Geometry(geometry_type="POINT", srid=4326, spatial_index=True),
+        nullable=True,
+    )
 
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="active", server_default="active", index=True

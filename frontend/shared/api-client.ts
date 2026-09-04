@@ -24,6 +24,10 @@ import {
   UserResponse,
   ComparePropertiesRequest,
   ComparePropertiesResponse,
+  IsochroneSearchRequest,
+  IsochroneSearchResponse,
+  AmenityHeatmapQuery,
+  AmenityHeatmapResponse,
 } from "./types";
 
 
@@ -248,6 +252,36 @@ export class RealEstateApiClient {
       method: "POST",
       body: JSON.stringify(request),
     });
+  }
+
+  // Spatial & Geo-Intelligence: Isochrone Travel-Time Search
+  async isochroneSearch(
+    request: IsochroneSearchRequest
+  ): Promise<IsochroneSearchResponse> {
+    return this.request<IsochroneSearchResponse>("/api/v1/spatial/isochrone-search", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  }
+
+  // Spatial & Geo-Intelligence: Amenity Density Heatmap
+  async getAmenityHeatmap(
+    params?: AmenityHeatmapQuery
+  ): Promise<AmenityHeatmapResponse> {
+    const searchParams = new URLSearchParams();
+    if (params?.category) searchParams.append("category", params.category);
+    if (params?.min_lat !== undefined) searchParams.append("min_lat", params.min_lat.toString());
+    if (params?.min_lng !== undefined) searchParams.append("min_lng", params.min_lng.toString());
+    if (params?.max_lat !== undefined) searchParams.append("max_lat", params.max_lat.toString());
+    if (params?.max_lng !== undefined) searchParams.append("max_lng", params.max_lng.toString());
+    if (params?.center_lat !== undefined) searchParams.append("center_lat", params.center_lat.toString());
+    if (params?.center_lng !== undefined) searchParams.append("center_lng", params.center_lng.toString());
+    if (params?.radius_km !== undefined) searchParams.append("radius_km", params.radius_km.toString());
+
+    const qs = searchParams.toString();
+    return this.request<AmenityHeatmapResponse>(
+      `/api/v1/spatial/amenities/heatmap${qs ? `?${qs}` : ""}`
+    );
   }
 }
 

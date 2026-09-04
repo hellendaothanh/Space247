@@ -7,6 +7,7 @@ import '../core/theme.dart';
 import 'login_screen.dart';
 import 'favorites_screen.dart';
 import 'comparison_screen.dart';
+import 'map_explorer_screen.dart';
 import '../providers/comparison_notifier.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -53,6 +54,16 @@ class HomeScreen extends ConsumerWidget {
             icon: const Icon(Icons.settings_outlined, color: AppTheme.textSecondary),
             tooltip: 'Cài đặt kết nối Server',
             onPressed: () => _showServerSettingsDialog(context, ref),
+          ),
+          IconButton(
+            icon: const Icon(Icons.map_outlined, color: AppTheme.primaryColor),
+            tooltip: 'Bản đồ tương tác',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (ctx) => const MapExplorerScreen()),
+              );
+            },
           ),
           IconButton(
             icon: const Icon(Icons.favorite_outline, color: Colors.redAccent),

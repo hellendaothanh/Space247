@@ -20,6 +20,8 @@ dependencies = [
     "redis>=8.1.0",
     "greenlet>=3.5.5",
     "google-genai>=2.22.0",
+    "geoalchemy2>=0.20.0",
+    "shapely>=2.1.2",
 ]
 
 [project.optional-dependencies]

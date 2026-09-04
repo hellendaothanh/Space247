@@ -218,3 +218,74 @@ export interface ComparePropertiesResponse {
   properties: ComparisonData[];
   analysis_markdown: string;
 }
+
+// ---------------------------------------------------------------------------
+// Spatial & Geo-Intelligence Types
+// ---------------------------------------------------------------------------
+
+export type TransportMode = "motorcycle" | "car" | "transit" | "walking";
+export type AmenityCategory = "school" | "hospital" | "metro" | "supermarket" | "all";
+
+export interface TargetLocationInfo {
+  name: string;
+  latitude: number;
+  longitude: number;
+  formatted_address?: string | null;
+}
+
+export interface IsochroneSearchRequest {
+  target_landmark: string;
+  max_duration_minutes?: number;
+  transport_mode?: TransportMode;
+  property_type?: PropertyType | null;
+  listing_type?: ListingType | null;
+  min_price?: number | null;
+  max_price?: number | null;
+  min_bedrooms?: number | null;
+  limit?: number;
+}
+
+export interface IsochronePropertyItem {
+  property: PropertyResponse;
+  estimated_travel_minutes: number;
+  distance_km: number;
+}
+
+export interface IsochroneSearchResponse {
+  target_location: TargetLocationInfo;
+  max_duration_minutes: number;
+  transport_mode: TransportMode;
+  isochrone_geojson: any; // GeoJSON FeatureCollection
+  total: number;
+  properties: IsochronePropertyItem[];
+}
+
+export interface AmenityPOI {
+  id: string;
+  name: string;
+  category: string;
+  latitude: number;
+  longitude: number;
+  weight: number;
+  distance_meters?: number | null;
+  address?: string | null;
+}
+
+export interface AmenityHeatmapQuery {
+  category?: AmenityCategory | string;
+  min_lat?: number;
+  min_lng?: number;
+  max_lat?: number;
+  max_lng?: number;
+  center_lat?: number;
+  center_lng?: number;
+  radius_km?: number;
+}
+
+export interface AmenityHeatmapResponse {
+  category: string;
+  total_points: number;
+  heatmap_points: [number, number, number][]; // [lat, lng, weight]
+  pois: AmenityPOI[];
+}
+

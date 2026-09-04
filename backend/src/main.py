@@ -26,12 +26,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Initializing Space247 Real Estate API...")
     try:
         async with engine.begin() as conn:
-            # Check and register pgvector extension
+            # Check and register pgvector and postgis extensions
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
             # Create schema tables if needed
             await conn.run_sync(Base.metadata.create_all)
             logger.info(
-                "Database connection established and pgvector extension verified (dim: %d)",
+                "Database connection established, pgvector and postgis extensions verified (dim: %d)",
                 settings.VECTOR_DIM,
             )
     except Exception as exc:
