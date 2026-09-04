@@ -79,3 +79,16 @@ async def get_optional_current_user(
     except HTTPException:
         return None
 
+
+async def get_current_agent_user(
+    current_user: User = Depends(get_current_active_user),
+) -> User:
+    """Ensure the authenticated user has Agent or Admin privileges."""
+    if current_user.role not in ("agent", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tính năng chỉ dành cho Môi giới (Agent) hoặc Quản trị viên (Admin).",
+        )
+    return current_user
+
+

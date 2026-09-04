@@ -23,6 +23,8 @@ import { apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { ListingType, PropertyResponse, PropertyStatus, PropertyType } from "@shared/types";
 import { formatPropertyType } from "@/lib/utils";
+import AiListingGeneratorModal from "@/components/AiListingGeneratorModal";
+import AvmPriceAdvisor from "@/components/AvmPriceAdvisor";
 
 const editPropertyFormSchema = z.object({
   title: z
@@ -96,6 +98,20 @@ export default function EditPropertyPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+
+  const handleAiApply = (data: {
+    title: string;
+    description: string;
+    specs: any;
+  }) => {
+    if (data.title) setTitle(data.title);
+    if (data.description) setDescription(data.description);
+    if (data.specs.area_sqm) setAreaStr(data.specs.area_sqm.toString());
+    if (data.specs.num_bedrooms) setBedroomsStr(data.specs.num_bedrooms.toString());
+    if (data.specs.num_bathrooms) setBathroomsStr(data.specs.num_bathrooms.toString());
+    if (data.specs.suggested_price) setPriceStr(data.specs.suggested_price.toString());
+  };
 
   // Authentication check
   useEffect(() => {
@@ -346,9 +362,19 @@ export default function EditPropertyPage() {
 
           {/* Card 2: Nội dung & Mô tả */}
           <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs">
-            <div className="flex items-center gap-2 border-b border-slate-100 pb-4 mb-6">
-              <FileText className="h-5 w-5 text-blue-600" />
-              <h2 className="text-base font-bold text-slate-900">Thông tin bài đăng & Mô tả</h2>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-blue-600" />
+                <h2 className="text-base font-bold text-slate-900">Thông tin bài đăng & Mô tả</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAiModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-semibold rounded-xl shadow-xs transition"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>AI Soạn Tin (Agent Co-Pilot)</span>
+              </button>
             </div>
 
             <div className="space-y-6">
@@ -456,6 +482,20 @@ export default function EditPropertyPage() {
                     <p className="mt-1 text-[11px] text-rose-600 font-medium">{errors.num_bathrooms}</p>
                   )}
                 </div>
+              </div>
+
+              {/* Smart AVM Pricing Advisor */}
+              <div className="pt-2">
+                <AvmPriceAdvisor
+                  propertyType={propertyType}
+                  areaSqm={parseFloat(areaStr.replace(/,/g, "")) || 0}
+                  numBedrooms={parseInt(bedroomsStr, 10) || null}
+                  numBathrooms={parseInt(bathroomsStr, 10) || null}
+                  latitude={parseFloat(latitudeStr) || null}
+                  longitude={parseFloat(longitudeStr) || null}
+                  proposedPrice={parseFloat(priceStr.replace(/,/g, "")) || null}
+                  onApplyPrice={(price) => setPriceStr(Math.round(price).toString())}
+                />
               </div>
             </div>
           </div>
@@ -603,6 +643,14 @@ export default function EditPropertyPage() {
           </div>
         </form>
       </div>
+
+      {/* AI Listing Generator Modal */}
+      <AiListingGeneratorModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        initialPropertyType={propertyType}
+        onApply={handleAiApply}
+      />
     </div>
   );
 }

@@ -23,6 +23,8 @@ import {
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { ListingType, PropertyType } from "@shared/types";
+import AiListingGeneratorModal from "@/components/AiListingGeneratorModal";
+import AvmPriceAdvisor from "@/components/AvmPriceAdvisor";
 
 // Client-side Zod validation schema matching backend constraints
 const propertyFormSchema = z.object({
@@ -146,6 +148,26 @@ export default function CreatePropertyPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [successInfo, setSuccessInfo] = useState<{ id: string; title: string } | null>(null);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+
+  const handleAiApply = (data: {
+    title: string;
+    description: string;
+    specs: any;
+  }) => {
+    if (data.title) setTitle(data.title);
+    if (data.description) setDescription(data.description);
+    if (data.specs.area_sqm) setAreaStr(data.specs.area_sqm.toString());
+    if (data.specs.num_bedrooms) setBedroomsStr(data.specs.num_bedrooms.toString());
+    if (data.specs.num_bathrooms) setBathroomsStr(data.specs.num_bathrooms.toString());
+    if (data.specs.suggested_price) setPriceStr(data.specs.suggested_price.toString());
+    if (data.specs.amenities && Array.isArray(data.specs.amenities)) {
+      setSelectedAmenities((prev) => {
+        const combined = new Set([...prev, ...data.specs.amenities]);
+        return Array.from(combined);
+      });
+    }
+  };
 
   const toggleAmenity = (amenity: string) => {
     setSelectedAmenities((prev) =>
@@ -433,9 +455,19 @@ export default function CreatePropertyPage() {
 
         {/* SECTION 2: Basic Content */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-6">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-4">
-            <FileText className="h-5 w-5 text-blue-600" />
-            <h2 className="text-base font-semibold text-slate-900">2. Tiêu đề & Nội dung mô tả</h2>
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-blue-600" />
+              <h2 className="text-base font-semibold text-slate-900">2. Tiêu đề & Nội dung mô tả</h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsAiModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-semibold rounded-xl shadow-xs transition"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>AI Soạn Tin (Agent Co-Pilot)</span>
+            </button>
           </div>
 
           <div>
@@ -571,6 +603,20 @@ export default function CreatePropertyPage() {
                 className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 shadow-xs focus:border-blue-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
               />
               {errors.num_bathrooms && <p className="mt-1 text-xs text-rose-500">{errors.num_bathrooms}</p>}
+            </div>
+
+            {/* Smart AVM Pricing Advisor */}
+            <div className="sm:col-span-2 pt-2">
+              <AvmPriceAdvisor
+                propertyType={propertyType}
+                areaSqm={parseFloat(areaStr.replace(/,/g, "")) || 0}
+                numBedrooms={parseInt(bedroomsStr, 10) || null}
+                numBathrooms={parseInt(bathroomsStr, 10) || null}
+                latitude={parseFloat(latitudeStr) || null}
+                longitude={parseFloat(longitudeStr) || null}
+                proposedPrice={parseFloat(priceStr.replace(/,/g, "")) || null}
+                onApplyPrice={(price) => setPriceStr(Math.round(price).toString())}
+              />
             </div>
           </div>
         </div>
@@ -819,6 +865,14 @@ export default function CreatePropertyPage() {
           </button>
         </div>
       </form>
+
+      {/* AI Listing Generator Modal */}
+      <AiListingGeneratorModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        initialPropertyType={propertyType}
+        onApply={handleAiApply}
+      />
     </div>
   );
 }

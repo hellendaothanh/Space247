@@ -149,6 +149,11 @@ Tất cả các endpoint được tiền tố bởi `/api/v1`. Tài liệu tươ
 | **POST** | `/api/v1/properties/search` | Không | **Hybrid Search**: Nhận câu hỏi tự nhiên tiếng Việt, kết hợp Vector Cosine + Full-Text Search qua RRF và lọc giá/diện tích/phòng ngủ |
 | **POST** | `/api/v1/search/semantic` | Không | Tìm kiếm thuần vector embedding 768 chiều |
 | **POST** | `/api/v1/chat/assistant` | Không | **Trợ lý AI Tư vấn**: Nhận lịch sử chat & câu hỏi tự nhiên, tự động trích xuất tiêu chí (giá, quận, loại hình, tiện ích), gọi Hybrid Search và trả về phản hồi tự nhiên kèm thẻ bài đăng |
+| **POST** | `/api/v1/properties/compare` | Không | **So sánh BĐS bằng AI**: So sánh 2-3 căn trực tiếp theo 4 tiêu chí cốt lõi (đơn giá/m², vị trí, tiềm năng, pháp lý) |
+| **POST** | `/api/v1/spatial/isochrone-search` | Không | Tìm kiếm BĐS theo bán kính thời gian di chuyển thực tế (Isochrone Travel-Time Polygon) |
+| **GET** | `/api/v1/spatial/amenities/heatmap` | Không | Bản đồ nhiệt mật độ tiện ích xung quanh (Trường học, Bệnh viện, Ga Metro, Siêu thị) |
+| **POST** | `/api/v1/agent/listing/generate` | Có (Agent/Admin) | **AI Listing Co-Pilot**: Soạn tin đăng chuẩn SEO, sinh bài viết Markdown và bóc tách thông số từ ghi chú hoặc ảnh sổ đỏ |
+| **POST** | `/api/v1/agent/valuation/estimate` | Có (Agent/Admin) | **Smart AVM Pricing Advisor**: Định giá BĐS tự động dựa trên giao dịch lân cận (Weighted KNN + mở rộng bán kính 2.5-8km) |
 
 ---
 
@@ -159,7 +164,19 @@ Tất cả các endpoint được tiền tố bởi `/api/v1`. Tài liệu tươ
 cd backend
 uv run pytest
 ```
-*Bao gồm toàn bộ **81 test cases** (100% PASS) bao phủ PostGIS Spatial Isochrone Search & Amenity Heatmaps, AI Property Comparison, AI Chatbot Assistant, Alembic migrations, JWT Auth, Hybrid Search RRF, Semantic Search, Redis Caching và Seeding logic.*
+*Bao gồm toàn bộ **90 test cases** (100% PASS) bao phủ Agent AI Co-Pilot (Listing Generator, AVM Valuation, Auth RBAC), PostGIS Spatial Isochrone Search & Amenity Heatmaps, AI Property Comparison, AI Chatbot Assistant, Alembic migrations, JWT Auth, Hybrid Search RRF, Semantic Search, Redis Caching và Seeding logic.*
+
+### Bộ Công Cụ Môi Giới Thông Minh (Agent AI Co-Pilot):
+Space247 trang bị bộ công cụ AI Co-Pilot đắc lực dành riêng cho môi giới (`agent`) và quản trị viên (`admin`):
+1. **AI Listing Generator**:
+   * Phân tích ghi chú nhanh hoặc ảnh chụp sổ đỏ/mặt bằng qua Gemini Multimodal AI.
+   * Tự động sinh tiêu đề chuẩn SEO, bài viết Markdown chuyên nghiệp theo văn phong bất động sản Việt Nam.
+   * Tự động trích xuất thông số kỹ thuật (diện tích, phòng ngủ, WC, hướng nhà, pháp lý, mặt tiền, giá gợi ý, tiện ích) và điền tự động vào Form tạo/sửa tin đăng.
+2. **Smart AVM Pricing Advisor (Automated Valuation Model)**:
+   * Ứng dụng PostGIS và thuật toán Weighted K-Nearest Neighbors (suy giảm theo khoảng cách $d^{1.5}$, tỷ lệ diện tích và số phòng ngủ).
+   * **Option A: Bán kính tìm kiếm linh hoạt**: Mặc định tìm kiếm trong bán kính 2.5 km; tự động mở rộng từng bước (lên tối đa 6.0 – 8.0 km) nếu ít hơn 2 BĐS tương đồng. Tự động hiệu chỉnh giảm điểm tin cậy (*confidence score*) và ghi chú rõ ràng cho môi giới.
+   * Thanh đo trực quan 3 mức độ lệch giá: Thấp hơn thị trường (thanh khoản cao), Định giá hợp lý (chuẩn thị trường), Cao hơn thị trường (cảnh báo khó bán).
+   * Tích hợp bộ nhớ đệm Redis (TTL 15 phút) tối ưu hiệu năng tính toán.
 
 ### Tính năng Địa Không Gian & Bản Đồ (Spatial & Geo-Intelligence):
 Space247 tích hợp công nghệ PostGIS với chỉ mục không gian GiST (SRID 4326) và hệ thống phân tích không gian thông minh:

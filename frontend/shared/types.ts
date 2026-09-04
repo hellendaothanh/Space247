@@ -289,3 +289,66 @@ export interface AmenityHeatmapResponse {
   pois: AmenityPOI[];
 }
 
+// ---------------------------------------------------------------------------
+// Agent AI Co-Pilot Types
+// ---------------------------------------------------------------------------
+
+export interface ExtractedSpecs {
+  area_sqm?: number | null;
+  num_bedrooms?: number | null;
+  num_bathrooms?: number | null;
+  orientation?: string | null;
+  legal_status?: string | null;
+  frontage_meters?: number | null;
+  suggested_price?: number | null;
+  amenities: string[];
+}
+
+export interface GenerateListingRequest {
+  text_prompts: string[] | string;
+  image_base64?: string | null;
+  property_type?: string;
+  target_audience?: string | null;
+}
+
+export interface GenerateListingResponse {
+  title_seo: string;
+  description_markdown: string;
+  extracted_specs: ExtractedSpecs;
+}
+
+export interface ValuationRequest {
+  property_type?: string;
+  area_sqm: number;
+  num_bedrooms?: number | null;
+  num_bathrooms?: number | null;
+  latitude: number;
+  longitude: number;
+  radius_km?: number;
+  user_proposed_price?: number | null;
+}
+
+export interface ComparableProperty {
+  id: string;
+  title: string;
+  price: number;
+  area_sqm: number;
+  price_per_sqm: number;
+  distance_km: number;
+  address: string;
+  property_type: string;
+}
+
+export interface ValuationResponse {
+  estimated_price_per_sqm: number;
+  estimated_total_price: number;
+  price_range_low: number;
+  price_range_high: number;
+  confidence_score: number;
+  market_trend: "up" | "stable" | "down";
+  radius_used_km: number;
+  comparable_properties: ComparableProperty[];
+  deviation_percentage?: number | null;
+  pricing_advice?: string | null;
+}
+

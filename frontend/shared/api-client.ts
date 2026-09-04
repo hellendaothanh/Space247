@@ -28,6 +28,10 @@ import {
   IsochroneSearchResponse,
   AmenityHeatmapQuery,
   AmenityHeatmapResponse,
+  GenerateListingRequest,
+  GenerateListingResponse,
+  ValuationRequest,
+  ValuationResponse,
 } from "./types";
 
 
@@ -282,6 +286,26 @@ export class RealEstateApiClient {
     return this.request<AmenityHeatmapResponse>(
       `/api/v1/spatial/amenities/heatmap${qs ? `?${qs}` : ""}`
     );
+  }
+
+  // Agent AI Co-Pilot: AI Listing Generator
+  async generateAgentListing(
+    request: GenerateListingRequest
+  ): Promise<GenerateListingResponse> {
+    return this.request<GenerateListingResponse>("/api/v1/agent/listing/generate", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  }
+
+  // Agent AI Co-Pilot: Smart AVM Pricing Advisor
+  async estimatePropertyValuation(
+    request: ValuationRequest
+  ): Promise<ValuationResponse> {
+    return this.request<ValuationResponse>("/api/v1/agent/valuation/estimate", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
   }
 }
 
