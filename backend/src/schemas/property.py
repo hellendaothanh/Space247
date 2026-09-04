@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 import uuid
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ListingType(str, Enum):
@@ -83,14 +83,31 @@ class SemanticSearchQuery(BaseModel):
     query_vector: list[float] = Field(..., description="768-dimensional embedding vector")
     listing_type: ListingType | None = Field(default=None, description="Filter by listing type (sale/rent)")
     property_type: PropertyType | None = Field(default=None, description="Filter by property type")
+    address: str | None = Field(default=None, description="Filter by address substring")
     city: str | None = Field(default=None, description="Filter by city/province")
     district: str | None = Field(default=None, description="Filter by district")
+    num_bedrooms: int | None = Field(
+        default=None, ge=0, description="Filter by exact number of bedrooms"
+    )
+    min_bedrooms: int | None = Field(
+        default=None, ge=0, description="Filter by minimum number of bedrooms"
+    )
     min_price: float | None = Field(default=None, ge=0, description="Minimum price filter")
     max_price: float | None = Field(default=None, ge=0, description="Maximum price filter")
     min_area_sqm: float | None = Field(default=None, ge=0, description="Minimum area filter")
     max_area_sqm: float | None = Field(default=None, ge=0, description="Maximum area filter")
     limit: int = Field(default=10, ge=1, le=100, description="Maximum number of results to return")
     threshold: float | None = Field(default=None, ge=0.0, le=1.0, description="Minimum cosine similarity threshold")
+
+    @model_validator(mode="after")
+    def validate_ranges(self) -> "SemanticSearchQuery":
+        if self.min_price is not None and self.max_price is not None:
+            if self.min_price > self.max_price:
+                raise ValueError("min_price cannot exceed max_price")
+        if self.min_area_sqm is not None and self.max_area_sqm is not None:
+            if self.min_area_sqm > self.max_area_sqm:
+                raise ValueError("min_area_sqm cannot exceed max_area_sqm")
+        return self
 
 
 class SearchResultItem(BaseModel):
@@ -145,6 +162,16 @@ class PropertySearchQuery(BaseModel):
     threshold: float | None = Field(
         default=None, ge=0.0, le=1.0, description="Minimum cosine similarity threshold"
     )
+
+    @model_validator(mode="after")
+    def validate_ranges(self) -> "PropertySearchQuery":
+        if self.min_price is not None and self.max_price is not None:
+            if self.min_price > self.max_price:
+                raise ValueError("min_price cannot exceed max_price")
+        if self.min_area_sqm is not None and self.max_area_sqm is not None:
+            if self.min_area_sqm > self.max_area_sqm:
+                raise ValueError("min_area_sqm cannot exceed max_area_sqm")
+        return self
 
 
 class PropertySearchResponse(BaseModel):

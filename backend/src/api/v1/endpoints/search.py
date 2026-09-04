@@ -56,10 +56,16 @@ async def semantic_search(
         stmt = stmt.where(Property.listing_type == query.listing_type.value)
     if query.property_type:
         stmt = stmt.where(Property.property_type == query.property_type.value)
+    if query.address:
+        stmt = stmt.where(Property.address.ilike(f"%{query.address}%"))
     if query.city:
         stmt = stmt.where(Property.city.ilike(f"%{query.city}%"))
     if query.district:
         stmt = stmt.where(Property.district.ilike(f"%{query.district}%"))
+    if query.num_bedrooms is not None:
+        stmt = stmt.where(Property.num_bedrooms == query.num_bedrooms)
+    if query.min_bedrooms is not None:
+        stmt = stmt.where(Property.num_bedrooms >= query.min_bedrooms)
     if query.min_price is not None:
         stmt = stmt.where(Property.price >= query.min_price)
     if query.max_price is not None:

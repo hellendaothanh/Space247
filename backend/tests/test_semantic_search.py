@@ -577,7 +577,7 @@ def test_embedding_service_build_property_text_rich_metadata():
         num_bedrooms=4,
     )
     assert "Penthouse Landmark 81" in text
-    assert "Loại hình: apartment" in text
+    assert "Loại hình: Căn hộ" in text
     assert "Hình thức: Bán" in text
     assert "4 phòng ngủ" in text
     assert "Địa chỉ: 720A Điện Biên Phủ, Phường 22, Bình Thạnh, Hồ Chí Minh" in text
@@ -677,7 +677,7 @@ async def test_create_property_embeds_bedroom_and_type_info(mock_db_session, moc
         assert response.status_code == 201
         assert mock_embedding_svc.call_count == 1
         assert "4 phòng ngủ" in mock_embedding_svc.last_text
-        assert "Loại hình: house" in mock_embedding_svc.last_text
+        assert "Loại hình: Nhà phố" in mock_embedding_svc.last_text
         assert "Hình thức: Bán" in mock_embedding_svc.last_text
         assert mock_embedding_svc.last_is_query is False
 

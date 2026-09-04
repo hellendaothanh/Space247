@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import Any
 from src.core.config import settings
 
@@ -9,6 +10,21 @@ FASTEMBED_MODEL_ALIASES: dict[str, str] = {
     "multilingual-e5-base": "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
     "intfloat/multilingual-e5-base": "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
 }
+
+PROPERTY_TYPE_VI_LABELS: dict[str, str] = {
+    "apartment": "Căn hộ",
+    "house": "Nhà phố",
+    "villa": "Biệt thự",
+    "land": "Đất nền",
+    "commercial": "Mặt bằng thương mại",
+}
+
+
+def _l2_normalize(vec: list[float]) -> list[float]:
+    norm = math.sqrt(sum(x * x for x in vec))
+    if norm > 0:
+        return [float(x / norm) for x in vec]
+    return vec
 
 
 class EmbeddingService:
@@ -23,6 +39,7 @@ class EmbeddingService:
         self.vector_dim = vector_dim or settings.VECTOR_DIM
         self._model: Any = None
         self._engine: str = "fastembed"  # 'fastembed' or 'sentence_transformers'
+        self._active_model_name: str = self.model_name
 
     def _get_model(self) -> Any:
         if self._model is not None:
@@ -36,6 +53,7 @@ class EmbeddingService:
             logger.info("Initializing SentenceTransformer with model: %s", self.model_name)
             self._model = SentenceTransformer(self.model_name)
             self._engine = "sentence_transformers"
+            self._active_model_name = self.model_name
             return self._model
         except (ImportError, Exception) as exc:
             logger.debug(
@@ -60,6 +78,7 @@ class EmbeddingService:
         logger.info("Initializing FastEmbed TextEmbedding model: %s", fastembed_model)
         self._model = TextEmbedding(model_name=fastembed_model)
         self._engine = "fastembed"
+        self._active_model_name = fastembed_model
         return self._model
 
     def build_property_text(
@@ -73,10 +92,14 @@ class EmbeddingService:
         property_type: str | None = None,
         listing_type: str | None = None,
         num_bedrooms: int | None = None,
+        num_bathrooms: int | None = None,
+        area_sqm: float | None = None,
+        price: float | None = None,
+        currency: str = "VND",
     ) -> str:
         """
         Construct a consolidated semantic text string from property title, description,
-        type, bedroom count, and location.
+        type, bedroom/bathroom count, area, price, and location.
         """
         parts: list[str] = []
         if title and title.strip():
@@ -84,11 +107,18 @@ class EmbeddingService:
 
         type_details: list[str] = []
         if property_type:
-            type_details.append(f"Loại hình: {property_type}")
+            label = PROPERTY_TYPE_VI_LABELS.get(property_type, property_type)
+            type_details.append(f"Loại hình: {label}")
         if listing_type:
             type_details.append(f"Hình thức: {'Cho thuê' if listing_type == 'rent' else 'Bán'}")
         if num_bedrooms is not None:
             type_details.append(f"{num_bedrooms} phòng ngủ")
+        if num_bathrooms is not None:
+            type_details.append(f"{num_bathrooms} phòng vệ sinh")
+        if area_sqm is not None and area_sqm > 0:
+            type_details.append(f"Diện tích: {area_sqm} m²")
+        if price is not None and price > 0:
+            type_details.append(f"Giá: {price:,.0f} {currency}")
         if type_details:
             parts.append(", ".join(type_details))
 
@@ -106,7 +136,8 @@ class EmbeddingService:
     def _prepare_text(self, text: str, is_query: bool = False) -> str:
         text = text.strip()
         # E5 model family requires query: or passage: prefix for optimal representation
-        if "e5" in self.model_name.lower():
+        model_check = self._active_model_name.lower()
+        if "e5" in model_check:
             if is_query and not text.startswith("query: "):
                 return f"query: {text}"
             elif not is_query and not text.startswith("passage: "):
@@ -128,6 +159,7 @@ class EmbeddingService:
         else:
             embeddings_iter = model.embed([prepared])
             vector = next(iter(embeddings_iter)).tolist()
+            vector = _l2_normalize(vector)
 
         if len(vector) != self.vector_dim:
             logger.warning(
@@ -147,15 +179,32 @@ class EmbeddingService:
         if not texts:
             return []
 
-        prepared = [self._prepare_text(t, is_query=is_query) for t in texts]
-        model = self._get_model()
+        results: list[list[float]] = []
+        valid_indices: list[int] = []
+        valid_texts: list[str] = []
 
+        for idx, t in enumerate(texts):
+            if not t or not t.strip():
+                results.append([0.0] * self.vector_dim)
+            else:
+                results.append([])  # placeholder
+                valid_indices.append(idx)
+                valid_texts.append(self._prepare_text(t, is_query=is_query))
+
+        if not valid_texts:
+            return results
+
+        model = self._get_model()
         if self._engine == "sentence_transformers":
-            vectors = model.encode(prepared, normalize_embeddings=True).tolist()
-            return [[float(x) for x in vec] for vec in vectors]
+            vectors = model.encode(valid_texts, normalize_embeddings=True).tolist()
+            for idx, vec in zip(valid_indices, vectors):
+                results[idx] = [float(x) for x in vec]
         else:
-            embeddings_iter = model.embed(prepared)
-            return [[float(x) for x in vec.tolist()] for vec in embeddings_iter]
+            embeddings_iter = model.embed(valid_texts)
+            for idx, vec in zip(valid_indices, embeddings_iter):
+                results[idx] = _l2_normalize([float(x) for x in vec.tolist()])
+
+        return results
 
 
 _embedding_service: EmbeddingService | None = None
