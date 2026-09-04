@@ -4,6 +4,7 @@
  */
 
 import {
+  AuthTokenResponse,
   HealthResponse,
   ListingType,
   PropertyCreate,
@@ -15,6 +16,9 @@ import {
   PropertyUpdate,
   SemanticSearchQuery,
   SemanticSearchResponse,
+  UserLoginRequest,
+  UserRegisterRequest,
+  UserResponse,
 } from "./types";
 
 export interface ApiClientConfig {
@@ -68,13 +72,18 @@ export class RealEstateApiClient {
         } catch {
           errorData = { detail: response.statusText };
         }
-        throw new Error(
-          `API Error [${response.status}]: ${
-            typeof errorData.detail === "object"
-              ? JSON.stringify(errorData.detail)
-              : errorData.detail || response.statusText
-          }`
-        );
+        let detailMsg = response.statusText;
+        if (typeof errorData.detail === "string") {
+          detailMsg = errorData.detail;
+        } else if (Array.isArray(errorData.detail)) {
+          detailMsg = errorData.detail
+            .map((err: any) => `${err.loc ? err.loc.join(".") + ": " : ""}${err.msg || "Invalid"}`)
+            .join("; ");
+        } else if (typeof errorData.detail === "object") {
+          detailMsg = JSON.stringify(errorData.detail);
+        }
+
+        throw new Error(`API Error [${response.status}]: ${detailMsg}`);
       }
 
       if (response.status === 204) {
@@ -85,6 +94,25 @@ export class RealEstateApiClient {
     } finally {
       clearTimeout(timeoutId);
     }
+  }
+
+  // Authentication
+  async register(data: UserRegisterRequest): Promise<AuthTokenResponse> {
+    return this.request<AuthTokenResponse>("/api/v1/auth/register", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async login(data: UserLoginRequest): Promise<AuthTokenResponse> {
+    return this.request<AuthTokenResponse>("/api/v1/auth/login", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getCurrentUser(): Promise<UserResponse> {
+    return this.request<UserResponse>("/api/v1/auth/me");
   }
 
   // Health

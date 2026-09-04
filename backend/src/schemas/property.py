@@ -72,6 +72,7 @@ class PropertyUpdate(BaseModel):
 
 class PropertyResponse(PropertyBase):
     id: uuid.UUID
+    user_id: uuid.UUID | None = None
     status: PropertyStatus
     created_at: datetime
     updated_at: datetime

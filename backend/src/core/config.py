@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     VECTOR_DIM: int = 768
     EMBEDDING_MODEL: str = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
 
+    # JWT Authentication
+    SECRET_KEY: str = "space247-super-secret-jwt-key-for-development-change-in-production-2026"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8081"]
 

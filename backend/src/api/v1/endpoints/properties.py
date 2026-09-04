@@ -5,9 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.deps import get_current_active_user
 from src.core.config import settings
 from src.core.database import get_db_session
 from src.models.property import Property
+from src.models.user import User
 from src.schemas.property import (
     ListingType,
     PropertyCreate,
@@ -41,15 +43,16 @@ def _sanitize_tsquery(query_text: str) -> str:
     "",
     response_model=PropertyResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Create a new property listing",
+    summary="Create a new property listing (Requires Bearer token)",
 )
 async def create_property(
     property_in: PropertyCreate,
+    current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db_session),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
 ) -> Property:
     """
-    Create a property listing (sale or rent).
+    Create a property listing (sale or rent) tied to the authenticated user.
     If embedding vector is not provided, it is automatically generated from
     title + description + address (including ward, district, city).
     """
@@ -87,6 +90,9 @@ async def create_property(
         prop_data["listing_type"] = prop_data["listing_type"].value
     if isinstance(prop_data.get("property_type"), PropertyType):
         prop_data["property_type"] = prop_data["property_type"].value
+
+    # Associate listing with authenticated owner
+    prop_data["user_id"] = current_user.id
 
     property_obj = Property(**prop_data)
     db.add(property_obj)

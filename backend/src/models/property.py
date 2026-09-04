@@ -4,6 +4,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     DateTime,
     Float,
+    ForeignKey,
     Index,
     Integer,
     Numeric,
@@ -13,7 +14,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.config import settings
 from src.core.database import Base
@@ -65,6 +66,15 @@ class Property(Base):
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="active", server_default="active", index=True
     )
+
+    # Owner user id
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    owner = relationship("User", back_populates="properties")
 
     # 768-dimensional vector embedding for semantic search
     embedding = mapped_column(Vector(settings.VECTOR_DIM), nullable=True)

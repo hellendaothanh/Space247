@@ -21,6 +21,7 @@ import {
   Plus,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { ListingType, PropertyType } from "@shared/types";
 
 // Client-side Zod validation schema matching backend constraints
@@ -113,6 +114,7 @@ const MAJOR_CITIES = [
 
 export default function CreatePropertyPage() {
   const router = useRouter();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [isPending, startTransition] = useTransition();
 
   // Form Fields State
@@ -336,6 +338,35 @@ export default function CreatePropertyPage() {
           <div>
             <h4 className="font-semibold text-rose-900">Không thể đăng tin</h4>
             <p className="text-sm text-rose-800 mt-0.5">{serverError}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Unauthenticated Banner Prompt */}
+      {!isAuthLoading && !user && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50/90 p-4 shadow-xs">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-semibold text-amber-900">Yêu cầu đăng nhập</h4>
+              <p className="text-xs text-amber-800 mt-0.5">
+                Bạn cần đăng nhập tài khoản Space247 để đăng bài và quản lý bất động sản.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/login"
+              className="inline-flex items-center rounded-xl bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-amber-700 transition"
+            >
+              Đăng nhập ngay
+            </Link>
+            <Link
+              href="/register"
+              className="inline-flex items-center rounded-xl border border-amber-300 bg-white px-3.5 py-2 text-xs font-semibold text-amber-900 shadow-xs hover:bg-amber-50 transition"
+            >
+              Đăng ký
+            </Link>
           </div>
         </div>
       )}

@@ -48,6 +48,7 @@ export interface PropertyUpdate extends Partial<PropertyBase> {
 
 export interface PropertyResponse extends PropertyBase {
   id: string; // UUID
+  user_id?: string | null; // UUID of owner user
   status: PropertyStatus;
   created_at: string; // ISO 8601 string
   updated_at: string;
@@ -122,4 +123,40 @@ export interface HealthResponse {
   pgvector: "enabled" | "disabled";
   vector_dim: number;
   detail?: string;
+}
+
+// ---------------------------------------------------------------------------
+// User & Authentication Types
+// ---------------------------------------------------------------------------
+
+export type UserRole = "user" | "agent" | "admin";
+
+export interface UserBase {
+  email: string;
+  full_name: string;
+  phone?: string | null;
+  role?: UserRole;
+}
+
+export interface UserRegisterRequest extends UserBase {
+  password: string;
+}
+
+export interface UserLoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface UserResponse extends UserBase {
+  id: string; // UUID
+  role: UserRole;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AuthTokenResponse {
+  access_token: string;
+  token_type: string;
+  user: UserResponse;
 }

@@ -1,0 +1,66 @@
+import uuid
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.core.database import get_db_session
+from src.core.security import decode_access_token
+from src.models.user import User
+
+security = HTTPBearer(auto_error=False)
+
+
+async def get_current_user(
+    auth: HTTPAuthorizationCredentials | None = Depends(security),
+    db: AsyncSession = Depends(get_db_session),
+) -> User:
+    """Validate Bearer JWT token and fetch active user from database."""
+    if not auth or not auth.credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication credentials were not provided",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    payload = decode_access_token(auth.credentials)
+    if not payload or "sub" not in payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired access token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        user_id = uuid.UUID(payload["sub"])
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Malformed user identifier in token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    stmt = select(User).where(User.id == user_id)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User associated with token not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return user
+
+
+async def get_current_active_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Ensure the authenticated user account is active."""
+    if not current_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Inactive user account",
+        )
+    return current_user

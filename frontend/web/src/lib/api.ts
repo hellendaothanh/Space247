@@ -6,4 +6,10 @@ const API_BASE_URL =
 export const apiClient = new RealEstateApiClient({
   baseUrl: API_BASE_URL.replace(/\/api\/v1\/?$/, ""), // RealEstateApiClient prepends /api/v1
   timeoutMs: 20000,
+  getAuthToken: () => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("space247_token");
+    }
+    return null;
+  },
 });
