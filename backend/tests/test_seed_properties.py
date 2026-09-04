@@ -1,8 +1,14 @@
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
+import uuid
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from scripts.seed_properties import SAMPLE_PROPERTIES, seed_properties
+from scripts.seed_properties import (
+    DEFAULT_SEED_USERS,
+    SAMPLE_PROPERTIES,
+    seed_properties,
+    seed_users,
+)
 
 
 def test_sample_properties_structure_and_diversity():
@@ -14,7 +20,7 @@ def test_sample_properties_structure_and_diversity():
     cities = {item["city"] for item in SAMPLE_PROPERTIES}
 
     # Verify diversity
-    assert {"apartment", "house", "villa", "commercial"}.issubset(property_types)
+    assert {"apartment", "house", "villa", "commercial", "land"}.issubset(property_types)
     assert {"sale", "rent"}.issubset(listing_types)
     assert any("Hà Nội" in city for city in cities)
     assert any("Hồ Chí Minh" in city for city in cities)
@@ -146,3 +152,129 @@ async def test_seed_properties_logic_and_idempotency():
     assert stats_second["skipped"] == 2
     assert len(added_properties) == 0
     assert mock_embedding.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_seed_users_idempotency():
+    """Verify that default admin and agent users are created idempotently."""
+    mock_session = MagicMock(spec=AsyncSession)
+    mock_session.flush = AsyncMock()
+
+    added_users = []
+
+    def fake_add_user(obj):
+        added_users.append(obj)
+
+    mock_session.add = fake_add_user
+
+    # 1. First run: No existing users
+    mock_result_none = MagicMock()
+    mock_result_none.scalar_one_or_none.return_value = None
+
+    async def fake_execute_no_users(stmt):
+        return mock_result_none
+
+    mock_session.execute = fake_execute_no_users
+
+    users_map_first = await seed_users(session=mock_session)
+    assert len(users_map_first) == 3
+    assert "admin@space247.vn" in users_map_first
+    assert "agent@space247.vn" in users_map_first
+    assert "user@space247.vn" in users_map_first
+    assert len(added_users) == 3
+    assert all(u.role in ("admin", "agent", "user") for u in added_users)
+
+    # 2. Second run: Users already exist
+    existing_admin = MagicMock()
+    existing_admin.role = "admin"
+    existing_admin.email = "admin@space247.vn"
+    existing_agent = MagicMock()
+    existing_agent.role = "agent"
+    existing_agent.email = "agent@space247.vn"
+    existing_user = MagicMock()
+    existing_user.role = "user"
+    existing_user.email = "user@space247.vn"
+
+    call_count = 0
+
+    async def fake_execute_existing_users(stmt):
+        nonlocal call_count
+        res = MagicMock()
+        # Extract bound parameter value from statement if present, or toggle by call order
+        params = getattr(stmt, "_compile_state", None)
+        try:
+            param_values = [p.value for p in stmt._bind_params.values()]
+        except Exception:
+            param_values = []
+
+        if any("admin@space247.vn" in str(v) for v in param_values):
+            res.scalar_one_or_none.return_value = existing_admin
+        elif any("agent@space247.vn" in str(v) for v in param_values):
+            res.scalar_one_or_none.return_value = existing_agent
+        elif any("user@space247.vn" in str(v) for v in param_values):
+            res.scalar_one_or_none.return_value = existing_user
+        else:
+            # By call order: admin, agent, user
+            order_map = [existing_admin, existing_agent, existing_user]
+            res.scalar_one_or_none.return_value = order_map[call_count % len(order_map)]
+        call_count += 1
+        return res
+
+    mock_session.execute = fake_execute_existing_users
+    added_users.clear()
+
+    users_map_second = await seed_users(session=mock_session)
+    assert len(users_map_second) == 3
+    assert users_map_second["admin@space247.vn"].role == "admin"
+    assert users_map_second["agent@space247.vn"].role == "agent"
+    assert users_map_second["user@space247.vn"].role == "user"
+    assert len(added_users) == 0  # No new users added
+
+
+@pytest.mark.asyncio
+async def test_seed_properties_links_owner_id():
+    """Verify that seeded properties correctly store the owner_user_id."""
+    mock_session = MagicMock(spec=AsyncSession)
+    mock_embedding = MockEmbeddingServiceForSeed(dim=768)
+
+    sample = [
+        {
+            "title": "Căn hộ Quận 7 có chủ sở hữu",
+            "description": "Mô tả căn hộ Quận 7",
+            "property_type": "apartment",
+            "listing_type": "sale",
+            "price": 3200000000.0,
+            "currency": "VND",
+            "area_sqm": 65.0,
+            "address": "Phú Mỹ Hưng",
+            "city": "Thành phố Hồ Chí Minh",
+            "status": "active",
+        }
+    ]
+
+    added_properties = []
+    mock_session.add = lambda obj: added_properties.append(obj)
+
+    mock_result_empty = MagicMock()
+    mock_result_empty.scalars.return_value.first.return_value = None
+
+    async def fake_execute_empty(stmt):
+        return mock_result_empty
+
+    async def fake_commit():
+        pass
+
+    mock_session.execute = fake_execute_empty
+    mock_session.commit = fake_commit
+
+    agent_id = uuid.uuid4()
+    stats = await seed_properties(
+        session=mock_session,
+        properties_data=sample,
+        embedding_svc=mock_embedding,
+        owner_user_id=agent_id,
+    )
+
+    assert stats["created"] == 1
+    assert len(added_properties) == 1
+    assert added_properties[0].user_id == agent_id

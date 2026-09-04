@@ -15,7 +15,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import AsyncSessionLocal, engine
+from src.core.security import hash_password
 from src.models.property import Property
+from src.models.user import User, UserRole
 from src.services.embedding import get_embedding_service
 
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -544,13 +546,107 @@ SAMPLE_PROPERTIES: list[dict[str, Any]] = [
         "longitude": 105.7839,
         "status": "active",
     },
+    # --- ĐẤT NỀN (LAND) ---
+    {
+        "title": "Đất nền thổ cư ven sông Quận 9 TP Thủ Đức view thoáng mát",
+        "description": "Bán lô đất nền thổ cư 100% sổ hồng riêng, vị trí đắc địa gần khu công nghệ cao và cao tốc Long Thành Dầu Giây. Hạ tầng đồng bộ đường nhựa 12m, điện nước âm hoàn thiện.",
+        "property_type": "land",
+        "listing_type": "sale",
+        "price": 4200000000.0,
+        "currency": "VND",
+        "area_sqm": 120.0,
+        "num_bedrooms": None,
+        "num_bathrooms": None,
+        "address": "Đường Lã Xuân Oai",
+        "ward": "Phường Tăng Nhơn Phú A",
+        "district": "Thành phố Thủ Đức",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.8415,
+        "longitude": 106.7992,
+        "status": "active",
+    },
+    {
+        "title": "Đất đấu giá phân lô khu đô thị mới Đông Anh Hà Nội",
+        "description": "Chính chủ cần bán mảnh đất đấu giá vuông vắn, mặt tiền 6m đường rộng 2 ô tô tránh nhau. Vị trí gần chân cầu Nhật Tân, tiềm năng tăng giá vượt trội khi lên quận.",
+        "property_type": "land",
+        "listing_type": "sale",
+        "price": 5600000000.0,
+        "currency": "VND",
+        "area_sqm": 90.0,
+        "num_bedrooms": None,
+        "num_bathrooms": None,
+        "address": "Xã Vĩnh Ngọc",
+        "ward": "Xã Vĩnh Ngọc",
+        "district": "Huyện Đông Anh",
+        "city": "Thành phố Hà Nội",
+        "latitude": 21.0924,
+        "longitude": 105.8198,
+        "status": "active",
+    },
 ]
+
+
+DEFAULT_SEED_USERS = [
+    {
+        "email": "admin@space247.vn",
+        "full_name": "Quản Trị Viên Space247",
+        "phone": "0901234567",
+        "password": "Password123@",
+        "role": UserRole.ADMIN.value,
+    },
+    {
+        "email": "agent@space247.vn",
+        "full_name": "Môi Giới Chuyên Nghiệp Space247",
+        "phone": "0988889999",
+        "password": "Password123@",
+        "role": UserRole.AGENT.value,
+    },
+    {
+        "email": "user@space247.vn",
+        "full_name": "Khách Hàng Mẫu Space247",
+        "phone": "0912345678",
+        "password": "Password123@",
+        "role": UserRole.USER.value,
+    },
+]
+
+
+async def seed_users(session: AsyncSession) -> dict[str, User]:
+    """
+    Seed default users (admin and agent) idempotently.
+    Returns a dictionary of email -> User model instances.
+    """
+    user_map: dict[str, User] = {}
+    for item in DEFAULT_SEED_USERS:
+        email = item["email"]
+        stmt = select(User).where(User.email == email)
+        res = await session.execute(stmt)
+        existing = res.scalar_one_or_none()
+        if existing:
+            user_map[email] = existing
+            logger.info("Found existing seed user: %s (role: %s)", email, existing.role)
+        else:
+            new_user = User(
+                email=email,
+                hashed_password=hash_password(item["password"]),
+                full_name=item["full_name"],
+                phone=item["phone"],
+                role=item["role"],
+                is_active=True,
+            )
+            session.add(new_user)
+            await session.flush()
+            user_map[email] = new_user
+            logger.info("Created new seed user: %s (role: %s)", email, item["role"])
+
+    return user_map
 
 
 async def seed_properties(
     session: AsyncSession,
     properties_data: list[dict[str, Any]] | None = None,
     embedding_svc=None,
+    owner_user_id=None,
 ) -> dict[str, int]:
     """
     Seed property records idempotently into the database.
@@ -601,6 +697,8 @@ async def seed_properties(
         if "id" not in prop_data:
             prop_data["id"] = uuid4()
         prop_data["embedding"] = vector_embedding
+        if owner_user_id and "user_id" not in prop_data:
+            prop_data["user_id"] = owner_user_id
 
         prop = Property(**prop_data)
         session.add(prop)
@@ -627,11 +725,22 @@ async def seed_properties(
 
 async def main():
     """CLI runner entry point."""
-    logger.info("Initializing database connection for seeding Space247 properties...")
+    logger.info("Initializing database connection for seeding Space247 data...")
     try:
         async with AsyncSessionLocal() as session:
             try:
-                stats = await seed_properties(session=session)
+                # 1. Seed users first
+                logger.info("--- Step 1: Seeding Default Accounts ---")
+                user_map = await seed_users(session=session)
+                agent_user = user_map.get("agent@space247.vn")
+                agent_id = agent_user.id if agent_user else None
+
+                # 2. Seed properties linked to agent
+                logger.info("--- Step 2: Seeding Properties with Embeddings ---")
+                stats = await seed_properties(
+                    session=session,
+                    owner_user_id=agent_id,
+                )
                 logger.info(
                     "[Space247 Seed Summary] Total: %d | Created: %d | Skipped: %d",
                     stats["total"],
@@ -639,7 +748,8 @@ async def main():
                     stats["skipped"],
                 )
             except Exception as exc:
-                logger.exception("Error during property seeding: %s", exc)
+                await session.rollback()
+                logger.exception("Error during database seeding: %s", exc)
                 sys.exit(1)
     finally:
         await engine.dispose()

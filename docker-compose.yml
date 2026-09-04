@@ -33,7 +33,7 @@ services:
       VECTOR_DIM: ${VECTOR_DIM:-768}
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000","http://localhost:8081"]}
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "${BACKEND_PORT:-8080}:8080"
 
 volumes:
   postgres_data:
