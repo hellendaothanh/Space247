@@ -19,6 +19,7 @@ import { apiClient } from "@/lib/api";
 import { formatPrice, formatPropertyType, getPlaceholderImage } from "@/lib/utils";
 import PropertyFavoriteButton from "@/components/PropertyFavoriteButton";
 import PropertyDetailMap from "@/components/PropertyDetailMap";
+import MortgageCalculator from "@/components/MortgageCalculator";
 
 interface PropertyDetailPageProps {
   params: Promise<{ id: string }>;
@@ -211,6 +212,13 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
               />
             </div>
           )}
+
+          {/* Mortgage & Financial Affordability Calculator */}
+          <MortgageCalculator
+            propertyPrice={property.price}
+            propertyTitle={property.title}
+            currency={property.currency}
+          />
         </div>
 
         {/* Right 1 Col: Contact & Safety Sidebar */}

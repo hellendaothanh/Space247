@@ -190,6 +190,21 @@ Space247 tích hợp công nghệ PostGIS với chỉ mục không gian GiST (SR
    * Trả về danh sách POI kèm ma trận tọa độ trọng số `[lat, lng, weight]` cho `leaflet.heat` và markers tương tác.
 3. **Bộ nhớ đệm Redis**: Tự động cache Isochrone Polygons và POI data trong 1 giờ.
 
+### Công cụ Giữ chân Người dùng & Tài chính (User Retention & Financial Tools):
+1. **Saved Search Alerts & Notification Matching Engine**:
+   * Endpoints: `POST /api/v1/alerts`, `GET /api/v1/alerts`, `GET /api/v1/notifications`, `POST /api/v1/notifications/read-all`
+   * Khách hàng lưu tiêu chí quan tâm (giá, vị trí, loại hình, số phòng ngủ, tần suất tức thì/hàng ngày/hàng tuần).
+   * Cơ chế khớp thông minh nền (FastAPI `BackgroundTasks`): Khi bài đăng mới xuất hiện, hệ thống tự động quét và tạo thông báo in-app `user_notifications` kèm ghi nhận email thông báo không làm nghẽn quá trình đăng tin.
+   * Giao diện quản lý toàn diện tại `/profile/alerts` và biểu tượng chuông thông báo (kèm badge chưa đọc) trên Navbar.
+2. **Bảng tính Vay Mua nhà (Mortgage Financial Calculator)**:
+   * Endpoint: `POST /api/v1/financial/mortgage-calc` (Công khai, không yêu cầu đăng nhập).
+   * Tính toán chính xác theo 2 phương thức: **Dư nợ giảm dần** (*declining_balance*) và **Niên kim cố định/trả đều** (*fixed_payment*).
+   * Hỗ trợ thời gian ưu đãi lãi suất (6-36 tháng) và lãi suất thả nổi sau ưu đãi; làm tròn chuẩn xác đến hàng đơn vị VNĐ.
+   * Tích hợp Interactive Component trên trang chi tiết BĐS (`/properties/[id]`) với thanh trượt trực quan và bảng lịch trả nợ chi tiết từng tháng.
+3. **AI Chatbot Financial Advisor**:
+   * Tự động nhận diện câu hỏi tài chính / tính toán khoản vay (ví dụ: *"Nếu vay 70% mua căn hộ này trong 20 năm thì mỗi tháng trả bao nhiêu?"*), tự động mô phỏng và đưa ra phân tích chi tiết.
+   * Nút hành động nhanh (CTA): *"🔔 Lưu tìm kiếm & Nhận cảnh báo khi có căn mới"* giúp lưu tiêu chí trực tiếp từ cuộc hội thoại.
+
 ### Kiểm thử Frontend Web (TypeScript & Build):
 ```bash
 cd frontend/web

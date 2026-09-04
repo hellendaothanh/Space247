@@ -352,3 +352,87 @@ export interface ValuationResponse {
   pricing_advice?: string | null;
 }
 
+// ---------------------------------------------------------------------------
+// Retention & Financial Tools Types
+// ---------------------------------------------------------------------------
+
+export interface SavedSearchAlert {
+  id: string;
+  user_id: string;
+  title: string;
+  criteria: Record<string, any>;
+  frequency: "instant" | "daily" | "weekly" | string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  last_notified_at?: string | null;
+}
+
+export interface CreateAlertRequest {
+  title: string;
+  criteria: Record<string, any>;
+  frequency?: "instant" | "daily" | "weekly" | string;
+}
+
+export interface UpdateAlertRequest {
+  title?: string;
+  criteria?: Record<string, any>;
+  frequency?: "instant" | "daily" | "weekly" | string;
+  is_active?: boolean;
+}
+
+export interface UserNotification {
+  id: string;
+  user_id: string;
+  alert_id?: string | null;
+  property_id?: string | null;
+  title: string;
+  message: string;
+  notification_type: string;
+  is_read: boolean;
+  created_at: string;
+  property?: PropertyResponse | null;
+}
+
+export interface NotificationListResponse {
+  items: UserNotification[];
+  total: number;
+  unread_count: number;
+}
+
+export interface MortgageCalcRequest {
+  property_price: number;
+  down_payment_percent?: number;
+  down_payment_amount?: number;
+  loan_term_years: number;
+  annual_interest_rate?: number;
+  preferential_period_months?: number;
+  post_preferential_rate?: number;
+  calculation_method?: "declining_balance" | "fixed_payment";
+}
+
+export interface AmortizationScheduleItem {
+  month: number;
+  principal_payment: number;
+  interest_payment: number;
+  total_payment: number;
+  remaining_balance: number;
+  interest_rate: number;
+}
+
+export interface MortgageCalcResponse {
+  property_price: number;
+  down_payment_amount: number;
+  down_payment_percent: number;
+  loan_amount: number;
+  loan_term_years: number;
+  loan_term_months: number;
+  calculation_method: string;
+  monthly_payment_first_month: number;
+  monthly_payment_max: number;
+  monthly_payment_min: number;
+  total_interest: number;
+  total_payment: number;
+  schedule: AmortizationScheduleItem[];
+}
+

@@ -62,7 +62,8 @@ class ChatAssistantService:
             "tìm", "mua", "bán", "thuê", "căn hộ", "chung cư", "nhà", "biệt thự",
             "villa", "đất", "mặt bằng", "quận", "huyện", "phòng ngủ", "tỷ", "tỉ",
             "triệu", "triệu/tháng", "tr/tháng", "diện tích", "hồ bơi", "ban công",
-            "nội thất", "hà nội", "hồ chí minh", "đà nẵng", "quận 1", "bình thạnh"
+            "nội thất", "hà nội", "hồ chí minh", "đà nẵng", "quận 1", "bình thạnh",
+            "vay", "lãi suất", "trả góp", "mỗi tháng trả", "ngân hàng"
         ]
         has_search_keywords = any(kw in lower_text for kw in re_keywords)
 
@@ -73,7 +74,7 @@ class ChatAssistantService:
         has_greeting = any(gt in lower_text for gt in greeting_terms)
 
         # If user message does not contain real estate search keywords, treat as non-search / greeting
-        if not has_search_keywords or has_greeting and not has_search_keywords:
+        if not has_search_keywords or (has_greeting and not has_search_keywords):
             return False, ExtractedCriteria(raw_query=text)
 
 
@@ -469,6 +470,67 @@ class ChatAssistantService:
 
         criteria_desc = ", ".join(criteria_tags) if criteria_tags else "yêu cầu của bạn"
 
+        # Check for financial / mortgage advice intent
+        query_text = (criteria.raw_query or "").lower()
+        financial_indicators = ["vay", "lãi suất", "trả góp", "mỗi tháng trả", "trả bao nhiêu"]
+        if any(ind in query_text for ind in financial_indicators):
+            loan_percent_match = re.search(r"(\d+(?:\.\d+)?)\s*%", query_text)
+            loan_percent = float(loan_percent_match.group(1)) if loan_percent_match else 70.0
+            down_payment_percent = max(0.0, min(100.0, 100.0 - loan_percent))
+
+            years_match = re.search(r"(\d+)\s*năm", query_text)
+            term_years = int(years_match.group(1)) if years_match else 20
+            if term_years < 1 or term_years > 35:
+                term_years = 20
+
+            property_price = criteria.max_price or criteria.min_price
+            if not property_price and properties:
+                property_price = properties[0].price
+            if not property_price:
+                property_price = 3_000_000_000.0
+
+            from src.services.mortgage_service import MortgageService
+            from src.schemas.mortgage import MortgageCalcRequest, CalculationMethod
+
+            calc_res = MortgageService.calculate_mortgage(
+                MortgageCalcRequest(
+                    property_price=property_price,
+                    down_payment_percent=down_payment_percent,
+                    loan_term_years=term_years,
+                    annual_interest_rate=7.5,
+                    preferential_period_months=12,
+                    post_preferential_rate=10.5,
+                    calculation_method=CalculationMethod.DECLINING_BALANCE,
+                )
+            )
+
+            first_principal = calc_res.schedule[0].principal_payment if calc_res.schedule else 0
+            first_interest = calc_res.schedule[0].interest_payment if calc_res.schedule else 0
+
+            fin_lines = [
+                "📊 **Tư vấn tài chính & Tính toán gói vay mua nhà Space247:**",
+                "",
+                f"Với gói vay mua nhà **{loan_percent:.0f}%** trong **{term_years} năm**:",
+                f"• **Giá trị bất động sản ước tính:** {calc_res.property_price:,.0f} VND",
+                f"• **Vốn tự có (trả trước {down_payment_percent:.0f}%):** {calc_res.down_payment_amount:,.0f} VND",
+                f"• **Số tiền vay ngân hàng:** {calc_res.loan_amount:,.0f} VND",
+                f"• **Lãi suất:** 7.5%/năm (ưu đãi 12 tháng đầu), sau ưu đãi ~10.5%/năm",
+                "",
+                "💰 **Ước tính số tiền thanh toán hàng tháng (theo Dư nợ giảm dần):**",
+                f"• **Tháng đầu tiên (cao nhất):** **{calc_res.monthly_payment_first_month:,.0f} VND/tháng**",
+                f"  (Gốc: {first_principal:,.0f} VND + Lãi: {first_interest:,.0f} VND)",
+                f"• **Các tháng tiếp theo:** Số tiền trả giảm dần theo thời gian (tháng cuối chỉ còn ~{calc_res.monthly_payment_min:,.0f} VND).",
+                f"• **Tổng tiền lãi cả kỳ hạn:** **{calc_res.total_interest:,.0f} VND**",
+                "",
+                "💡 Bạn có thể mở công cụ **Bảng tính vay mua nhà** ngay trên trang chi tiết bất động sản để tùy chỉnh các thông số lãi suất và ngân hàng!",
+            ]
+            fin_suggestions = [
+                "🔔 Lưu tìm kiếm & Nhận cảnh báo khi có căn mới",
+                "Tính theo phương án niên kim cố định (trả đều)",
+                "Xem bất động sản tầm giá 3 - 5 tỷ",
+            ]
+            return "\n".join(fin_lines), fin_suggestions
+
         if properties:
             count = len(properties)
             lines = [
@@ -484,6 +546,7 @@ class ChatAssistantService:
             lines.append("Bạn có thể bấm vào thẻ bài đăng bên dưới để xem chi tiết ảnh và vị trí trên bản đồ nhé!")
 
             suggestions = [
+                "🔔 Lưu tìm kiếm & Nhận cảnh báo khi có căn mới",
                 "Xem thêm bất động sản cùng khu vực",
                 "Lọc căn hộ giá thấp hơn",
                 "Chỉ hiển thị nhà có đầy đủ nội thất",
@@ -498,6 +561,7 @@ class ChatAssistantService:
                 "• Giảm bớt các yêu cầu về tiện ích hoặc số phòng ngủ để nhận được nhiều lựa chọn hơn.",
             ]
             suggestions = [
+                "🔔 Lưu tìm kiếm & Nhận cảnh báo khi có căn mới",
                 "Tìm căn hộ tầm giá 3 - 5 tỷ",
                 "Xem bất động sản mới đăng gần đây",
                 "Tìm nhà cho thuê giá tốt",

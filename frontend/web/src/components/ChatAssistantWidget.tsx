@@ -19,17 +19,20 @@ import {
   Compass,
   Home,
   CheckCircle2,
+  Bell,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { formatPrice, formatPropertyType, getPlaceholderImage } from "@/lib/utils";
 import { sanitizeUrl } from "@/utils/security";
-import type { ChatMessage, PropertyResponse } from "@shared/types";
+import type { ChatMessage, PropertyResponse, ExtractedCriteria } from "@shared/types";
 
 interface DisplayMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   properties?: PropertyResponse[];
+  criteria?: ExtractedCriteria | null;
+  alertSaved?: boolean;
   suggestions?: string[];
   timestamp: Date;
 }
@@ -126,9 +129,43 @@ export default function ChatAssistantWidget() {
     }
   }, [isOpen, isMinimized, isExpanded, messages]);
 
+  const [savingAlertId, setSavingAlertId] = useState<string | null>(null);
+
+  const handleSaveAlert = async (msg: DisplayMessage) => {
+    setSavingAlertId(msg.id);
+    try {
+      const criteria = msg.criteria || {};
+      const title =
+        criteria.raw_query ||
+        `Cảnh báo tìm kiếm ${criteria.district || criteria.city || "bất động sản"}`;
+      await apiClient.createAlert({
+        title: title.slice(0, 250),
+        criteria: criteria as Record<string, any>,
+        frequency: "instant",
+      });
+      setMessages((prev) =>
+        prev.map((m) => (m.id === msg.id ? { ...m, alertSaved: true } : m))
+      );
+    } catch {
+      alert("Vui lòng đăng nhập để lưu cảnh báo tìm kiếm mới!");
+    } finally {
+      setSavingAlertId(null);
+    }
+  };
+
   const handleSendMessage = async (textToSend?: string) => {
     const query = (textToSend || inputMessage).trim();
     if (!query || isLoading) return;
+
+    if (query.includes("Lưu tìm kiếm") || query.includes("cảnh báo")) {
+      const lastMsgWithCriteria = [...messages].reverse().find(
+        (m) => m.role === "assistant" && (m.criteria || (m.properties && m.properties.length > 0))
+      );
+      if (lastMsgWithCriteria) {
+        await handleSaveAlert(lastMsgWithCriteria);
+        return;
+      }
+    }
 
     const userMsg: DisplayMessage = {
       id: `user-${Date.now()}`,
@@ -163,6 +200,7 @@ export default function ChatAssistantWidget() {
         role: "assistant",
         content: response.message,
         properties: response.properties,
+        criteria: response.criteria,
         suggestions: response.suggestions,
         timestamp: new Date(),
       };
@@ -394,6 +432,28 @@ export default function ChatAssistantWidget() {
                             );
                           })}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Save Search Alert CTA */}
+                    {msg.role === "assistant" && (msg.criteria || (msg.properties && msg.properties.length > 0)) && (
+                      <div className="mt-2.5 pt-2 flex items-center">
+                        {msg.alertSaved ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            Đã lưu cảnh báo thành công!
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleSaveAlert(msg)}
+                            disabled={savingAlertId === msg.id}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 text-xs font-bold transition cursor-pointer shadow-2xs"
+                          >
+                            <Bell className="w-3.5 h-3.5 text-blue-600" />
+                            <span>🔔 Lưu tìm kiếm & Nhận cảnh báo khi có căn mới</span>
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>

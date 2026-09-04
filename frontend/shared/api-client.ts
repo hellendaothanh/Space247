@@ -32,6 +32,13 @@ import {
   GenerateListingResponse,
   ValuationRequest,
   ValuationResponse,
+  SavedSearchAlert,
+  CreateAlertRequest,
+  UpdateAlertRequest,
+  UserNotification,
+  NotificationListResponse,
+  MortgageCalcRequest,
+  MortgageCalcResponse,
 } from "./types";
 
 
@@ -305,6 +312,96 @@ export class RealEstateApiClient {
     return this.request<ValuationResponse>("/api/v1/agent/valuation/estimate", {
       method: "POST",
       body: JSON.stringify(request),
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Retention & Financial Tools Methods
+  // ---------------------------------------------------------------------------
+
+  // Mortgage & Loan Financial Calculator (Public API)
+  async calculateMortgage(
+    request: MortgageCalcRequest
+  ): Promise<MortgageCalcResponse> {
+    return this.request<MortgageCalcResponse>("/api/v1/financial/mortgage-calc", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  }
+
+  // Saved Search Alerts
+  async getAlerts(): Promise<SavedSearchAlert[]> {
+    return this.request<SavedSearchAlert[]>("/api/v1/alerts", {
+      method: "GET",
+    });
+  }
+
+  async createAlert(
+    request: CreateAlertRequest
+  ): Promise<SavedSearchAlert> {
+    return this.request<SavedSearchAlert>("/api/v1/alerts", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  }
+
+  async getAlert(id: string): Promise<SavedSearchAlert> {
+    return this.request<SavedSearchAlert>(`/api/v1/alerts/${id}`, {
+      method: "GET",
+    });
+  }
+
+  async updateAlert(
+    id: string,
+    request: UpdateAlertRequest
+  ): Promise<SavedSearchAlert> {
+    return this.request<SavedSearchAlert>(`/api/v1/alerts/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(request),
+    });
+  }
+
+  async deleteAlert(id: string): Promise<void> {
+    await this.request<void>(`/api/v1/alerts/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  // User Notifications
+  async getNotifications(
+    limit: number = 50,
+    offset: number = 0,
+    unread_only: boolean = false
+  ): Promise<NotificationListResponse> {
+    const searchParams = new URLSearchParams();
+    searchParams.append("limit", limit.toString());
+    searchParams.append("offset", offset.toString());
+    if (unread_only) {
+      searchParams.append("unread_only", "true");
+    }
+    const qs = searchParams.toString();
+    return this.request<NotificationListResponse>(
+      `/api/v1/notifications${qs ? `?${qs}` : ""}`,
+      { method: "GET" }
+    );
+  }
+
+  async markNotificationRead(id: string): Promise<UserNotification> {
+    return this.request<UserNotification>(`/api/v1/notifications/${id}/read`, {
+      method: "PATCH",
+    });
+  }
+
+  async markAllNotificationsRead(): Promise<{ success: boolean; updated_count: number }> {
+    return this.request<{ success: boolean; updated_count: number }>(
+      "/api/v1/notifications/read-all",
+      { method: "POST" }
+    );
+  }
+
+  async deleteNotification(id: string): Promise<void> {
+    await this.request<void>(`/api/v1/notifications/${id}`, {
+      method: "DELETE",
     });
   }
 }

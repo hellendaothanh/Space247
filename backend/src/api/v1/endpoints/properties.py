@@ -1,9 +1,11 @@
 import logging
 import re
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.services.alert_service import background_evaluate_property_alerts
 
 from src.api.deps import get_current_active_user, get_optional_current_user
 from src.core.cache import (
@@ -61,6 +63,7 @@ def _sanitize_tsquery(query_text: str) -> str:
 )
 async def create_property(
     property_in: PropertyCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db_session),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
@@ -69,6 +72,7 @@ async def create_property(
     Create a property listing (sale or rent) tied to the authenticated user.
     If embedding vector is not provided, it is automatically generated from
     title + description + address (including ward, district, city).
+    Triggers asynchronous background task to match against saved search alerts.
     """
     prop_data = property_in.model_dump()
 
@@ -118,6 +122,9 @@ async def create_property(
 
     # Invalidate search result caches
     await invalidate_property_caches(property_obj.id)
+
+    # Trigger background evaluation of saved search alerts
+    background_tasks.add_task(background_evaluate_property_alerts, property_obj.id)
 
     return property_obj
 
