@@ -1,6 +1,9 @@
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    build:
+      context: .
+      dockerfile: docker/postgres/Dockerfile
+    image: space247-postgres:16-vector-postgis
     container_name: real_estate_postgres
     restart: unless-stopped
     environment:
