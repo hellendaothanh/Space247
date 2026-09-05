@@ -101,3 +101,22 @@ Key objectives:
 - `npx tsc --noEmit` and `npm run build` succeed in `frontend/web`.
 
 </frozen-after-approval>
+
+## Review Triage Log
+
+| Finding ID | Source | Description | Disposition | Resolution Note |
+|---|---|---|---|---|
+| REV-001 | Blind Hunter | Flutter ProfileScreen imported non-existent provider and broken contract | patch | Refactored to use `app_providers.dart`, `authStateProvider`, `setUser`, and `logout`. |
+| REV-002 | Blind Hunter / Edge Case | Field discrepancy between `phone` and `phone_number` | patch | Added `phone` and `phone_number` compatibility to `UserResponse`, shared `types.ts`, `User.fromJson`, and Web UI. |
+| REV-003 | Edge Case Hunter | Updating phone number silently retained `phone_verified=True` | patch | In `update_my_profile`, reset `phone_verified = False` when new phone differs from current. |
+| REV-004 | Verification Gap | Missing tests for superadmin self-deactivation and self-demotion guards | patch | Added `test_superadmin_cannot_self_deactivate` and `test_superadmin_cannot_self_demote` to `test_admin_users.py`. |
+| REV-005 | Verification Gap | Missing test coverage for `GET /api/v1/admin/users/{id}` (detail and metrics) | patch | Added `test_superadmin_get_user_detail` and `test_superadmin_get_user_detail_not_found`. |
+| REV-006 | Verification Gap | `last_login_at` timestamp recording and inactive user rejection unverified | patch | Added assertion in `test_auth.py` and test `test_inactive_user_cannot_login` (assert 403). |
+| REV-007 | Verification Gap | Superadmin lacked property edit/delete bypass permissions granted to admin | patch | Updated `backend/src/api/v1/endpoints/properties.py` to allow `superadmin` alongside `admin`. |
+| REV-008 | Edge Case / Blind Hunter | Non-deterministic pagination ordering in `list_users` | patch | Added `User.id.desc()` to `stmt.order_by(User.created_at.desc(), User.id.desc())`. |
+| REV-009 | Blind Hunter | Web UI Auth context desync after profile update and unhandled `isLoading` | patch | Added `updateUser` to `AuthProvider`, synced `localStorage`, handled `isLoading` to avoid auth flash. |
+| REV-010 | Blind Hunter | Unthrottled API requests on search input keystroke in Admin Users | patch | Decoupled `searchInput` from `activeSearch`, dispatched query only on form submit or reset. |
+| REV-011 | Blind Hunter | In-modal errors hidden beneath fixed modal overlay in Admin Users | patch | Added in-modal `modalError` alert banner and included `avatar_url` input field. |
+| REV-012 | Blind Hunter | Profile overview card linked regular users to agent-restricted `/properties/my` | patch | Conditionally routed regular users to `/properties` instead of `/properties/my`. |
+| REV-013 | Blind Hunter | Index on `users.created_at` for scalable sorting | defer | Current user table volume is small; added to optimization backlog if table grows past 100k records. |
+
