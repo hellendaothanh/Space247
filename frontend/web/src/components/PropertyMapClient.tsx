@@ -100,7 +100,7 @@ export default function PropertyMapClient({
         scrollWheelZoom: true,
       });
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      L.tileLayer("https://tile.openstreetmap.de/{z}/{x}/{y}.png", {
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 19,
@@ -162,7 +162,10 @@ export default function PropertyMapClient({
           property.listing_type
         );
         const typeLabel = formatPropertyType(property.property_type);
-        const imageUrl = getPlaceholderImage(property.property_type, index);
+        const imageUrl =
+          property.images && property.images.length > 0
+            ? property.images[0]
+            : getPlaceholderImage(property.property_type, index);
 
         // Custom HTML Marker Pin
         const customIcon = L.divIcon({
