@@ -269,11 +269,27 @@ Space247/
 │   ├── tech-stack.md               # Danh mục công nghệ và lý do lựa chọn
 │   ├── database-design.md          # Lược đồ cơ sở dữ liệu, ERD và chiến lược chỉ mục
 │   ├── api-specs.md                # Đặc tả toàn bộ API RESTful và cấu trúc dữ liệu
-│   └── coding-standards-and-git-rules.md # Quy chuẩn lập trình, Git flow và Quality Gate
+│   ├── coding-standards-and-git-rules.md # Quy chuẩn lập trình, Git flow và Quality Gate
+│   ├── performance-sla.md          # Cam kết SLA, định chuẩn độ trễ và kiểm thử tải trọng
+│   ├── runbook.md                  # Cẩm nang vận hành và xử lý sự cố hệ thống
+│   └── security-privacy.md         # Chính sách bảo mật, chống cào dữ liệu và Nghị định 13/2023/NĐ-CP
 ├── scripts/                        # Script khởi động tự động đa nền tảng
 ├── docker-compose.yml              # Cấu hình container PostgreSQL 16 + pgvector/PostGIS và Redis 7
 └── README.md                       # Tài liệu tổng quan dự án
 ```
+
+### Danh Mục Tài Liệu Kỹ Thuật Chi Tiết (Documentation Hub)
+| Tài liệu | Nội dung chuyên môn |
+|---|---|
+| [`docs/project-overview.md`](file:///Users/hautp/Documents/project/Space247/docs/project-overview.md) | Tổng quan bài toán PropTech, phạm vi dự án và chân dung người dùng |
+| [`docs/system-architecture.md`](file:///Users/hautp/Documents/project/Space247/docs/system-architecture.md) | Kiến trúc phân tầng, hợp đồng dùng chung Shared SDK, cache-aside và Hybrid Search RRF |
+| [`docs/tech-stack.md`](file:///Users/hautp/Documents/project/Space247/docs/tech-stack.md) | Phiên bản chi tiết và luận chứng kiến trúc (ADRs) |
+| [`docs/database-design.md`](file:///Users/hautp/Documents/project/Space247/docs/database-design.md) | Thiết kế CSDL, ERD, kiểu dữ liệu đặc thù và danh mục chỉ mục |
+| [`docs/api-specs.md`](file:///Users/hautp/Documents/project/Space247/docs/api-specs.md) | Đặc tả 9 module RESTful API kèm DTO request/response |
+| [`docs/coding-standards-and-git-rules.md`](file:///Users/hautp/Documents/project/Space247/docs/coding-standards-and-git-rules.md) | Quy chuẩn Conventional Commits, Git Flow, an toàn bảo mật và Quality Gate |
+| [`docs/performance-sla.md`](file:///Users/hautp/Documents/project/Space247/docs/performance-sla.md) | Định chuẩn độ trễ P95/P99, giám sát profiling và kế hoạch tải trọng k6 |
+| [`docs/runbook.md`](file:///Users/hautp/Documents/project/Space247/docs/runbook.md) | Cẩm nang xử lý sự cố CSDL, suy giảm Redis và tái sinh vector `--reindex-vectors` |
+| [`docs/security-privacy.md`](file:///Users/hautp/Documents/project/Space247/docs/security-privacy.md) | Quản lý định danh, che số điện thoại, Rate Limiting và tuân thủ Nghị định 13/2023/NĐ-CP |
 
 ---
 

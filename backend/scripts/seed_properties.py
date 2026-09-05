@@ -723,12 +723,54 @@ async def seed_properties(
     return stats
 
 
+async def reindex_all_vectors(session: AsyncSession) -> int:
+    """Recompute 768-dim embeddings for all existing properties in database."""
+    embedding_svc = get_embedding_service()
+    stmt = select(Property)
+    res = await session.execute(stmt)
+    properties = res.scalars().all()
+    logger.info("Found %d properties to reindex vectors...", len(properties))
+
+    updated_count = 0
+    for idx, prop in enumerate(properties, start=1):
+        text_to_embed = embedding_svc.build_property_text(
+            title=prop.title or "",
+            property_type=prop.property_type or "",
+            listing_type=prop.listing_type or "",
+            price=float(prop.price) if prop.price is not None else None,
+            currency=prop.currency or "VND",
+            area_sqm=prop.area_sqm,
+            num_bedrooms=prop.num_bedrooms,
+            num_bathrooms=prop.num_bathrooms,
+            address=prop.address or "",
+            ward=prop.ward or "",
+            district=prop.district or "",
+            city=prop.city or "",
+            description=prop.description or "",
+        )
+        prop.embedding = embedding_svc.generate_embedding(text_to_embed, is_query=False)
+        updated_count += 1
+        if idx % 10 == 0 or idx == len(properties):
+            logger.info("Reindexed [%d/%d] properties...", idx, len(properties))
+
+    await session.commit()
+    logger.info("Vector re-indexing completed successfully: %d properties updated.", updated_count)
+    return updated_count
+
+
 async def main():
     """CLI runner entry point."""
-    logger.info("Initializing database connection for seeding Space247 data...")
+    is_reindex_mode = "--reindex-vectors" in sys.argv
+    logger.info("Initializing database connection for Space247 (reindex_mode=%s)...", is_reindex_mode)
     try:
         async with AsyncSessionLocal() as session:
             try:
+                if is_reindex_mode:
+                    logger.info("--- Batch Vector Re-indexing Triggered ---")
+                    count = await reindex_all_vectors(session=session)
+                    logger.info("[Space247 Reindex Summary] Reindexed %d properties.", count)
+                    return
+
                 # 1. Seed users first
                 logger.info("--- Step 1: Seeding Default Accounts ---")
                 user_map = await seed_users(session=session)
@@ -749,7 +791,7 @@ async def main():
                 )
             except Exception as exc:
                 await session.rollback()
-                logger.exception("Error during database seeding: %s", exc)
+                logger.exception("Error during database operation: %s", exc)
                 sys.exit(1)
     finally:
         await engine.dispose()

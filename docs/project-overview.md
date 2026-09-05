@@ -89,3 +89,22 @@ Nền tảng **Space247** ra đời nhằm giải quyết triệt để các h�
 - **Hành vi trên hệ thống**:
   - Kiểm tra trạng thái hệ thống qua endpoint `/api/v1/health`.
   - Quản trị dữ liệu người dùng và danh mục tin đăng.
+
+---
+
+## 5. Trung Tâm Tài Liệu Kỹ Thuật (Technical Documentation Hub)
+
+Hệ thống tài liệu kỹ thuật chuẩn Enterprise của Space247 được phân bổ chi tiết trong thư mục `docs/`:
+
+| Tệp tài liệu | Nội dung chuyên môn chính |
+|---|---|
+| [`docs/project-overview.md`](file:///Users/hautp/Documents/project/Space247/docs/project-overview.md) | Bối cảnh thị trường PropTech, mục tiêu dự án, phạm vi và chân dung người dùng |
+| [`docs/system-architecture.md`](file:///Users/hautp/Documents/project/Space247/docs/system-architecture.md) | Kiến trúc phân tầng, luồng dữ liệu Shared SDK, chiến lược Cache-aside và Hybrid Search RRF |
+| [`docs/tech-stack.md`](file:///Users/hautp/Documents/project/Space247/docs/tech-stack.md) | Bảng phiên bản công nghệ chính xác và các biên bản quyết định kiến trúc (ADRs) |
+| [`docs/database-design.md`](file:///Users/hautp/Documents/project/Space247/docs/database-design.md) | Sơ đồ thực thể ERD, chi tiết 5 bảng, kiểu `VECTOR(768)`, `geometry(Point)` và chỉ mục HNSW/GiST/GIN |
+| [`docs/api-specs.md`](file:///Users/hautp/Documents/project/Space247/docs/api-specs.md) | Đặc tả chi tiết toàn bộ RESTful API theo 9 module nghiệp vụ kèm DTO request/response |
+| [`docs/coding-standards-and-git-rules.md`](file:///Users/hautp/Documents/project/Space247/docs/coding-standards-and-git-rules.md) | Quy chuẩn Conventional Commits, Git Flow, an toàn bảo mật và cổng kiểm chuẩn Quality Gate |
+| [`docs/performance-sla.md`](file:///Users/hautp/Documents/project/Space247/docs/performance-sla.md) | Cam kết SLA độ trễ P95/P99, giám sát thời gian xử lý, tỷ lệ Cache Hit và kiểm thử tải k6 |
+| [`docs/runbook.md`](file:///Users/hautp/Documents/project/Space247/docs/runbook.md) | Cẩm nang xử lý sự cố Deadlock, lỗi container, REINDEX CONCURRENTLY, suy giảm Redis và tái sinh vector |
+| [`docs/security-privacy.md`](file:///Users/hautp/Documents/project/Space247/docs/security-privacy.md) | Quản lý định danh Bcrypt cost 12, JWT 24h, RBAC, che số điện thoại, Rate Limiting và Nghị định 13/2023/NĐ-CP |
+
