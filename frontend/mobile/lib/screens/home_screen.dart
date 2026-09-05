@@ -51,13 +51,9 @@ class HomeScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings_outlined, color: AppTheme.textSecondary),
-            tooltip: 'Cài đặt kết nối Server',
-            onPressed: () => _showServerSettingsDialog(context, ref),
-          ),
-          IconButton(
             icon: const Icon(Icons.map_outlined, color: AppTheme.primaryColor),
             tooltip: 'Bản đồ tương tác',
+            visualDensity: VisualDensity.compact,
             onPressed: () {
               Navigator.push(
                 context,
@@ -68,6 +64,7 @@ class HomeScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.favorite_outline, color: Colors.redAccent),
             tooltip: 'Tin đã lưu',
+            visualDensity: VisualDensity.compact,
             onPressed: () {
               Navigator.push(
                 context,
@@ -80,14 +77,17 @@ class HomeScreen extends ConsumerWidget {
               if (user != null) {
                 return PopupMenuButton<String>(
                   icon: CircleAvatar(
+                    radius: 14,
                     backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
                     child: Text(
                       user.fullName.isNotEmpty ? user.fullName[0].toUpperCase() : 'U',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.primaryColor),
                     ),
                   ),
                   onSelected: (value) {
-                    if (value == 'logout') {
+                    if (value == 'settings') {
+                      _showServerSettingsDialog(context, ref);
+                    } else if (value == 'logout') {
                       ref.read(authStateProvider.notifier).logout();
                     }
                   },
@@ -102,6 +102,16 @@ class HomeScreen extends ConsumerWidget {
                     ),
                     const PopupMenuDivider(),
                     const PopupMenuItem(
+                      value: 'settings',
+                      child: Row(
+                        children: [
+                          Icon(Icons.dns_outlined, size: 18, color: AppTheme.textSecondary),
+                          SizedBox(width: 8),
+                          Text('Cài đặt API Server'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
                       value: 'logout',
                       child: Row(
                         children: [
@@ -114,23 +124,52 @@ class HomeScreen extends ConsumerWidget {
                   ],
                 );
               }
-              return TextButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (ctx) => const LoginScreen()),
-                  );
+              return PopupMenuButton<String>(
+                icon: const Icon(Icons.account_circle_outlined, color: AppTheme.primaryColor, size: 26),
+                tooltip: 'Tài khoản',
+                onSelected: (value) {
+                  if (value == 'login') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (ctx) => const LoginScreen()),
+                    );
+                  } else if (value == 'settings') {
+                    _showServerSettingsDialog(context, ref);
+                  }
                 },
-                icon: const Icon(Icons.login, size: 18),
-                label: const Text('Đăng nhập'),
+                itemBuilder: (ctx) => [
+                  const PopupMenuItem(
+                    value: 'login',
+                    child: Row(
+                      children: [
+                        Icon(Icons.login, size: 18, color: AppTheme.primaryColor),
+                        SizedBox(width: 8),
+                        Text('Đăng nhập / Đăng ký', style: TextStyle(fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                    value: 'settings',
+                    child: Row(
+                      children: [
+                        Icon(Icons.dns_outlined, size: 18, color: AppTheme.textSecondary),
+                        SizedBox(width: 8),
+                        Text('Cài đặt API Server'),
+                      ],
+                    ),
+                  ),
+                ],
               );
             },
             loading: () => const Padding(
-              padding: EdgeInsets.all(12.0),
-              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+              padding: EdgeInsets.symmetric(horizontal: 8.0),
+              child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
             ),
             error: (_, _) => IconButton(
               icon: const Icon(Icons.login),
+              visualDensity: VisualDensity.compact,
+              tooltip: 'Đăng nhập',
               onPressed: () {
                 Navigator.push(
                   context,
@@ -139,7 +178,7 @@ class HomeScreen extends ConsumerWidget {
               },
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
         ],
       ),
       body: Column(

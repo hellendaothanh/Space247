@@ -413,7 +413,7 @@ class _MapExplorerScreenState extends ConsumerState<MapExplorerScreen> {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: 'https://tile.openstreetmap.de/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.space247.mobile',
               ),
               // Isochrone Polygon Layer
