@@ -11,7 +11,7 @@ import sys
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import AsyncSessionLocal, engine
@@ -1035,6 +1035,19 @@ async def seed_projects(
 
     project_map: dict[str, Project] = {}
     stats = {"total": len(items_to_seed), "created": 0, "skipped": 0}
+
+    # Ensure projects.geom exists if database was created prior to spatial column addition
+    try:
+        await session.execute(
+            text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS geom geometry(Point, 4326);")
+        )
+        await session.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_projects_geom ON projects USING gist (geom);")
+        )
+        await session.commit()
+    except Exception as exc:
+        await session.rollback()
+        logger.debug("Schema verification for projects.geom finished: %s", exc)
 
     logger.info("Starting project seeding: %d projects to process...", len(items_to_seed))
 

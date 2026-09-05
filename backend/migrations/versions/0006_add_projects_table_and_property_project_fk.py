@@ -8,6 +8,7 @@ Create Date: 2026-09-05 08:00:00.000000
 from typing import Sequence, Union
 
 from alembic import op
+from geoalchemy2 import Geometry
 import pgvector.sqlalchemy
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
@@ -38,6 +39,7 @@ def _upgrade_offline() -> None:
         sa.Column("ward", sa.String(length=100), nullable=True),
         sa.Column("latitude", sa.Float(), nullable=True),
         sa.Column("longitude", sa.Float(), nullable=True),
+        sa.Column("geom", Geometry(geometry_type="POINT", srid=4326), nullable=True),
         sa.Column("images", postgresql.ARRAY(sa.Text()), server_default="{}", nullable=False),
         sa.Column("master_plan_url", sa.String(length=500), nullable=True),
         sa.Column("legal_status", sa.String(length=255), nullable=True),
@@ -77,6 +79,14 @@ def _upgrade_offline() -> None:
         postgresql_ops={"embedding": "vector_cosine_ops"},
     )
 
+    op.create_index(
+        "ix_projects_geom",
+        "projects",
+        ["geom"],
+        unique=False,
+        postgresql_using="gist",
+    )
+
     # 3. Add project_id FK to properties table
     op.add_column(
         "properties",
@@ -98,6 +108,12 @@ def _upgrade_online() -> None:
     if "projects" not in tables:
         _upgrade_offline()
     else:
+        # Check projects.geom column
+        proj_cols = {c["name"] for c in inspector.get_columns("projects")}
+        if "geom" not in proj_cols:
+            op.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS geom geometry(Point, 4326);")
+            op.execute("CREATE INDEX IF NOT EXISTS ix_projects_geom ON projects USING gist (geom);")
+
         # Check properties.project_id column
         prop_cols = {c["name"] for c in inspector.get_columns("properties")}
         if "project_id" not in prop_cols:
@@ -126,6 +142,7 @@ def downgrade() -> None:
     if getattr(context, "as_sql", False) or context.bind is None:
         op.drop_index(op.f("ix_properties_project_id"), table_name="properties")
         op.drop_column("properties", "project_id")
+        op.drop_index("ix_projects_geom", table_name="projects")
         op.drop_index("ix_projects_embedding_hnsw", table_name="projects")
         op.drop_index(op.f("ix_projects_status"), table_name="projects")
         op.drop_index(op.f("ix_projects_developer"), table_name="projects")
