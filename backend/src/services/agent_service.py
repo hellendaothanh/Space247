@@ -115,8 +115,13 @@ class AgentService:
 
     def _build_gemini_prompt(self, notes: str, property_type: str, target_audience: str | None) -> str:
         audience_hint = f"Đối tượng mục tiêu hướng đến: {target_audience}." if target_audience else ""
-        return f"""Bạn là chuyên gia Marketing và Môi giới Bất động sản hàng đầu tại Việt Nam trên nền tảng Space247.
-Dựa vào các thông tin ghi chú nhanh và hình ảnh đính kèm (nếu có), hãy soạn một bài đăng tin BĐS chuyên nghiệp, tối ưu chuẩn SEO, văn phong thu hút, đáng tin cậy.
+        return f"""Bạn là chuyên gia Marketing và Môi giới Bất động sản cao cấp tại Việt Nam trên nền tảng Space247.
+Dựa vào các thông tin ghi chú nhanh và hình ảnh đính kèm (nếu có), hãy soạn một bài đăng tin BĐS chuyên nghiệp, chuẩn mực doanh nghiệp, tối ưu SEO, phong cách trang nhã, nghiêm túc, đáng tin cậy.
+
+TIÊU CHUẨN TRÌNH BÀY QUAN TRỌNG:
+- TUYỆT ĐỐI KHÔNG SỬ DỤNG BẤT KỲ ICON / BIỂU TƯỢNG CẢM XÚC (EMOJI) NÀO (như 🌟, 📍, 📞, ✨, 💎, 📋, ⚖️, 🚀, v.v.). Trình bày văn bản chuyên nghiệp như tài liệu phát hành chính thức của sàn giao dịch bất động sản cao cấp.
+- Các tiêu đề mục phải dùng đề mục Markdown rõ ràng (ví dụ: "## Tiêu đề bài đăng", "### Thông số tổng quan", "### Ưu điểm nổi bật & Vị trí", "### Tiện ích", "### Pháp lý & Giao dịch", "### Thông tin liên hệ").
+- Không lạm dụng từ ngữ sáo rỗng hoặc quá đậm chất AI. Câu cú gãy gọn, tập trung vào thông tin thực tế, giá trị thương mại và pháp lý.
 
 Loại hình BĐS: {property_type}
 {audience_hint}
@@ -127,8 +132,8 @@ Ghi chú từ môi giới:
 YÊU CẦU ĐẦU RA:
 Trả về định dạng JSON thuần túy (không bọc trong markdown codeblock nếu có thể, hoặc đảm bảo parse được JSON) với cấu trúc:
 {{
-  "title_seo": "Tiêu đề tin đăng ngắn gọn, hấp dẫn, chuẩn SEO (dưới 80 ký tự), chứa từ khóa chính, diện tích/số phòng",
-  "description_markdown": "Bài viết mô tả chi tiết bằng tiếng Việt định dạng Markdown: tiêu đề lôi cuốn, thông số tổng quan, vị trí kết nối giao thông, tiện ích sống đẳng cấp, tình trạng pháp lý, lời kêu gọi hành động (Call To Action)",
+  "title_seo": "Tiêu đề tin đăng ngắn gọn, hấp dẫn, chuẩn SEO (dưới 80 ký tự), chứa từ khóa chính, diện tích/số phòng (không kèm emoji)",
+  "description_markdown": "Bài viết mô tả chi tiết bằng tiếng Việt định dạng Markdown chuẩn mực doanh nghiệp: KHÔNG CÓ EMOJI, gồm các phần tiêu đề lôi cuốn, thông số tổng quan, vị trí kết nối giao thông, tiện ích, tình trạng pháp lý, thông tin liên hệ xem nhà",
   "extracted_specs": {{
     "area_sqm": float hoặc null,
     "num_bedrooms": int hoặc null,
@@ -181,29 +186,30 @@ Trả về định dạng JSON thuần túy (không bọc trong markdown codeblo
 
         amenities_md = ""
         if extracted.amenities:
-            amenities_md = "\n### ✨ Tiện ích nổi bật\n" + "\n".join(f"- {a}" for a in extracted.amenities)
+            amenities_md = "\n### Tiện ích nổi bật\n" + "\n".join(f"- {a}" for a in extracted.amenities)
 
-        audience_note = f"Không gian sống lý tưởng phù hợp cho {target_audience}." if target_audience else "Lựa chọn hoàn hảo cho an cư bền vững hoặc đầu tư sinh lời vượt trội."
+        audience_note = f"Không gian sống lý tưởng phù hợp cho {target_audience}." if target_audience else "Lựa chọn phù hợp cho nhu cầu an cư hoặc khai thác kinh doanh sinh lời bền vững."
 
-        description_markdown = f"""## 🌟 {title}
+        description_markdown = f"""## {title}
 
-**Space247** hân hạnh giới thiệu siêu phẩm {type_vi.lower()} với vị trí đắc địa, sở hữu tiềm năng an cư và đầu tư sinh lời bền vững.
+Space247 trân trọng giới thiệu thông tin {type_vi.lower()} tại vị trí chiến lược, đáp ứng trọn vẹn tiêu chí an cư và tiềm năng phát triển.
 
-### 📋 Thông số chi tiết
+### Thông số tổng quan
 {specs_md}
 
-### 💎 Điểm nổi bật & Vị trí đắc địa
-{notes if notes else "Vị trí kết nối thuận tiện, khu dân cư văn minh hiện hữu."}
+### Ưu điểm nổi bật & Vị trí
+{notes if notes else "Vị trí kết nối giao thông thuận tiện, khu dân cư hiện hữu, an ninh và văn minh."}
 
 {audience_note}
 {amenities_md}
 
-### ⚖️ Pháp lý & Giao dịch
-- Hồ sơ pháp lý minh bạch: {extracted.legal_status or "Sổ đỏ/Sổ hồng chính chủ, sẵn sàng công chứng ngay"}.
-- Hỗ trợ thủ tục sang tên nhanh gọn, bảo mật thông tin tối đa.
+### Pháp lý & Giao dịch
+- Tình trạng pháp lý: {extracted.legal_status or "Sổ đỏ/Sổ hồng hoàn chỉnh, sẵn sàng công chứng sang tên"}.
+- Hỗ trợ thủ tục chuyển nhượng minh bạch, chuẩn xác và đúng quy định pháp luật.
 
 ---
-📞 **Liên hệ ngay hôm nay** để nhận thông tin quy hoạch chi tiết và đặt lịch xem nhà trực tiếp!
+### Thông tin liên hệ
+Quý khách hàng quan tâm vui lòng liên hệ trực tiếp để nhận hồ sơ chi tiết và đặt lịch khảo sát thực tế!
 """
 
         return GenerateListingResponse(

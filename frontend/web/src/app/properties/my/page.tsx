@@ -21,6 +21,7 @@ import {
   ExternalLink,
   Layers,
   TrendingUp,
+  Copy,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -461,6 +462,15 @@ export default function MyPropertiesPage() {
                       >
                         <Edit3 className="h-3.5 w-3.5" />
                         <span>Sửa</span>
+                      </Link>
+
+                      <Link
+                        href={`/properties/create?clone_from=${prop.id}`}
+                        className="inline-flex items-center gap-1 rounded-xl border border-indigo-200 bg-indigo-50/60 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 transition shadow-2xs"
+                        title="Nhân bản nội dung tin đăng để tạo căn mới"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        <span className="hidden lg:inline">Nhân bản</span>
                       </Link>
 
                       <button

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useTransition, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { z } from "zod";
 import {
@@ -22,7 +22,7 @@ import {
   Plus,
   Compass,
   Building,
-  Sparkles,
+  Copy,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -121,10 +121,16 @@ const MAJOR_CITIES = [
   "Hải Phòng",
 ];
 
-export default function CreatePropertyPage() {
+function CreatePropertyFormContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const cloneFromId = searchParams.get("clone_from");
   const { user, isLoading: isAuthLoading } = useAuth();
   const [isPending, startTransition] = useTransition();
+
+  // Clone from existing property state
+  const [clonedSourceTitle, setClonedSourceTitle] = useState<string | null>(null);
+  const [isCloning, setIsCloning] = useState(false);
 
   // Form Fields State
   const [title, setTitle] = useState("");
@@ -150,6 +156,45 @@ export default function CreatePropertyPage() {
   // Google Maps Coordinates auto-parsing state
   const [coordsPasteInput, setCoordsPasteInput] = useState("");
   const [coordsParseMessage, setCoordsParseMessage] = useState<string | null>(null);
+
+  // Load source property if cloning
+  useEffect(() => {
+    async function loadCloneSource() {
+      if (!cloneFromId) return;
+      setIsCloning(true);
+      try {
+        const prop = await apiClient.getProperty(cloneFromId);
+        setClonedSourceTitle(prop.title);
+        setTitle(`${prop.title} (Nhân bản)`);
+        setDescription(prop.description || "");
+        setPropertyType(prop.property_type);
+        setListingType(prop.listing_type);
+        setPriceStr(prop.price?.toString() || "");
+        setAreaStr(prop.area_sqm?.toString() || "");
+        setBedroomsStr(prop.num_bedrooms?.toString() || "2");
+        setBathroomsStr(prop.num_bathrooms?.toString() || "2");
+        setAddress(prop.address || "");
+        setWard(prop.ward || "");
+        setDistrict(prop.district || "");
+        setCity(prop.city || "Thành phố Hồ Chí Minh");
+        if (prop.latitude) setLatitudeStr(prop.latitude.toString());
+        if (prop.longitude) setLongitudeStr(prop.longitude.toString());
+        if (prop.project_id) setSelectedProjectId(prop.project_id);
+        const propAny = prop as any;
+        if (propAny.amenities && Array.isArray(propAny.amenities) && propAny.amenities.length > 0) {
+          setSelectedAmenities(propAny.amenities);
+        }
+        if (prop.images && Array.isArray(prop.images) && prop.images.length > 0) {
+          setUploadedImages(prop.images);
+        }
+      } catch (err: any) {
+        console.error("Failed to load property to clone:", err);
+      } finally {
+        setIsCloning(false);
+      }
+    }
+    loadCloneSource();
+  }, [cloneFromId]);
 
   // Load available real estate projects
   useEffect(() => {
@@ -442,6 +487,28 @@ export default function CreatePropertyPage() {
           <span>Định danh & chuẩn hóa Vector 768 chiều</span>
         </div>
       </div>
+
+      {/* Cloned Property Source Banner */}
+      {isCloning && (
+        <div className="flex items-center gap-3 rounded-2xl border border-indigo-200 bg-indigo-50/90 p-4 shadow-xs text-indigo-900">
+          <div className="w-5 h-5 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
+          <p className="text-sm font-medium">Đang sao chép thông số và nội dung từ tin đăng gốc...</p>
+        </div>
+      )}
+
+      {clonedSourceTitle && !isCloning && (
+        <div className="flex items-start gap-3 rounded-2xl border border-indigo-200 bg-indigo-50/90 p-4 shadow-xs">
+          <Copy className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-semibold text-indigo-950">
+              Đang nhân bản từ tin đăng: &ldquo;{clonedSourceTitle}&rdquo;
+            </h4>
+            <p className="text-xs text-indigo-800 mt-0.5">
+              Toàn bộ thông tin dự án, địa chỉ, tiện ích và hình ảnh đã được sao chép sẵn. Bạn chỉ cần chỉnh sửa lại mã căn, diện tích hoặc giá bán tương ứng rồi bấm Đăng tin.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Success Notification Banner */}
       {successInfo && (
@@ -744,7 +811,7 @@ export default function CreatePropertyPage() {
                   onClick={applyProjectLocation}
                   className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800 transition cursor-pointer"
                 >
-                  <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+                  <MapPin className="h-3.5 w-3.5 text-blue-500" />
                   <span>Áp dụng địa chỉ & tọa độ từ dự án này</span>
                 </button>
               )}
@@ -1071,3 +1138,19 @@ export default function CreatePropertyPage() {
     </div>
   );
 }
+
+export default function CreatePropertyPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-4xl py-20 flex flex-col items-center justify-center text-slate-500 gap-3">
+          <div className="h-8 w-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+          <p className="text-sm font-medium">Đang tải form đăng tin...</p>
+        </div>
+      }
+    >
+      <CreatePropertyFormContent />
+    </Suspense>
+  );
+}
+

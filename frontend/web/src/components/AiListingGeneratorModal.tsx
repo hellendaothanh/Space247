@@ -204,7 +204,7 @@ export default function AiListingGeneratorModal({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Ảnh sổ đỏ / Mặt bằng phân lô (AI Vision OCR)
+                  Ảnh sổ đỏ / Mặt bằng phân lô (Nhận diện bản vẽ & văn bản)
                 </label>
                 <div className="relative border-2 border-dashed border-slate-300 hover:border-blue-400 rounded-xl p-3 bg-slate-50 hover:bg-blue-50/30 transition text-center cursor-pointer">
                   <input
@@ -333,7 +333,7 @@ export default function AiListingGeneratorModal({
                     ) : (
                       <div className="space-y-3">
                         <h4 className="text-xs font-bold text-slate-500 uppercase">
-                          Thông số kỹ thuật AI tự trích xuất:
+                          Thông số kỹ thuật trích xuất:
                         </h4>
                         <div className="grid grid-cols-2 gap-3 text-xs">
                           <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-100">

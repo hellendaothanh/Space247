@@ -21,7 +21,6 @@ import {
   X,
   Compass,
   Building,
-  Sparkles,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -621,7 +620,7 @@ export default function EditPropertyPage() {
                     onClick={applyProjectLocation}
                     className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800 transition cursor-pointer"
                   >
-                    <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+                    <MapPin className="h-3.5 w-3.5 text-blue-500" />
                     <span>Áp dụng địa chỉ & tọa độ từ dự án này</span>
                   </button>
                 )}
