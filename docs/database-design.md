@@ -8,6 +8,7 @@ Hệ thống Space247 sử dụng PostgreSQL 16 kết hợp hai tiện ích mở
 
 ```mermaid
 erDiagram
+    projects ||--o{ properties : "nhóm căn hộ (1:N)"
     users ||--o{ properties : "đăng tin (1:N)"
     users ||--o{ favorite_properties : "lưu yêu thích (1:N)"
     properties ||--o{ favorite_properties : "được yêu thích (1:N)"
@@ -15,6 +16,34 @@ erDiagram
     users ||--o{ user_notifications : "nhận thông báo (1:N)"
     saved_search_alerts ||--o{ user_notifications : "kích hoạt (1:N)"
     properties ||--o{ user_notifications : "bất động sản khớp (1:N)"
+
+    projects {
+        uuid id PK "Indexed"
+        varchar_255 name "Indexed"
+        varchar_255 slug UK "Indexed"
+        varchar_255 developer "Indexed"
+        text description
+        varchar_50 status "upcoming | under_construction | handing_over | completed"
+        int total_units
+        int launch_year
+        int handover_year
+        varchar_500 address
+        varchar_100 ward
+        varchar_100 district
+        varchar_100 city "Indexed"
+        float latitude
+        float longitude
+        geometry_point_4326 geom "GiST Spatial Index"
+        text_array images
+        varchar_500 master_plan_url
+        varchar_255 legal_status
+        numeric_15_2 price_range_min
+        numeric_15_2 price_range_max
+        text_array amenities
+        vector_768 embedding "HNSW Cosine Index"
+        timestamptz created_at
+        timestamptz updated_at
+    }
 
     users {
         uuid id PK
@@ -49,6 +78,7 @@ erDiagram
         geometry_point_4326 geom "GiST Spatial Index"
         varchar_20 status "active | inactive"
         uuid user_id FK "Indexed"
+        uuid project_id FK "Indexed, SET NULL on delete"
         text_array images "TEXT[] Mảng đường dẫn ảnh"
         vector_768 embedding "HNSW Cosine Index"
         timestamptz created_at
@@ -91,7 +121,38 @@ erDiagram
 
 ## 2. Chi Tiết Lược Đồ Các Bảng (Table Schemas)
 
-### 2.1. Bảng `properties` (Quản lý Bất động sản)
+### 2.1. Bảng `projects` (Dự án Bất động sản & Quy hoạch)
+*Bổ sung trong Revision 0006*. Bảng lưu trữ toàn bộ thông tin đại đô thị, dự án chung cư cao tầng, khu đô thị phức hợp, mặt bằng tổng thể (master plan) và tiện ích nội khu.
+
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả |
+|---|---|---|---|
+| `id` | `UUID` | Primary Key, Default `uuid_generate_v4()` | Mã định danh dự án |
+| `name` | `VARCHAR(255)` | NOT NULL | Tên thương mại dự án (chỉ mục B-Tree) |
+| `slug` | `VARCHAR(255)` | NOT NULL, UNIQUE | Đường dẫn thân thiện URL duy nhất (chỉ mục B-Tree) |
+| `developer` | `VARCHAR(255)` | NULL | Tên chủ đầu tư / tập đoàn phát triển (chỉ mục B-Tree) |
+| `description` | `TEXT` | NULL | Bài viết giới thiệu chi tiết định dạng Markdown |
+| `status` | `VARCHAR(50)` | NOT NULL, Default `'under_construction'` | Trạng thái: `upcoming`, `under_construction`, `handing_over`, `completed` |
+| `total_units` | `INTEGER` | NULL | Tổng quy mô căn hộ/nhà phố dự kiến |
+| `launch_year` | `INTEGER` | NULL | Năm khởi công mở bán |
+| `handover_year` | `INTEGER` | NULL | Năm dự kiến/thực tế bàn giao |
+| `address` | `VARCHAR(500)` | NOT NULL | Địa chỉ thực tế dự án |
+| `ward` | `VARCHAR(100)` | NULL | Phường / Xã |
+| `district` | `VARCHAR(100)` | NULL | Quận / Huyện (chỉ mục B-Tree) |
+| `city` | `VARCHAR(100)` | NOT NULL | Tỉnh / Thành phố (chỉ mục B-Tree) |
+| `latitude` | `FLOAT` | NULL | Tọa độ vĩ độ |
+| `longitude` | `FLOAT` | NULL | Tọa độ kinh độ |
+| `geom` | `geometry(Point, 4326)` | NULL | Điểm hình học PostGIS (chỉ mục GiST) |
+| `images` | `TEXT[]` | NOT NULL, Default `'{}'` | Mảng URL phối cảnh và thực tế dự án |
+| `master_plan_url` | `VARCHAR(500)` | NULL | URL ảnh sơ đồ mặt bằng tổng thể phân khu |
+| `legal_status` | `VARCHAR(255)` | NULL | Tình trạng pháp lý (Sổ hồng lâu dài, 1/500...) |
+| `price_range_min` | `NUMERIC(15, 2)` | NULL | Khoảng giá tham khảo thấp nhất (VND) |
+| `price_range_max` | `NUMERIC(15, 2)` | NULL | Khoảng giá tham khảo cao nhất (VND) |
+| `amenities` | `TEXT[]` | NOT NULL, Default `'{}'` | Mảng danh sách tiện ích nội khu dự án |
+| `embedding` | `VECTOR(768)` | NULL | Vector ngữ nghĩa 768 chiều phục vụ tìm kiếm dự án (HNSW) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL, Default `NOW()` | Thời điểm tạo dự án |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL, Default `NOW()` | Thời điểm cập nhật dự án |
+
+### 2.2. Bảng `properties` (Quản lý Bất động sản)
 Bảng trung tâm lưu trữ toàn bộ dữ liệu thuộc tính, hình ảnh, tọa độ và vector nhúng của tin đăng.
 
 | Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả |
@@ -115,6 +176,7 @@ Bảng trung tâm lưu trữ toàn bộ dữ liệu thuộc tính, hình ảnh, 
 | `geom` | `geometry(Point, 4326)` | NULL | Điểm hình học không gian PostGIS hệ quy chiếu WGS84 |
 | `status` | `VARCHAR(20)` | NOT NULL, Default `'active'` | Trạng thái tin đăng: `active`, `pending`, `sold`, `inactive` |
 | `user_id` | `UUID` | Foreign Key (`users.id`), ON DELETE SET NULL | Mã người dùng sở hữu/đăng tin |
+| `project_id` | `UUID` | Foreign Key (`projects.id`), ON DELETE SET NULL, Indexed | Mã dự án chứa căn hộ (Revision 0006) |
 | `images` | `TEXT[]` | NOT NULL, Default `'{}'` | Mảng danh sách URL hình ảnh của bất động sản |
 | `embedding` | `VECTOR(768)` | NULL | Vector biểu diễn ngữ nghĩa 768 chiều |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL, Default `NOW()` | Thời điểm tạo bản ghi |

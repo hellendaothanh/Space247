@@ -83,6 +83,15 @@ class Property(Base):
     )
     owner = relationship("User", back_populates="properties")
 
+    # Parent project id
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    project = relationship("Project", back_populates="properties", lazy="selectin")
+
     # Listing images
     images: Mapped[list[str]] = mapped_column(
         ARRAY(Text),

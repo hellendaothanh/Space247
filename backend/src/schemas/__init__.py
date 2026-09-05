@@ -17,6 +17,16 @@ from src.schemas.mortgage import (
     MortgageCalcRequest,
     MortgageCalcResponse,
 )
+from src.schemas.project import (
+    PaginatedProjectResponse,
+    ProjectBase,
+    ProjectCreate,
+    ProjectDetailResponse,
+    ProjectResponse,
+    ProjectStatus,
+    ProjectSummary,
+    ProjectUpdate,
+)
 from src.schemas.property import (
     ListingType,
     PropertyBase,
@@ -44,6 +54,14 @@ __all__ = [
     "MortgageCalcResponse",
     "NotificationListResponse",
     "NotificationResponse",
+    "PaginatedProjectResponse",
+    "ProjectBase",
+    "ProjectCreate",
+    "ProjectDetailResponse",
+    "ProjectResponse",
+    "ProjectStatus",
+    "ProjectSummary",
+    "ProjectUpdate",
     "PropertyBase",
     "PropertyCreate",
     "PropertyResponse",

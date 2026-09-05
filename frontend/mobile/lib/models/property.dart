@@ -1,3 +1,5 @@
+import 'project_models.dart';
+
 class PropertyAgent {
   final String id;
   final String fullName;
@@ -57,7 +59,9 @@ class Property {
   final double? latitude;
   final double? longitude;
   final List<String> images;
+  final String? projectId;
   final PropertyAgent? agent;
+  final ProjectSummary? project;
   final String status;
   final String? createdAt;
   final String? updatedAt;
@@ -81,7 +85,9 @@ class Property {
     this.latitude,
     this.longitude,
     this.images = const [],
+    this.projectId,
     this.agent,
+    this.project,
     required this.status,
     this.createdAt,
     this.updatedAt,
@@ -110,8 +116,12 @@ class Property {
               ?.map((e) => e.toString())
               .toList() ??
           const [],
+      projectId: json['project_id'] as String?,
       agent: json['agent'] != null
           ? PropertyAgent.fromJson(json['agent'] as Map<String, dynamic>)
+          : null,
+      project: json['project'] != null
+          ? ProjectSummary.fromJson(json['project'] as Map<String, dynamic>)
           : null,
       status: (json['status'] as String?) ?? 'active',
       createdAt: json['created_at'] as String?,
@@ -139,7 +149,9 @@ class Property {
       'latitude': latitude,
       'longitude': longitude,
       'images': images,
+      'project_id': projectId,
       'agent': agent?.toJson(),
+      'project': project?.toJson(),
       'status': status,
       'created_at': createdAt,
       'updated_at': updatedAt,

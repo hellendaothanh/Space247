@@ -358,7 +358,7 @@ async def list_properties(
     """
     Retrieve listings with metadata filtering and pagination.
     """
-    stmt = select(Property)
+    stmt = select(Property).options(selectinload(Property.project))
     if listing_type:
         stmt = stmt.where(Property.listing_type == listing_type.value)
     if property_type:
@@ -502,7 +502,7 @@ async def get_property(
 
     stmt = (
         select(Property)
-        .options(selectinload(Property.owner))
+        .options(selectinload(Property.owner), selectinload(Property.project))
         .where(Property.id == property_id)
     )
     result = await db.execute(stmt)

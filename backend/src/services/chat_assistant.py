@@ -63,7 +63,8 @@ class ChatAssistantService:
             "villa", "đất", "mặt bằng", "quận", "huyện", "phòng ngủ", "tỷ", "tỉ",
             "triệu", "triệu/tháng", "tr/tháng", "diện tích", "hồ bơi", "ban công",
             "nội thất", "hà nội", "hồ chí minh", "đà nẵng", "quận 1", "bình thạnh",
-            "vay", "lãi suất", "trả góp", "mỗi tháng trả", "ngân hàng"
+            "vay", "lãi suất", "trả góp", "mỗi tháng trả", "ngân hàng",
+            "dự án", "chủ đầu tư", "master plan", "khu đô thị", "tiện ích dự án",
         ]
         has_search_keywords = any(kw in lower_text for kw in re_keywords)
 
@@ -250,6 +251,12 @@ class ChatAssistantService:
             if am in lower_text:
                 found_amenities.append(am)
 
+        # 6.5 Extract Project Name
+        project_name: str | None = None
+        proj_match = re.search(r"(?:dự án|khu đô thị|khu dân cư)\s+([a-zA-Z0-9À-ỹ\s]+?)(?=\s+(?:ở|tại|quận|huyện|thành phố|giá|có|diện tích|khoảng|tầm|$))", text, re.IGNORECASE)
+        if proj_match:
+            project_name = proj_match.group(1).strip()
+
         # 7. Formulate clean raw query for hybrid semantic & fulltext search
         raw_query = text
         remove_phrases = [
@@ -271,6 +278,7 @@ class ChatAssistantService:
             max_price=max_price,
             min_bedrooms=min_bedrooms,
             amenities=found_amenities,
+            project_name=project_name,
             raw_query=raw_query,
         )
 

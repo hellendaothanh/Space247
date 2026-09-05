@@ -120,6 +120,9 @@ export default function Navbar() {
           <Link href="/?listing_type=rent" className="transition hover:text-blue-600">
             Cho thuê
           </Link>
+          <Link href="/projects" className="transition hover:text-blue-600">
+            Dự án
+          </Link>
           <Link href="/favorites" className="transition hover:text-rose-600 flex items-center gap-1.5">
             <Heart className="h-4 w-4 text-rose-500" />
             <span>Tin đã lưu</span>

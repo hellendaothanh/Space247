@@ -106,6 +106,7 @@ Danh mục các bản di chuyển lược đồ (Migrations):
 | `0003` | `0003_add_favorite_properties.py` | Tạo bảng liên kết `favorite_properties` |
 | `0004` | `0004_add_alerts_and_notifications.py` | Tạo bảng `saved_search_alerts` và `user_notifications` |
 | `0005` | `0005_add_property_images_and_user_avatar.py` | Bổ sung cột `images TEXT[]` vào `properties` và `avatar_url VARCHAR` vào `users` |
+| `0006` | `0006_add_projects_table_and_property_project_fk.py` | Tạo bảng `projects` (đại đô thị, master plan, HNSW & GiST) và thêm khóa ngoại `project_id` trong `properties` |
 
 ### Bước 4: Nạp dữ liệu mẫu khởi tạo (Data Seeding)
 ```bash
@@ -167,6 +168,15 @@ Toàn bộ các endpoint đều có tiền tố `/api/v1`. Tài liệu chuẩn O
 | POST | `/api/v1/properties/{id}/favorite` | Có (Bearer) | Đánh dấu hoặc hủy đánh dấu yêu thích |
 | POST | `/api/v1/properties/compare` | Không | So sánh chi tiết 2 đến 3 bất động sản theo đơn giá, diện tích, vị trí và tiềm năng |
 
+### Dự án bất động sản (`/projects`)
+| Phương thức | Endpoint | Yêu cầu xác thực | Mô tả chức năng |
+|:---|:---|:---:|:---|
+| GET | `/api/v1/projects` | Không | Danh sách dự án có bộ lọc địa bàn, trạng thái, giá và phân trang (Cache Redis 30m) |
+| POST | `/api/v1/projects` | Có (Bearer) | Khởi tạo dự án mới (tự động tạo slug, embedding 768 chiều và điểm PostGIS geom) |
+| GET | `/api/v1/projects/{id_or_slug}` | Không | Chi tiết dự án theo ID hoặc Slug kèm thống kê bảng hàng và đơn giá m² bình quân |
+| PUT | `/api/v1/projects/{id}` | Có (Bearer) | Cập nhật dự án (tự động tính lại embedding khi thay đổi nội dung, xóa cache) |
+| GET | `/api/v1/projects/{id_or_slug}/properties` | Không | Danh sách tin đăng căn hộ đang hoạt động thuộc về dự án chỉ định |
+
 ### Tìm kiếm (`/search` & `/properties/search`)
 | Phương thức | Endpoint | Yêu cầu xác thực | Mô tả chức năng |
 |:---|:---|:---:|:---|
@@ -221,8 +231,8 @@ Hệ thống được bảo đảm chất lượng nghiêm ngặt thông qua cá
 cd backend
 uv run pytest
 ```
-- **Kết quả thực tế**: 101/101 tests PASS trên 14 bộ kiểm thử (test suites).
-- **Phạm vi kiểm thử**: Di chuyển cơ sở dữ liệu Alembic (0001-0005), phân quyền bảo mật JWT, CRUD bất động sản kèm mảng ảnh, định giá AVM, tính toán bản đồ Isochrone PostGIS, so sánh BĐS, chatbot AI trích xuất tiêu chí, tìm kiếm lai RRF, cơ chế bộ nhớ đệm Redis, và cảnh báo nền.
+- **Kết quả thực tế**: 108/108 tests PASS trên 15 bộ kiểm thử (test suites).
+- **Phạm vi kiểm thử**: Di chuyển cơ sở dữ liệu Alembic (0001-0006), phân quyền bảo mật JWT, CRUD bất động sản kèm mảng ảnh, quản lý dự án bất động sản (CRUD, slug, thống kê bảng hàng, cache Redis 30m), định giá AVM, tính toán bản đồ Isochrone PostGIS, so sánh BĐS, chatbot AI trích xuất tiêu chí và ý định dự án, tìm kiếm lai RRF, cơ chế bộ nhớ đệm Redis, và cảnh báo nền.
 
 ### Frontend Web
 ```bash
@@ -244,23 +254,23 @@ flutter analyze    # 0 lỗi cú pháp, 0 cảnh báo nghiêm trọng
 ```
 Space247/
 ├── backend/
-│   ├── migrations/versions/        # Tệp di chuyển lược đồ cơ sở dữ liệu Alembic (0001–0005)
+│   ├── migrations/versions/        # Tệp di chuyển lược đồ cơ sở dữ liệu Alembic (0001–0006)
 │   ├── scripts/                    # Script nạp dữ liệu mẫu seed_properties.py
 │   ├── src/
-│   │   ├── api/v1/endpoints/       # auth, properties, search, chat, agent, spatial, financial, alerts, notifications, health
+│   │   ├── api/v1/endpoints/       # auth, properties, projects, search, chat, agent, spatial, financial, alerts, notifications, health
 │   │   ├── core/                   # config, database, cache, security
-│   │   ├── models/                 # Property, User (với geom PostGIS, embedding VECTOR, images TEXT[])
-│   │   ├── schemas/                # Lược đồ dữ liệu Pydantic v2 chuẩn hóa
+│   │   ├── models/                 # Project, Property, User (với geom PostGIS, embedding VECTOR, images TEXT[])
+│   │   ├── schemas/                # Lược đồ dữ liệu Pydantic v2 chuẩn hóa (project, property, chat...)
 │   │   └── services/               # EmbeddingService, ChatAssistantService, AlertMatchingService, AIComparisonService
-│   └── tests/                      # 101 ca kiểm thử đơn vị và tích hợp
+│   └── tests/                      # 108 ca kiểm thử đơn vị và tích hợp
 ├── frontend/
 │   ├── shared/                     # DTOs TypeScript dùng chung (types.ts, api-client.ts)
-│   ├── web/                        # Ứng dụng Next.js 16 App Router
+│   ├── web/                        # Ứng dụng Next.js 16 App Router (/projects, /projects/[slug], /properties/[id])
 │   │   ├── src/components/         # Thư viện thành phần giao diện người dùng
 │   │   └── src/app/                # Định tuyến trang Next.js
 │   └── mobile/                     # Ứng dụng di động Flutter
 │       ├── lib/core/               # ApiClient, theme, hằng số cấu hình
-│       ├── lib/models/             # Mô hình dữ liệu Dart
+│       ├── lib/models/             # Mô hình dữ liệu Dart (project_models.dart, property.dart)
 │       ├── lib/screens/            # Màn hình chức năng
 │       └── lib/widgets/            # Thành phần giao diện tái sử dụng
 ├── docs/                           # Trung tâm tài liệu kỹ thuật chuẩn Enterprise
@@ -268,7 +278,7 @@ Space247/
 │   ├── system-architecture.md      # Kiến trúc phân tầng, luồng dữ liệu, chiến lược cache
 │   ├── tech-stack.md               # Danh mục công nghệ và lý do lựa chọn
 │   ├── database-design.md          # Lược đồ cơ sở dữ liệu, ERD và chiến lược chỉ mục
-│   ├── api-specs.md                # Đặc tả toàn bộ API RESTful và cấu trúc dữ liệu
+│   ├── api-specs.md                # Đặc tả 10 module RESTful API kèm DTO request/response
 │   ├── coding-standards-and-git-rules.md # Quy chuẩn lập trình, Git flow và Quality Gate
 │   ├── performance-sla.md          # Cam kết SLA, định chuẩn độ trễ và kiểm thử tải trọng
 │   ├── runbook.md                  # Cẩm nang vận hành và xử lý sự cố hệ thống
@@ -285,7 +295,7 @@ Space247/
 | [`docs/system-architecture.md`](file:///Users/hautp/Documents/project/Space247/docs/system-architecture.md) | Kiến trúc phân tầng, hợp đồng dùng chung Shared SDK, cache-aside và Hybrid Search RRF |
 | [`docs/tech-stack.md`](file:///Users/hautp/Documents/project/Space247/docs/tech-stack.md) | Phiên bản chi tiết và luận chứng kiến trúc (ADRs) |
 | [`docs/database-design.md`](file:///Users/hautp/Documents/project/Space247/docs/database-design.md) | Thiết kế CSDL, ERD, kiểu dữ liệu đặc thù và danh mục chỉ mục |
-| [`docs/api-specs.md`](file:///Users/hautp/Documents/project/Space247/docs/api-specs.md) | Đặc tả 9 module RESTful API kèm DTO request/response |
+| [`docs/api-specs.md`](file:///Users/hautp/Documents/project/Space247/docs/api-specs.md) | Đặc tả 10 module RESTful API kèm DTO request/response |
 | [`docs/coding-standards-and-git-rules.md`](file:///Users/hautp/Documents/project/Space247/docs/coding-standards-and-git-rules.md) | Quy chuẩn Conventional Commits, Git Flow, an toàn bảo mật và Quality Gate |
 | [`docs/performance-sla.md`](file:///Users/hautp/Documents/project/Space247/docs/performance-sla.md) | Định chuẩn độ trễ P95/P99, giám sát profiling và kế hoạch tải trọng k6 |
 | [`docs/runbook.md`](file:///Users/hautp/Documents/project/Space247/docs/runbook.md) | Cẩm nang xử lý sự cố CSDL, suy giảm Redis và tái sinh vector `--reindex-vectors` |
@@ -293,11 +303,12 @@ Space247/
 
 ---
 
-## 8. Lược Đồ Cơ Sở Dữ Liệu Tóm Tắt (Revision 0005)
+## 8. Lược Đồ Cơ Sở Dữ Liệu Tóm Tắt (Revision 0006)
 
 | Tên bảng | Các trường chính và kiểu dữ liệu | Chỉ mục chính |
 |---|---|---|
-| `properties` | `id`, `title`, `description`, `price`, `area_sqm`, `address`, `city`, `district`, `ward`, `latitude`, `longitude`, `geom (geometry(Point, 4326))`, `images (TEXT[])`, `embedding (VECTOR(768))`, `user_id (FK)`, `status` | HNSW (`vector_cosine_ops`), GiST (`geom`), GIN (Full-Text tiếng Việt), B-Tree (`city`, `price`, `area_sqm`) |
+| `projects` | `id`, `name`, `slug`, `developer`, `description`, `status`, `total_units`, `launch_year`, `handover_year`, `address`, `city`, `district`, `ward`, `latitude`, `longitude`, `geom (geometry(Point, 4326))`, `images (TEXT[])`, `master_plan_url`, `legal_status`, `price_range_min`, `price_range_max`, `amenities (TEXT[])`, `embedding (VECTOR(768))` | Unique B-Tree (`slug`), HNSW (`vector_cosine_ops`), GiST (`geom`), B-Tree (`city`, `developer`, `status`) |
+| `properties` | `id`, `title`, `description`, `price`, `area_sqm`, `address`, `city`, `district`, `ward`, `latitude`, `longitude`, `geom (geometry(Point, 4326))`, `images (TEXT[])`, `embedding (VECTOR(768))`, `user_id (FK)`, `project_id (FK)`, `status` | HNSW (`vector_cosine_ops`), GiST (`geom`), GIN (Full-Text tiếng Việt), B-Tree (`city`, `price`, `area_sqm`, `project_id`) |
 | `users` | `id`, `email`, `hashed_password`, `full_name`, `phone`, `avatar_url`, `role`, `is_active`, `created_at` | Unique B-Tree (`email`), B-Tree (`role`) |
 | `favorite_properties` | `user_id (FK)`, `property_id (FK)`, `created_at` | Composite Primary Key (`user_id`, `property_id`) |
 | `saved_search_alerts` | `id`, `user_id (FK)`, `title`, `criteria (JSONB)`, `frequency`, `is_active`, `last_notified_at` | B-Tree (`user_id`), B-Tree (`is_active`) |

@@ -37,7 +37,7 @@ def test_alembic_script_directory_and_head_revision():
 
     heads = script.get_heads()
     assert len(heads) == 1, f"Expected exactly 1 head revision, got {heads}"
-    assert heads[0] == "0005", f"Expected head revision to be '0005', got {heads[0]}"
+    assert heads[0] == "0006", f"Expected head revision to be '0006', got {heads[0]}"
 
     rev1 = script.get_revision("0001")
     assert rev1 is not None
@@ -64,6 +64,11 @@ def test_alembic_script_directory_and_head_revision():
     assert rev5 is not None
     assert "images" in rev5.doc.lower() or "avatar" in rev5.doc.lower()
     assert rev5.down_revision == "0004"
+
+    rev6 = script.get_revision("0006")
+    assert rev6 is not None
+    assert "project" in rev6.doc.lower()
+    assert rev6.down_revision == "0005"
 
 
 def test_alembic_offline_sql_generation(capsys):
@@ -97,20 +102,26 @@ def test_alembic_offline_sql_generation(capsys):
     assert "ALTER TABLE properties ADD COLUMN images TEXT[]" in generated_sql
     assert "ALTER TABLE users ADD COLUMN avatar_url VARCHAR(500)" in generated_sql
 
+    # Verify 0006 additions
+    assert "CREATE TABLE projects" in generated_sql
+    assert "ALTER TABLE properties ADD COLUMN project_id UUID" in generated_sql
+
     # Verify alembic version stamp
     assert "INSERT INTO alembic_version" in generated_sql
-    assert "'0005'" in generated_sql
+    assert "'0006'" in generated_sql
 
 
 def test_alembic_downgrade_offline_sql_generation(capsys):
-    """Verify that offline SQL generation for downgrade ('downgrade 0005:base --sql') produces clean rollback DDL."""
+    """Verify that offline SQL generation for downgrade ('downgrade 0006:base --sql') produces clean rollback DDL."""
     cfg = get_alembic_config()
 
-    # Generate downgrade SQL from 0005 to base using range syntax required by --sql mode
-    command.downgrade(cfg, "0005:base", sql=True)
+    # Generate downgrade SQL from 0006 to base using range syntax required by --sql mode
+    command.downgrade(cfg, "0006:base", sql=True)
     captured = capsys.readouterr()
     generated_sql = captured.out
 
+    assert "ALTER TABLE properties DROP COLUMN project_id;" in generated_sql
+    assert "DROP TABLE projects;" in generated_sql
     assert "ALTER TABLE properties DROP COLUMN images;" in generated_sql
     assert "ALTER TABLE users DROP COLUMN avatar_url;" in generated_sql
     assert "DROP TABLE user_notifications;" in generated_sql
@@ -121,19 +132,27 @@ def test_alembic_downgrade_offline_sql_generation(capsys):
 
 
 def test_models_metadata_aligned_with_properties():
-    """Verify that Base.metadata includes properties, users, favorites, alerts, and notifications tables."""
+    """Verify that Base.metadata includes properties, users, favorites, alerts, notifications, and projects tables."""
     assert Base.metadata is not None
     assert "properties" in Base.metadata.tables
     assert "users" in Base.metadata.tables
     assert "favorite_properties" in Base.metadata.tables
     assert "saved_search_alerts" in Base.metadata.tables
     assert "user_notifications" in Base.metadata.tables
+    assert "projects" in Base.metadata.tables
 
     prop_table = Base.metadata.tables["properties"]
     assert "embedding" in prop_table.c
     assert "title" in prop_table.c
     assert "user_id" in prop_table.c
     assert "images" in prop_table.c
+    assert "project_id" in prop_table.c
+
+    project_table = Base.metadata.tables["projects"]
+    assert "name" in project_table.c
+    assert "slug" in project_table.c
+    assert "developer" in project_table.c
+    assert "embedding" in project_table.c
 
     user_table = Base.metadata.tables["users"]
     assert "email" in user_table.c

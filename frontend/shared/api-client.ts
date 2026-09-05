@@ -41,6 +41,12 @@ import {
   NotificationListResponse,
   MortgageCalcRequest,
   MortgageCalcResponse,
+  ProjectCreate,
+  ProjectUpdate,
+  ProjectResponse,
+  ProjectDetailResponse,
+  PaginatedProjectResponse,
+  ProjectFilterQuery,
 } from "./types";
 
 
@@ -412,6 +418,82 @@ export class RealEstateApiClient {
     await this.request<void>(`/api/v1/notifications/${id}`, {
       method: "DELETE",
     });
+  }
+
+  // Real Estate Projects
+  async getProjects(
+    params?: ProjectFilterQuery
+  ): Promise<PaginatedProjectResponse> {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      if (params.skip !== undefined) searchParams.append("skip", params.skip.toString());
+      if (params.limit !== undefined) searchParams.append("limit", params.limit.toString());
+      if (params.city) searchParams.append("city", params.city);
+      if (params.district) searchParams.append("district", params.district);
+      if (params.status) searchParams.append("status", params.status);
+      if (params.developer) searchParams.append("developer", params.developer);
+      if (params.min_price !== undefined) searchParams.append("min_price", params.min_price.toString());
+      if (params.max_price !== undefined) searchParams.append("max_price", params.max_price.toString());
+      if (params.q) searchParams.append("q", params.q);
+    }
+    const qs = searchParams.toString();
+    return this.request<PaginatedProjectResponse>(
+      `/api/v1/projects${qs ? `?${qs}` : ""}`,
+      { method: "GET" }
+    );
+  }
+
+  async getProject(idOrSlug: string): Promise<ProjectDetailResponse> {
+    return this.request<ProjectDetailResponse>(
+      `/api/v1/projects/${encodeURIComponent(idOrSlug)}`,
+      { method: "GET" }
+    );
+  }
+
+  async createProject(data: ProjectCreate): Promise<ProjectResponse> {
+    return this.request<ProjectResponse>("/api/v1/projects", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateProject(
+    id: string,
+    data: ProjectUpdate
+  ): Promise<ProjectResponse> {
+    return this.request<ProjectResponse>(`/api/v1/projects/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getProjectProperties(
+    idOrSlug: string,
+    params?: {
+      skip?: number;
+      limit?: number;
+      listing_type?: string;
+      property_type?: string;
+      min_price?: number;
+      max_price?: number;
+      num_bedrooms?: number;
+    }
+  ): Promise<PropertyResponse[]> {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      if (params.skip !== undefined) searchParams.append("skip", params.skip.toString());
+      if (params.limit !== undefined) searchParams.append("limit", params.limit.toString());
+      if (params.listing_type) searchParams.append("listing_type", params.listing_type);
+      if (params.property_type) searchParams.append("property_type", params.property_type);
+      if (params.min_price !== undefined) searchParams.append("min_price", params.min_price.toString());
+      if (params.max_price !== undefined) searchParams.append("max_price", params.max_price.toString());
+      if (params.num_bedrooms !== undefined) searchParams.append("num_bedrooms", params.num_bedrooms.toString());
+    }
+    const qs = searchParams.toString();
+    return this.request<PropertyResponse[]>(
+      `/api/v1/projects/${encodeURIComponent(idOrSlug)}/properties${qs ? `?${qs}` : ""}`,
+      { method: "GET" }
+    );
   }
 }
 

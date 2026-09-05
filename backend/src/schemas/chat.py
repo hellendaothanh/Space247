@@ -33,6 +33,7 @@ class ExtractedCriteria(BaseModel):
     max_price: float | None = Field(default=None, description="Maximum price filter in VND")
     min_bedrooms: int | None = Field(default=None, description="Minimum bedrooms")
     amenities: list[str] = Field(default_factory=list, description="Extracted amenity keywords")
+    project_name: str | None = Field(default=None, description="Extracted project or developer name")
     raw_query: str = Field(default="", description="Search text extracted from user question")
 
 

@@ -11,6 +11,8 @@ import {
   Mail,
   ShieldCheck,
   Building,
+  Building2,
+  ChevronRight,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -54,7 +56,38 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
   }
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="space-y-6 pb-16">
+      {/* Breadcrumbs */}
+      <nav className="flex items-center gap-1.5 text-xs text-slate-500">
+        <Link href="/" className="hover:text-blue-600 transition">
+          Trang chủ
+        </Link>
+        <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+        {property.project ? (
+          <>
+            <Link href="/projects" className="hover:text-blue-600 transition">
+              Dự án
+            </Link>
+            <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+            <Link
+              href={`/projects/${property.project.slug}`}
+              className="hover:text-blue-600 transition font-medium text-slate-700 max-w-[150px] truncate"
+            >
+              {property.project.name}
+            </Link>
+            <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+          </>
+        ) : (
+          <>
+            <Link href="/" className="hover:text-blue-600 transition">
+              Bất động sản
+            </Link>
+            <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+          </>
+        )}
+        <span className="font-semibold text-slate-900 truncate max-w-xs">{property.title}</span>
+      </nav>
+
       {/* Back Button & Actions */}
       <div className="flex items-center justify-between">
         <Link
@@ -204,6 +237,44 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
 
         {/* Right 1 Col: Contact & Safety Sidebar */}
         <div className="space-y-6">
+          {/* Linked Project Banner */}
+          {property.project && (
+            <div className="rounded-3xl border border-blue-100 bg-linear-to-br from-blue-50/80 to-indigo-50/80 p-5 shadow-xs">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-xs">
+                    <Building2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700">
+                      Thuộc dự án
+                    </span>
+                    <h4 className="text-sm font-bold text-slate-900 line-clamp-1">
+                      {property.project.name}
+                    </h4>
+                    {property.project.developer && (
+                      <p className="text-xs text-slate-500 line-clamp-1">
+                        CĐT: {property.project.developer}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 pt-3 border-t border-blue-200/50 flex items-center justify-between">
+                <span className="text-xs text-slate-600 font-medium">
+                  {property.project.city}
+                </span>
+                <Link
+                  href={`/projects/${property.project.slug}`}
+                  className="inline-flex items-center gap-1 text-xs font-bold text-blue-700 hover:text-blue-900 transition"
+                >
+                  <span>Khám phá dự án</span>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            </div>
+          )}
+
           {/* Dynamic Agent Card */}
           {(() => {
             const agent = property.agent;

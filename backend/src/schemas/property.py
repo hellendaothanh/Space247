@@ -2,6 +2,7 @@ from datetime import datetime
 from enum import Enum
 import uuid
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from src.schemas.project import ProjectSummary
 
 
 class ListingType(str, Enum):
@@ -42,6 +43,7 @@ class PropertyBase(BaseModel):
     latitude: float | None = Field(default=None, ge=-90.0, le=90.0, description="Latitude")
     longitude: float | None = Field(default=None, ge=-180.0, le=180.0, description="Longitude")
     images: list[str] = Field(default_factory=list, description="List of property image URLs")
+    project_id: uuid.UUID | None = Field(default=None, description="Associated real estate project ID")
 
 
 class PropertyCreate(PropertyBase):
@@ -68,6 +70,7 @@ class PropertyUpdate(BaseModel):
     latitude: float | None = Field(default=None, ge=-90.0, le=90.0)
     longitude: float | None = Field(default=None, ge=-180.0, le=180.0)
     images: list[str] | None = Field(default=None, description="List of property image URLs")
+    project_id: uuid.UUID | None = None
     status: PropertyStatus | None = None
     embedding: list[float] | None = None
 
@@ -89,6 +92,7 @@ class PropertyResponse(PropertyBase):
     user_id: uuid.UUID | None = None
     status: PropertyStatus
     agent: PropertyAgentResponse | None = None
+    project: ProjectSummary | None = None
     created_at: datetime
     updated_at: datetime
 

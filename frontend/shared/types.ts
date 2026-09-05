@@ -36,6 +36,7 @@ export interface PropertyBase {
   latitude?: number | null;
   longitude?: number | null;
   images?: string[];
+  project_id?: string | null;
 }
 
 export interface PropertyCreate extends PropertyBase {
@@ -63,6 +64,7 @@ export interface PropertyResponse extends PropertyBase {
   status: PropertyStatus;
   images: string[];
   agent?: PropertyAgent | null;
+  project?: ProjectSummary | null;
   created_at: string; // ISO 8601 string
   updated_at: string;
 }
@@ -460,5 +462,91 @@ export interface MortgageCalcResponse {
   total_interest: number;
   total_payment: number;
   schedule: AmortizationScheduleItem[];
+}
+
+// ---------------------------------------------------------------------------
+// Real Estate Project Types
+// ---------------------------------------------------------------------------
+
+export type ProjectStatus =
+  | "upcoming"
+  | "under_construction"
+  | "handing_over"
+  | "completed";
+
+export interface ProjectBase {
+  name: string;
+  slug: string;
+  developer?: string | null;
+  description?: string | null;
+  status: ProjectStatus;
+  total_units?: number | null;
+  launch_year?: number | null;
+  handover_year?: number | null;
+  address: string;
+  ward?: string | null;
+  district?: string | null;
+  city: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  images?: string[];
+  master_plan_url?: string | null;
+  legal_status?: string | null;
+  price_range_min?: number | null;
+  price_range_max?: number | null;
+  amenities?: string[];
+}
+
+export interface ProjectCreate extends ProjectBase {
+  embedding?: number[] | null;
+}
+
+export interface ProjectUpdate extends Partial<ProjectBase> {
+  embedding?: number[] | null;
+}
+
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  slug: string;
+  developer?: string | null;
+  status: ProjectStatus;
+  city: string;
+  district?: string | null;
+  images: string[];
+  price_range_min?: number | null;
+  price_range_max?: number | null;
+}
+
+export interface ProjectResponse extends ProjectBase {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  active_properties_count: number;
+  for_sale_count: number;
+  for_rent_count: number;
+  average_price_per_sqm?: number | null;
+}
+
+export interface ProjectDetailResponse extends ProjectResponse {}
+
+export interface PaginatedProjectResponse {
+  items: ProjectResponse[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+export interface ProjectFilterQuery {
+  skip?: number;
+  limit?: number;
+  city?: string;
+  district?: string;
+  status?: ProjectStatus;
+  developer?: string;
+  min_price?: number;
+  max_price?: number;
+  q?: string;
 }
 

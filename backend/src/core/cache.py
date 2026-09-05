@@ -85,6 +85,19 @@ def generate_comparison_cache_key(property_ids: list[Any]) -> str:
     return f"cache:comparison:{hashed}"
 
 
+def generate_project_cache_key(identifier: Any) -> str:
+    """Generate cache key for a project by UUID or slug."""
+    return f"cache:project:{str(identifier)}"
+
+
+def generate_project_list_cache_key(params: dict[str, Any]) -> str:
+    """Generate deterministic cache key for project list queries."""
+    cleaned = {k: v for k, v in params.items() if v is not None}
+    serialized = json.dumps(cleaned, sort_keys=True, default=str)
+    hashed = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+    return f"cache:project_list:{hashed}"
+
+
 async def get_cached_json(key: str) -> Any | None:
     """
     Retrieve and deserialize JSON value from Redis.
@@ -165,3 +178,14 @@ async def invalidate_property_caches(property_id: Any | None = None) -> None:
         await delete_cached_key(generate_property_cache_key(property_id))
     # All search queries are invalidated because rankings or total results may have changed
     await invalidate_cache_pattern("cache:search:*")
+
+
+async def invalidate_project_caches(project_id: Any | None = None, slug: str | None = None) -> None:
+    """
+    Invalidate project caches: specific project by ID/slug and all project list caches.
+    """
+    if project_id is not None:
+        await delete_cached_key(generate_project_cache_key(project_id))
+    if slug is not None:
+        await delete_cached_key(generate_project_cache_key(slug))
+    await invalidate_cache_pattern("cache:project_list:*")

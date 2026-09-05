@@ -239,7 +239,98 @@ Hệ thống sử dụng cơ chế xác thực dựa trên JSON Web Token (JWT B
 
 ---
 
-### 2.3. Module Tìm Kiếm Lai & Ngữ Nghĩa (`/properties/search` & `/search`)
+### 2.3. Module Dự Án Bất Động Sản (`/projects`)
+
+#### 1. Lấy danh sách dự án với bộ lọc và phân trang
+- **Endpoint**: `GET /api/v1/projects`
+- **Xác thực**: Không yêu cầu
+- **Query Parameters**:
+  - `skip`: Offset phân trang (mặc định 0).
+  - `limit`: Số lượng dự án mỗi trang (mặc định 20, tối đa 100).
+  - `city`: Lọc theo tỉnh/thành phố (ví dụ: "Hồ Chí Minh", "Hà Nội").
+  - `district`: Lọc theo quận/huyện.
+  - `status`: Lọc theo trạng thái xây dựng (`upcoming`, `under_construction`, `handing_over`, `completed`).
+  - `developer`: Lọc theo tên chủ đầu tư.
+  - `min_price`: Lọc dự án có mức giá trần >= `min_price`.
+  - `max_price`: Lọc dự án có mức giá sàn <= `max_price`.
+  - `q`: Từ khóa tìm kiếm theo tên dự án hoặc chủ đầu tư.
+- **Bộ nhớ đệm (Cache)**: Tự động đệm Redis theo khóa truy vấn `cache:project_list:{hash}` với thời gian sống TTL 30 phút (1.800 giây).
+- **Response (`PaginatedProjectResponse` - HTTP 200)**:
+  ```json
+  {
+    "items": [
+      {
+        "id": "77777777-7777-7777-7777-777777777777",
+        "name": "Vinhomes Grand Park",
+        "slug": "vinhomes-grand-park",
+        "developer": "Vingroup",
+        "description": "Đại đô thị thông minh đẳng cấp quốc tế phía Đông TP.HCM...",
+        "status": "under_construction",
+        "total_units": 44000,
+        "launch_year": 2019,
+        "handover_year": 2024,
+        "address": "Nguyễn Xiển, Long Thạnh Mỹ",
+        "ward": "Long Thạnh Mỹ",
+        "district": "Quận 9",
+        "city": "Hồ Chí Minh",
+        "latitude": 10.845,
+        "longitude": 106.838,
+        "images": [
+          "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00"
+        ],
+        "master_plan_url": "https://images.unsplash.com/photo-masterplan",
+        "legal_status": "Sổ hồng lâu dài",
+        "price_range_min": 1500000000.0,
+        "price_range_max": 8000000000.0,
+        "amenities": [
+          "Hồ bơi",
+          "Công viên 36ha",
+          "TTTM Vincom Mega Mall"
+        ],
+        "created_at": "2026-09-01T08:00:00Z",
+        "updated_at": "2026-09-01T08:00:00Z",
+        "active_properties_count": 28,
+        "for_sale_count": 20,
+        "for_rent_count": 8,
+        "average_price_per_sqm": 48500000.0
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "size": 20,
+    "pages": 1
+  }
+  ```
+
+#### 2. Tạo dự án mới
+- **Endpoint**: `POST /api/v1/projects`
+- **Xác thực**: Bắt buộc (Bearer Token)
+- **Request Body (`ProjectCreate`)**: Các trường thông tin dự án. Trường `slug` có thể bỏ qua để hệ thống tự động sinh slug tiếng Việt chuẩn SEO.
+- **Xử lý ngầm**: Tự động sinh vector nhúng 768 chiều từ tên, chủ đầu tư, địa chỉ và tiện ích thông qua FastEmbed; tạo điểm hình học PostGIS `geom` khi có tọa độ; xóa đệm danh sách dự án.
+- **Response (`ProjectResponse` - HTTP 201)**: Chi tiết dự án vừa khởi tạo.
+
+#### 3. Lấy chi tiết dự án theo ID hoặc Slug
+- **Endpoint**: `GET /api/v1/projects/{id_or_slug}`
+- **Xác thực**: Không yêu cầu
+- **Mô tả**: Hỗ trợ tra cứu linh hoạt bằng chuỗi UUID hoặc đường dẫn thân thiện URL `slug` (ví dụ: `/projects/vinhomes-grand-park`).
+- **Bộ nhớ đệm (Cache)**: Tự động lưu Redis theo khóa `cache:project:{id_or_slug}` với TTL 1.800 giây.
+- **Response (`ProjectDetailResponse` - HTTP 200)**: Toàn bộ thông tin dự án cùng số liệu thống kê tin đăng thực tế và đơn giá m² bình quân.
+
+#### 4. Cập nhật thông tin dự án
+- **Endpoint**: `PUT /api/v1/projects/{project_id}`
+- **Xác thực**: Bắt buộc (Bearer Token)
+- **Xử lý ngầm**: Tái tạo vector ngữ nghĩa nếu thay đổi các trường nội dung cốt lõi; xóa triệt để bộ nhớ đệm chi tiết dự án cũ/mới và bộ nhớ đệm danh sách dự án.
+- **Response (`ProjectResponse` - HTTP 200)**.
+
+#### 5. Lấy danh sách căn hộ thuộc dự án
+- **Endpoint**: `GET /api/v1/projects/{id_or_slug}/properties`
+- **Xác thực**: Không yêu cầu
+- **Query Parameters**: `skip`, `limit`, `listing_type` (`sale` | `rent`), `property_type`, `min_price`, `max_price`, `num_bedrooms`.
+- **Response (`list[PropertyResponse]` - HTTP 200)**: Danh sách các tin đăng đang hoạt động (`active`) thuộc về dự án chỉ định.
+
+---
+
+### 2.4. Module Tìm Kiếm Lai & Ngữ Nghĩa (`/properties/search` & `/search`)
 
 #### 1. Tìm kiếm lai kết hợp Reciprocal Rank Fusion (RRF)
 - **Endpoint**: `POST /api/v1/properties/search`
@@ -280,7 +371,7 @@ Hệ thống sử dụng cơ chế xác thực dựa trên JSON Web Token (JWT B
 
 ---
 
-### 2.4. Module Trợ Lý Trí Tuệ Nhân Tạo (`/chat`)
+### 2.5. Module Trợ Lý Trí Tuệ Nhân Tạo (`/chat`)
 
 #### Tương tác với Trợ lý AI Chatbot
 - **Endpoint**: `POST /api/v1/chat/assistant`
@@ -315,7 +406,7 @@ Hệ thống sử dụng cơ chế xác thực dựa trên JSON Web Token (JWT B
 
 ---
 
-### 2.5. Module Tiện Ích Môi Giới AI Co-Pilot (`/agent`)
+### 2.6. Module Tiện Ích Môi Giới AI Co-Pilot (`/agent`)
 
 #### 1. AI sinh tiêu đề SEO và bài mô tả tin đăng
 - **Endpoint**: `POST /api/v1/agent/listing/generate`
@@ -383,7 +474,7 @@ Hệ thống sử dụng cơ chế xác thực dựa trên JSON Web Token (JWT B
 
 ---
 
-### 2.6. Module Địa Không Gian & Bản Đồ (`/spatial`)
+### 2.7. Module Địa Không Gian & Bản Đồ (`/spatial`)
 
 #### 1. Tìm kiếm theo vùng di chuyển (Isochrone Search)
 - **Endpoint**: `POST /api/v1/spatial/isochrone-search`
@@ -435,7 +526,7 @@ Hệ thống sử dụng cơ chế xác thực dựa trên JSON Web Token (JWT B
 
 ---
 
-### 2.7. Module Công Cụ Tài Chính (`/financial`)
+### 2.8. Module Công Cụ Tài Chính (`/financial`)
 
 #### Bảng tính vay mua nhà và lịch trả góp (Mortgage Calculator)
 - **Endpoint**: `POST /api/v1/financial/mortgage-calc`
@@ -482,7 +573,7 @@ Hệ thống sử dụng cơ chế xác thực dựa trên JSON Web Token (JWT B
 
 ---
 
-### 2.8. Module Cảnh Báo & Thông Báo (`/alerts` & `/notifications`)
+### 2.9. Module Cảnh Báo & Thông Báo (`/alerts` & `/notifications`)
 
 #### 1. Tạo cảnh báo tìm kiếm
 - **Endpoint**: `POST /api/v1/alerts`
@@ -529,7 +620,7 @@ Hệ thống sử dụng cơ chế xác thực dựa trên JSON Web Token (JWT B
 
 ---
 
-### 2.9. Module Giám Sát Hệ Thống (`/health`)
+### 2.10. Module Giám Sát Hệ Thống (`/health`)
 
 #### Kiểm tra tình trạng hoạt động (Healthcheck)
 - **Endpoint**: `GET /api/v1/health`

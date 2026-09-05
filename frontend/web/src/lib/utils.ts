@@ -79,3 +79,13 @@ export function sanitizeUrl(url?: string | null): string {
   return "";
 }
 
+export function formatProjectStatus(status: string): { label: string; color: string } {
+  const map: Record<string, { label: string; color: string }> = {
+    upcoming: { label: "Sắp mở bán", color: "bg-amber-500/90 text-white" },
+    under_construction: { label: "Đang thi công", color: "bg-blue-600/90 text-white" },
+    handing_over: { label: "Đang bàn giao", color: "bg-purple-600/90 text-white" },
+    completed: { label: "Đã bàn giao", color: "bg-emerald-600/90 text-white" },
+  };
+  return map[status] || { label: status, color: "bg-slate-700/90 text-white" };
+}
+
