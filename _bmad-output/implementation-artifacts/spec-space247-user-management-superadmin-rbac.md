@@ -1,5 +1,5 @@
 ---
-status: complete
+status: done
 baseline_commit: 50f5b295c2a78e9956715258cd50dbccf4c87ee3
 context:
   - backend/src/models/user.py
