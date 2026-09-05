@@ -8,6 +8,7 @@ import { AuthProvider } from "@/lib/auth";
 import { FavoritesProvider } from "@/lib/favorites";
 import { ComparisonProvider } from "@/lib/comparison";
 import StickyComparisonBar from "@/components/StickyComparisonBar";
+import ScrollToTopButton from "@/components/ScrollToTopButton";
 
 const inter = Inter({ subsets: ["latin", "vietnamese"] });
 
@@ -35,6 +36,7 @@ export default function RootLayout({
               <Footer />
               <ChatAssistantWidget />
               <StickyComparisonBar />
+              <ScrollToTopButton />
             </ComparisonProvider>
           </FavoritesProvider>
         </AuthProvider>

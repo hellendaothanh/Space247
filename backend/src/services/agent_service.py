@@ -27,8 +27,10 @@ logger = logging.getLogger(__name__)
 
 class AgentService:
     def __init__(self):
-        self.api_key = os.getenv("GEMINI_API_KEY", "").strip()
-        self.model_name = os.getenv("GEMINI_MODEL", "gemini-3.5-flash").strip()
+        from src.core.config import settings
+
+        self.api_key = (settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")).strip()
+        self.model_name = (settings.GEMINI_MODEL or os.getenv("GEMINI_MODEL", "gemini-2.5-flash")).strip()
         self.client = None
 
         if self.api_key:

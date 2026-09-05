@@ -93,10 +93,15 @@ baseline_commit: '7be5a223d08235100b7f1205f95ab5b135fb196e'
 
 - **Tiêu chuẩn Giao diện & Biểu tượng (UI/UX Guidelines)**:
   - Khối *Phân tích Chuyên sâu & Khuyến nghị*: Sử dụng các biểu tượng phân tích/tài chính chuyên nghiệp chuẩn mực (như `LineChart` từ `lucide-react`, thanh dữ liệu thống kê) thay vì các icon AI trừu tượng hoặc emoji trang trí.
-  - Nội dung phân tích và chế độ dự phòng (fallback) tuân theo văn phong báo cáo thẩm định đầu tư bất động sản cao cấp, tinh gọn, gạch đầu dòng rõ ràng, không sử dụng emoji rườm rà.
+- **Chức năng Cuộn lên đầu trang (Up to Top / Scroll to Top)**:
+  - Tích hợp nút nổi (Floating action button) có icon `ArrowUp` ở góc dưới bên phải modal so sánh.
+  - Nút tự động xuất hiện khi người dùng cuộn xem nội dung phân tích xuống quá 240px (`scrollTop > 240`).
+  - Khi bấm nút, khung modal sẽ cuộn mượt mà (`smooth scroll`) đưa người dùng trở lại ngay đầu bảng so sánh. Tự động ẩn khi in hoặc xuất file PDF (`no-print`).
 
 ## Spec Change Log
 - **2026-09-05**: Cập nhật phong cách giao diện và báo cáo: Chuyển đổi icon tiêu đề sang `LineChart` chuyên nghiệp, loại bỏ emoji trong prompt và văn bản fallback của dịch vụ so sánh AI.
+- **2026-09-05**: Bổ sung tính năng In / Xuất báo cáo PDF và Chia sẻ liên kết trực tiếp trên modal so sánh bất động sản.
+- **2026-09-05**: Bổ sung tính năng nút cuộn mượt lên đầu trang (Up to Top) cho modal so sánh bất động sản.
 
 ## Review Triage Log
 

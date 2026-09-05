@@ -7,3 +7,28 @@
     color: #0f172a;
   }
 }
+
+@media print {
+  /* Hide all background website elements, keeping only the print container */
+  body * {
+    visibility: hidden;
+  }
+  #comparison-printable-area,
+  #comparison-printable-area * {
+    visibility: visible;
+  }
+  #comparison-printable-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20px;
+    background: white !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

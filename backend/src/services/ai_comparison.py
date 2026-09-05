@@ -3,13 +3,15 @@ import logging
 from google import genai
 from google.genai import types
 
+from src.core.config import settings
+
 logger = logging.getLogger(__name__)
 
 
 class AIComparisonService:
     def __init__(self):
-        self.api_key = os.getenv("GEMINI_API_KEY", "").strip()
-        self.model_name = os.getenv("GEMINI_MODEL", "gemini-3.5-flash").strip()
+        self.api_key = (settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")).strip()
+        self.model_name = (settings.GEMINI_MODEL or os.getenv("GEMINI_MODEL", "gemini-2.5-flash")).strip()
         self.client = None
 
         if self.api_key:
@@ -35,11 +37,22 @@ class AIComparisonService:
                 ),
             )
             if response and response.text:
-                return response.text
+                return self._clean_markdown(response.text)
             return self._get_fallback_markdown(properties)
         except Exception as e:
             logger.error(f"Gemini API error during property comparison: {e}")
             return self._get_fallback_markdown(properties)
+
+    def _clean_markdown(self, text: str) -> str:
+        """
+        Ensure Markdown tables that LLMs sometimes generate on a single line
+        or with conjoined pipes '| |' are broken into clean table rows.
+        """
+        import re
+
+        # Fix conjoined table cells like '| |' into separate lines '|\n|'
+        cleaned = re.sub(r"\|\s*\|", "|\n|", text)
+        return cleaned
 
     def _build_prompt(self, properties: list[dict]) -> str:
         properties_text = ""
@@ -60,9 +73,12 @@ class AIComparisonService:
 3. **Tiềm năng đầu tư & Thanh khoản**: Phân tích tiềm năng tăng giá trị trung - dài hạn, khả năng khai thác cho thuê/kinh doanh và tính thanh khoản.
 4. **Pháp lý & Mức độ an toàn giao dịch**: Đánh giá mức độ an toàn pháp lý, giấy tờ sở hữu cần kiểm tra và quản trị rủi ro khi giao dịch.
 
-Sau cùng, hãy đưa ra **Bảng đối chiếu tổng hợp** và **Khuyến nghị chuyên môn**: Đánh giá chi tiết từng bất động sản phù hợp với mục tiêu nào (đầu tư tích lũy dài hạn, khai thác dòng tiền cho thuê, hay an cư thực tế).
+Sau cùng, hãy đưa ra **Bảng đối chiếu tổng hợp** (dưới dạng Markdown Table chuẩn với mỗi dòng bảng trên một hàng riêng biệt, có header và đường phân cách `| :--- |`) và **Khuyến nghị chuyên môn**: Đánh giá chi tiết từng bất động sản phù hợp với mục tiêu nào (đầu tư tích lũy dài hạn, khai thác dòng tiền cho thuê, hay an cư thực tế).
 
-Yêu cầu định dạng: Trình bày theo văn phong báo cáo tài chính/thẩm định bất động sản chuyên nghiệp, chỉn chu, gạch đầu dòng mạch lạc, không lạm dụng các biểu tượng cảm xúc (emoji) trang trí không cần thiết. Ngôn ngữ: Tiếng Việt chuẩn mực.
+Yêu cầu định dạng:
+- Trình bày theo văn phong báo cáo tài chính/thẩm định bất động sản chuyên nghiệp, chỉn chu, gạch đầu dòng mạch lạc, không lạm dụng emoji trang trí.
+- Bắt buộc xuống dòng rõ ràng cho từng hàng của Markdown Table để hiển thị chuẩn dạng bảng.
+- Ngôn ngữ: Tiếng Việt chuẩn mực.
 
 Dữ liệu các bất động sản cần phân tích:
 {properties_text}
