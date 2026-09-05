@@ -114,8 +114,8 @@ async def test_isochrone_search_unknown_landmark(client, mock_db_session):
             "transport_mode": "motorcycle",
         }
         response = await client.post("/api/v1/spatial/isochrone-search", json=payload)
-        assert response.status_code == 400
-        assert "Không thể định vị" in response.json()["detail"]
+        assert response.status_code == 404
+        assert "Không tìm thấy địa danh" in response.json()["detail"]
 
 
 @pytest.mark.asyncio

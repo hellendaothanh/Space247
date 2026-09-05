@@ -62,13 +62,14 @@ class AuthService {
 
   Future<User> updateProfile({String? fullName, String? phone, String? avatarUrl}) async {
     try {
+      final payload = <String, dynamic>{};
+      if (fullName != null) payload['full_name'] = fullName;
+      if (phone != null) payload['phone'] = phone;
+      if (avatarUrl != null) payload['avatar_url'] = avatarUrl;
+
       final response = await apiClient.dio.put(
         '/users/me',
-        data: {
-          if (fullName != null) 'full_name': fullName,
-          if (phone != null) 'phone': phone,
-          if (avatarUrl != null) 'avatar_url': avatarUrl,
-        },
+        data: payload,
       );
       final user = User.fromJson(response.data as Map<String, dynamic>);
       await apiClient.secureStorage.write(key: AppConstants.userKey, value: jsonEncode(user.toJson()));

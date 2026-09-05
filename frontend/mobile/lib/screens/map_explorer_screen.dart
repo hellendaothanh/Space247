@@ -38,8 +38,8 @@ class _MapExplorerScreenState extends ConsumerState<MapExplorerScreen> {
   bool _isLoadingIsochrone = false;
   List<LatLng> _isochronePolygon = [];
   List<Property> _filteredProperties = [];
-  LatLng? _landmarkLocation;
-  String? _landmarkName;
+  LatLng? _landmarkLocation = const LatLng(21.0167, 105.7839);
+  String? _landmarkName = 'Keangnam Landmark 72 (Hà Nội)';
 
   // Amenity POIs
   String? _activeAmenityCategory;
@@ -66,6 +66,18 @@ class _MapExplorerScreenState extends ConsumerState<MapExplorerScreen> {
   }
 
   Future<void> _runIsochroneSearch() async {
+    if (_landmark.trim().isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Vui lòng chọn điểm mốc di chuyển'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() {
       _isLoadingIsochrone = true;
     });
@@ -73,7 +85,7 @@ class _MapExplorerScreenState extends ConsumerState<MapExplorerScreen> {
     try {
       final dio = ref.read(apiClientProvider).dio;
       final response = await dio.post(
-        '/api/v1/spatial/isochrone-search',
+        '/spatial/isochrone-search',
         data: {
           'target_landmark': _landmark,
           'max_duration_minutes': _durationMinutes,
@@ -153,7 +165,7 @@ class _MapExplorerScreenState extends ConsumerState<MapExplorerScreen> {
     try {
       final dio = ref.read(apiClientProvider).dio;
       final response = await dio.get(
-        '/api/v1/spatial/amenities/heatmap',
+        '/spatial/amenities/heatmap',
         queryParameters: {
           'category': category,
           if (_landmarkLocation != null) ...{
@@ -555,7 +567,9 @@ class _MapExplorerScreenState extends ConsumerState<MapExplorerScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            '$_landmarkName • $_durationMinutes phút ($_transportMode)',
+                            _landmark.trim().isEmpty
+                                ? 'Vui lòng chọn điểm mốc di chuyển'
+                                : '${(_landmarkName != null && _landmarkName!.isNotEmpty) ? _landmarkName : _landmark} • $_durationMinutes phút ($_transportMode)',
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,

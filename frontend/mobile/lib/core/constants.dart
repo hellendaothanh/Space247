@@ -18,8 +18,8 @@ class AppConstants {
     if (Platform.isAndroid) {
       // Khi dùng thiết bị thật cắm cáp: 'adb reverse tcp:8080 tcp:8080' cho phép gọi 'http://localhost:8080/api/v1'
       // Khi dùng Android Emulator: 10.0.2.2 trỏ về localhost máy tính.
-      // Bạn cũng có thể truyền --dart-define=API_BASE_URL=http://<IP>:8080/api/v1 khi chạy.
-      return 'http://localhost:8080/api/v1';
+      // Khi dùng thiết bị thật cắm cáp: 'adb reverse tcp:8080 tcp:8080' hoặc truyền --dart-define=API_BASE_URL=http://<IP>:8080/api/v1
+      return 'http://10.0.2.2:8080/api/v1';
     }
     return 'http://localhost:8080/api/v1';
   }

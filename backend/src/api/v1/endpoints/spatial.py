@@ -49,8 +49,8 @@ async def isochrone_search(
     loc_info = await spatial_service.geocode_landmark(request.target_landmark)
     if not loc_info:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Không thể định vị địa danh '{request.target_landmark}'. Vui lòng thử mốc khác hoặc nhập tọa độ 'vĩ_độ,kinh_độ'.",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy địa danh '{request.target_landmark}'. Vui lòng chọn điểm mốc khác hoặc nhập tọa độ dạng 'vĩ_độ, kinh_độ'.",
         )
 
     # 2. Compute Isochrone Polygon

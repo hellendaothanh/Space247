@@ -27,6 +27,23 @@ class ApiClient {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
+          // Normalize URL resolution so baseUrl path (e.g. /api/v1) is preserved even if path starts with a slash
+          if (!options.path.startsWith('http://') && !options.path.startsWith('https://')) {
+            var base = options.baseUrl.trim();
+            if (base.endsWith('/')) base = base.substring(0, base.length - 1);
+            var path = options.path.trim();
+            if (!path.startsWith('/')) path = '/$path';
+
+            final baseUri = Uri.tryParse(base);
+            final basePath = baseUri?.path ?? '';
+            if (basePath.isNotEmpty && path.startsWith(basePath)) {
+              path = path.substring(basePath.length);
+              if (!path.startsWith('/')) path = '/$path';
+            }
+            options.path = '$base$path';
+            options.baseUrl = '';
+          }
+
           final token = await this.secureStorage.read(key: AppConstants.tokenKey);
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
