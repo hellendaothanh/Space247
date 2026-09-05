@@ -5,7 +5,7 @@ import { useComparison } from "@/lib/comparison";
 import { apiClient } from "@/lib/api";
 import { ComparePropertiesResponse } from "@shared/types";
 import { formatPrice, formatPropertyType, getPlaceholderImage } from "@/lib/utils";
-import { X, Scale, MapPin, Bed, Bath, Maximize2, CheckCircle2 } from "lucide-react";
+import { X, Scale, MapPin, Bed, Bath, Maximize2, LineChart } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 export default function ComparisonModal({ onClose }: { onClose: () => void }) {
@@ -161,9 +161,11 @@ export default function ComparisonModal({ onClose }: { onClose: () => void }) {
           </div>
 
           {/* AI Analysis Section */}
-          <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/50 via-white to-blue-50/40 p-6 shadow-xs space-y-4">
-            <div className="flex items-center gap-2 text-indigo-900 font-bold text-base">
-              <CheckCircle2 className="w-5 h-5 text-indigo-600" />
+          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50/70 via-white to-blue-50/30 p-6 shadow-xs space-y-4">
+            <div className="flex items-center gap-2.5 text-slate-900 font-bold text-base">
+              <div className="p-1.5 bg-blue-100 text-blue-700 rounded-lg">
+                <LineChart className="w-4 h-4" />
+              </div>
               <h3>Phân tích Chuyên sâu & Khuyến nghị từ AI</h3>
             </div>
 

@@ -73,8 +73,8 @@ Tệp cấu hình `.env` được nạp tự động qua Pydantic BaseSettings t
 | `SECRET_KEY` | String | `space247-super-secret-jwt-key-for-development-change-in-production-2026` | Khóa bí mật dùng ký và xác minh token JWT HS256 |
 | `JWT_ALGORITHM` | String | `HS256` | Thuật toán mã hóa JWT |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Integer | `10080` | Thời hạn hiệu lực của token đăng nhập (7 ngày) |
-| `CORS_ORIGINS` | List/JSON | `["http://localhost:3000", "http://localhost:8081"]` | Danh sách domain được phép gửi request qua CORS |
-| `GEMINI_API_KEY` | String | Trống (tùy chọn) | Khóa API Google Gemini hỗ trợ Trợ lý Chat và Tiện ích Môi giới AI |
+| `GEMINI_API_KEY` | String | Trống (tùy chọn) | Khóa API Google Gemini hỗ trợ Trợ lý Chat, Tiện ích Môi giới và So sánh BĐS AI. Hỗ trợ chuẩn API Key mới của Google AI Studio (bắt đầu bằng `AQ...`) cũng như khóa cũ (`AIzaSy...`) |
+| `GEMINI_MODEL` | String | `gemini-2.5-flash` | Tùy chọn mô hình Gemini (ví dụ: `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-1.5-flash`, `gemini-3.5-flash`) |
 
 ---
 

@@ -21,6 +21,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def _upgrade_offline() -> None:
+    # 0. Ensure PostGIS extension is available
+    op.execute("CREATE EXTENSION IF NOT EXISTS postgis")
+
     # 1. Create projects table
     op.create_table(
         "projects",
@@ -101,6 +104,9 @@ def _upgrade_offline() -> None:
 
 
 def _upgrade_online() -> None:
+    # 0. Ensure PostGIS extension is available
+    op.execute("CREATE EXTENSION IF NOT EXISTS postgis")
+
     conn = op.get_bind()
     inspector = sa.inspect(conn)
     tables = set(inspector.get_table_names())

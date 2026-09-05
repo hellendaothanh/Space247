@@ -53,18 +53,18 @@ class AIComparisonService:
             properties_text += f"- Loại hình: {p.get('property_type', 'N/A')} - {p.get('listing_type', 'N/A')}\n"
             properties_text += f"- Mô tả: {p.get('description', '')}\n"
 
-        return f"""Bạn là một chuyên gia tư vấn đầu tư bất động sản cao cấp của Space247. Hãy so sánh các bất động sản sau đây một cách khách quan, chuyên sâu theo đúng 4 tiêu chí cốt lõi:
+        return f"""Bạn là một chuyên gia tư vấn phân tích đầu tư bất động sản cao cấp của Space247. Hãy lập báo cáo đối chiếu, phân tích so sánh các bất động sản sau đây một cách khách quan, chuyên sâu theo đúng 4 tiêu chí chuẩn mực:
 
-1. **Đơn giá & Hiệu quả chi phí**: So sánh giá tổng, đơn giá trên từng mét vuông (VNĐ/m²), tính tương xứng giữa giá bán và diện tích.
-2. **Vị trí & Tiện ích xung quanh**: Đánh giá vị trí địa lý, khả năng kết nối giao thông, hạ tầng và tiện ích khu vực lân cận.
-3. **Tiềm năng đầu tư & Tăng giá**: Phân tích tiềm năng tăng giá trị trong tương lai, khả năng khai thác cho thuê và tính thanh khoản.
-4. **Tính pháp lý & Mức độ an toàn**: Đánh giá mức độ an toàn giao dịch, hồ sơ pháp lý cần lưu ý.
+1. **Đơn giá & Hiệu quả chi phí**: So sánh giá tổng, đơn giá trên từng mét vuông (VNĐ/m²), tính tương xứng giữa giá bán và diện tích sử dụng.
+2. **Vị trí & Hạ tầng kết nối**: Đánh giá vị trí địa lý, khả năng kết nối giao thông, tiện ích nội khu và hạ tầng ngoại khu lân cận.
+3. **Tiềm năng đầu tư & Thanh khoản**: Phân tích tiềm năng tăng giá trị trung - dài hạn, khả năng khai thác cho thuê/kinh doanh và tính thanh khoản.
+4. **Pháp lý & Mức độ an toàn giao dịch**: Đánh giá mức độ an toàn pháp lý, giấy tờ sở hữu cần kiểm tra và quản trị rủi ro khi giao dịch.
 
-Sau cùng, hãy đưa ra **Bảng đối chiếu tóm tắt** và **Khuyến nghị chuyên gia (Recommendation)**: Từng căn phù hợp với đối tượng nào (đầu tư dài hạn, lướt sóng, khai thác dòng tiền hay an cư thực tế).
+Sau cùng, hãy đưa ra **Bảng đối chiếu tổng hợp** và **Khuyến nghị chuyên môn**: Đánh giá chi tiết từng bất động sản phù hợp với mục tiêu nào (đầu tư tích lũy dài hạn, khai thác dòng tiền cho thuê, hay an cư thực tế).
 
-Định dạng kết quả bằng Markdown chuyên nghiệp, rõ ràng, gạch đầu dòng mạch lạc. Bắt buộc bằng tiếng Việt.
+Yêu cầu định dạng: Trình bày theo văn phong báo cáo tài chính/thẩm định bất động sản chuyên nghiệp, chỉn chu, gạch đầu dòng mạch lạc, không lạm dụng các biểu tượng cảm xúc (emoji) trang trí không cần thiết. Ngôn ngữ: Tiếng Việt chuẩn mực.
 
-Thông tin các bất động sản cần so sánh:
+Dữ liệu các bất động sản cần phân tích:
 {properties_text}
 """
 
@@ -82,18 +82,18 @@ Thông tin các bất động sản cần so sánh:
 
         props_list_md = "\n".join(prop_summaries)
 
-        return f"""### 📊 Báo cáo Nhận định So sánh Bất động sản (Chế độ Dự phòng)
-
-Hệ thống AI hiện đang xử lý ở chế độ an toàn cục bộ (thiếu `GEMINI_API_KEY` hoặc phản hồi từ Google AI bị gián đoạn). Dưới đây là tóm lược phân tích kỹ thuật dựa trên dữ liệu hệ thống:
-
-#### 1. Tổng hợp các bất động sản đối chiếu:
-{props_list_md}
-
-#### 2. Phân tích 4 tiêu chí cốt lõi:
-- **Đơn giá & Hiệu quả chi phí**: Căn có đơn giá/m² thấp hơn thường mang lại hiệu quả chi phí trên diện tích sử dụng tốt hơn. Hãy cân nhắc tỷ trọng ngân sách đầu tư ban đầu so với diện tích thực tế.
-- **Vị trí & Tiện ích**: Các vị trí gần trục đường lớn, trường học, bệnh viện và khu dân cư hiện hữu luôn giữ được thanh khoản cao hơn.
-- **Tiềm năng đầu tư**: Xem xét quy hoạch tương lai xung quanh từng khu vực (cầu, đường vành đai, tuyến metro).
-- **Pháp lý & An toàn**: Đảm bảo kiểm tra kỹ sổ hồng/sổ đỏ, quy hoạch phân khu và hiện trạng tài sản trước khi tiến hành đặt cọc.
-
-💡 *Gợi ý: Cấu hình biến môi trường `GEMINI_API_KEY` trong tệp `.env` để kích hoạt phân tích chuyên sâu chi tiết từ Gemini 3.5 Flash.*
-"""
+        return f"""### Báo cáo Nhận định & Đối chiếu Bất động sản (Chế độ Dự phòng)
+ 
+ Hệ thống phân tích hiện đang xử lý ở chế độ nội bộ an toàn (chưa cấu hình `GEMINI_API_KEY` hoặc kết nối dịch vụ bị gián đoạn). Dưới đây là tóm lược phân tích kỹ thuật dựa trên dữ liệu hệ thống:
+ 
+ #### 1. Tổng hợp các bất động sản đối chiếu:
+ {props_list_md}
+ 
+ #### 2. Phân tích 4 tiêu chí cốt lõi:
+ - **Đơn giá & Hiệu quả chi phí**: Căn có đơn giá/m² thấp hơn thường mang lại hiệu quả chi phí trên diện tích sử dụng tốt hơn. Hãy cân nhắc tỷ trọng ngân sách đầu tư ban đầu so với diện tích thực tế.
+ - **Vị trí & Tiện ích**: Các vị trí gần trục đường lớn, trường học, bệnh viện và khu dân cư hiện hữu luôn giữ được thanh khoản cao hơn.
+ - **Tiềm năng đầu tư**: Xem xét quy hoạch tương lai xung quanh từng khu vực (cầu, đường vành đai, tuyến metro).
+ - **Pháp lý & An toàn**: Đảm bảo kiểm tra kỹ sổ hồng/sổ đỏ, quy hoạch phân khu và hiện trạng tài sản trước khi tiến hành đặt cọc.
+ 
+ *Lưu ý: Cấu hình biến môi trường `GEMINI_API_KEY` trong tệp `.env` để kích hoạt phân tích chuyên sâu tự động từ Gemini ({self.model_name}).*
+ """

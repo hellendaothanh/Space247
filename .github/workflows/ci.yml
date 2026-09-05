@@ -82,6 +82,11 @@ jobs:
         run: |
           uv sync --frozen --group dev
 
+      - name: Install PostGIS in Postgres container
+        run: |
+          docker exec ${{ job.services.postgres.id }} apt-get update
+          docker exec ${{ job.services.postgres.id }} apt-get install -y --no-install-recommends postgresql-16-postgis-3 postgresql-16-postgis-3-scripts
+
       - name: Run Database Migrations (Alembic)
         working-directory: backend
         run: |
