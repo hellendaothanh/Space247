@@ -114,8 +114,13 @@ def _upgrade_online() -> None:
             op.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS geom geometry(Point, 4326);")
             op.execute("CREATE INDEX IF NOT EXISTS ix_projects_geom ON projects USING gist (geom);")
 
-        # Check properties.project_id column
+        # Check properties.geom column
         prop_cols = {c["name"] for c in inspector.get_columns("properties")}
+        if "geom" not in prop_cols:
+            op.execute("ALTER TABLE properties ADD COLUMN IF NOT EXISTS geom geometry(Point, 4326);")
+            op.execute("CREATE INDEX IF NOT EXISTS ix_properties_geom ON properties USING gist (geom);")
+
+        # Check properties.project_id column
         if "project_id" not in prop_cols:
             op.add_column(
                 "properties",
