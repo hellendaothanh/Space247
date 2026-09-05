@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import AsyncSessionLocal, engine
 from src.core.security import hash_password
+from src.models.project import Project
 from src.models.property import Property
 from src.models.user import User, UserRole
 from src.services.embedding import get_embedding_service
@@ -33,6 +34,228 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger("scripts.seed_properties")
+
+SAMPLE_PROJECTS: list[dict[str, Any]] = [
+    {
+        "name": "Vinhomes Central Park",
+        "slug": "vinhomes-central-park",
+        "developer": "Vinhomes (Tập đoàn Vingroup)",
+        "description": (
+            "Đại đô thị sinh thái ven sông Sài Gòn quy mô 43.91 ha gồm 18 tòa tháp căn hộ cao cấp, "
+            "quần thể biệt thự The Villas và tòa tháp Landmark 81 cao nhất Việt Nam. "
+            "Dự án sở hữu công viên ven sông 14ha với hơn 40 tiện ích thể thao, hồ bơi và bến thuyền quốc tế."
+        ),
+        "status": "completed",
+        "total_units": 10000,
+        "launch_year": 2014,
+        "handover_year": 2018,
+        "address": "208 Nguyễn Hữu Cảnh, Phường 22",
+        "ward": "Phường 22",
+        "district": "Quận Bình Thạnh",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.7954,
+        "longitude": 106.7218,
+        "images": [
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "master_plan_url": "https://images.unsplash.com/photo-1574958269340-fa927503f3dd?auto=format&fit=crop&w=1600&q=80",
+        "legal_status": "Sổ hồng sở hữu lâu dài",
+        "price_range_min": 5500000000.0,
+        "price_range_max": 85000000000.0,
+        "amenities": [
+            "Công viên ven sông 14ha",
+            "Tòa tháp Landmark 81",
+            "Bệnh viện Đa khoa Quốc tế Vinmec",
+            "Trường liên cấp quốc tế Vinschool",
+            "Bến thuyền The Marina tiêu chuẩn 5 sao",
+            "Hồ bơi vô cực ngoài trời",
+            "TTTM Vincom Center Landmark 81",
+        ],
+    },
+    {
+        "name": "The Metropole Thủ Thiêm",
+        "slug": "the-metropole-thu-thiem",
+        "developer": "SonKim Land & Quốc Lộc Phát",
+        "description": (
+            "Khu phức hợp căn hộ, thương mại cao cấp tọa lạc tại Khu chức năng số 1 bán đảo Thủ Thiêm. "
+            "Kết nối trực tiếp trung tâm Quận 1 qua cầu Ba Son. Dự án quy tụ 4 phân khu sang trọng: "
+            "The Galleria, The Crest, The Opera và The Amethyst Residence cùng tầm nhìn panorama hướng sông Sài Gòn."
+        ),
+        "status": "handing_over",
+        "total_units": 1534,
+        "launch_year": 2018,
+        "handover_year": 2024,
+        "address": "Khu đô thị mới Thủ Thiêm, Phường An Khánh",
+        "ward": "Phường An Khánh",
+        "district": "Thành phố Thủ Đức",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.7725,
+        "longitude": 106.7112,
+        "images": [
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "master_plan_url": "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1600&q=80",
+        "legal_status": "Sở hữu lâu dài đối với người Việt Nam, 50 năm người nước ngoài",
+        "price_range_min": 11500000000.0,
+        "price_range_max": 95000000000.0,
+        "amenities": [
+            "Hồ bơi nước mặn 50m vô cực view trọn Quận 1",
+            "Phòng gym Technogym cao cấp",
+            "Sân golf giả lập 3D trong nhà",
+            "Nhà hát ca vũ kịch Opera House tương lai",
+            "Sảnh đón lounge sang trọng 5 sao",
+            "Khu BBQ sân vườn cảnh quan",
+        ],
+    },
+    {
+        "name": "Vinhomes Grand Park",
+        "slug": "vinhomes-grand-park",
+        "developer": "Vinhomes (Tập đoàn Vingroup)",
+        "description": (
+            "Thành phố thông minh - công viên quy mô 271 ha tại TP. Thủ Đức, tích hợp đại công viên 36ha "
+            "với 15 công viên chủ đề đa dạng hàng đầu Đông Nam Á, bãi biển nhân tạo cát trắng, hồ bơi resort, "
+            "Vincom Mega Mall và hệ thống xe buýt điện VinBus kết nối toàn thành phố."
+        ),
+        "status": "completed",
+        "total_units": 44000,
+        "launch_year": 2019,
+        "handover_year": 2022,
+        "address": "Đường Nguyễn Xiển và Phước Thiện, Phường Long Bình",
+        "ward": "Phường Long Bình",
+        "district": "Thành phố Thủ Đức",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.8415,
+        "longitude": 106.8428,
+        "images": [
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "master_plan_url": "https://images.unsplash.com/photo-1574958269340-fa927503f3dd?auto=format&fit=crop&w=1600&q=80",
+        "legal_status": "Sổ hồng sở hữu lâu dài",
+        "price_range_min": 2100000000.0,
+        "price_range_max": 38000000000.0,
+        "amenities": [
+            "Đại công viên ven sông 36ha với biển cát trắng",
+            "Vincom Mega Mall quy mô lớn nhất miền Nam",
+            "Bệnh viện Vinmec & Trường học Vinschool",
+            "Khu liên hợp thể thao hơn 100 sân bãi",
+            "Hệ thống xe buýt điện VinBus xanh",
+            "Bến du thuyền The Manhattan Glory",
+        ],
+    },
+    {
+        "name": "Masteri Centre Point",
+        "slug": "masteri-centre-point",
+        "developer": "Masterise Homes",
+        "description": (
+            "Khu căn hộ compound cao cấp khép kín tọa lạc tại vị trí trái tim của đại đô thị Vinhomes Grand Park. "
+            "Hợp tác phát triển cùng các đối tác kiến trúc và cảnh quan hàng đầu thế giới (Tange Associates, Studio HBA, Land Sculptor). "
+            "Trải nghiệm sống đẳng cấp quốc tế với hệ thống an ninh 24/7 và tiện ích đặc quyền chuẩn 5 sao."
+        ),
+        "status": "handing_over",
+        "total_units": 5099,
+        "launch_year": 2020,
+        "handover_year": 2023,
+        "address": "Khu đô thị Vinhomes Grand Park, Phường Long Bình",
+        "ward": "Phường Long Bình",
+        "district": "Thành phố Thủ Đức",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.8442,
+        "longitude": 106.8395,
+        "images": [
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "master_plan_url": "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1600&q=80",
+        "legal_status": "Sổ hồng sở hữu lâu dài",
+        "price_range_min": 3200000000.0,
+        "price_range_max": 9500000000.0,
+        "amenities": [
+            "Hồ bơi phi thuyền Spaceship 2 tầng độc đáo",
+            "Khu vui chơi trẻ em liên hoàn Play Academy",
+            "Sảnh đón tiếp sang trọng chuẩn khách sạn 5 sao có Concierge",
+            "Phòng gym & yoga hiện đại chuẩn quốc tế",
+            "Vườn trên không Sky Garden",
+            "Thác nước cảnh quan check-in nghệ thuật",
+        ],
+    },
+    {
+        "name": "Vinhomes Smart City",
+        "slug": "vinhomes-smart-city",
+        "developer": "Vinhomes (Tập đoàn Vingroup)",
+        "description": (
+            "Thành phố thông minh đẳng cấp quốc tế quy mô 280 ha tại trung tâm hành chính mới phía Tây Hà Nội. "
+            "Dự án vận hành trên nền tảng 4 trục cốt lõi thông minh: An ninh thông minh, Vận hành thông minh, "
+            "Cộng đồng thông minh và Căn hộ thông minh (Smart R&D). Sở hữu bộ 3 công viên liên hoàn 16.3ha cùng vườn Nhật Zen Park lớn nhất Việt Nam."
+        ),
+        "status": "completed",
+        "total_units": 38000,
+        "launch_year": 2018,
+        "handover_year": 2021,
+        "address": "Đại lộ Thăng Long, Phường Tây Mỗ",
+        "ward": "Phường Tây Mỗ",
+        "district": "Quận Nam Từ Liêm",
+        "city": "Thành phố Hà Nội",
+        "latitude": 20.9998,
+        "longitude": 105.7483,
+        "images": [
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "master_plan_url": "https://images.unsplash.com/photo-1574958269340-fa927503f3dd?auto=format&fit=crop&w=1600&q=80",
+        "legal_status": "Sổ hồng sở hữu lâu dài",
+        "price_range_min": 1950000000.0,
+        "price_range_max": 8800000000.0,
+        "amenities": [
+            "Vườn Nhật truyền thống Zen Park 6.1ha",
+            "Công viên trung tâm Central Park với hồ điều hòa",
+            "Công viên thể thao Sportia Park hơn 1000 máy tập",
+            "Bệnh viện Vinmec & Trường học Vinschool",
+            "Trung tâm thương mại Vincom Mega Mall nổi",
+            "Hệ thống nhận diện khuôn mặt và an ninh AI",
+        ],
+    },
+    {
+        "name": "Vinhomes Ocean Park 1",
+        "slug": "vinhomes-ocean-park",
+        "developer": "Vinhomes (Tập đoàn Vingroup)",
+        "description": (
+            "Thành phố biển hồ quy mô 420 ha tại Gia Lâm, Hà Nội. Tái hiện không gian nghỉ dưỡng biển nhiệt đới "
+            "với biển hồ nước mặn nhân tạo 6.1ha và hồ nước ngọt trung tâm 24.5ha trải cát trắng mịn. "
+            "Tập trung hệ sinh thái đẳng cấp gồm Đại học VinUni, TechnoPark Tower và Vincom Mega Mall."
+        ),
+        "status": "completed",
+        "total_units": 42000,
+        "launch_year": 2018,
+        "handover_year": 2020,
+        "address": "Xã Đa Tốn, Huyện Gia Lâm",
+        "ward": "Xã Đa Tốn",
+        "district": "Huyện Gia Lâm",
+        "city": "Thành phố Hà Nội",
+        "latitude": 20.9926,
+        "longitude": 105.9429,
+        "images": [
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "master_plan_url": "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1600&q=80",
+        "legal_status": "Sổ đỏ/Sổ hồng lâu dài",
+        "price_range_min": 1850000000.0,
+        "price_range_max": 52000000000.0,
+        "amenities": [
+            "Biển hồ nước mặn 6.1ha cát trắng tự nhiên",
+            "Hồ lớn trung tâm Ngọc Trai 24.5ha",
+            "Tòa tháp văn phòng thông minh TechnoPark Tower",
+            "Trường Đại học Quốc tế VinUni",
+            "Bệnh viện Vinmec & Trường liên cấp Vinschool",
+            "TTTM Vincom Mega Mall Ocean Park",
+        ],
+    },
+]
 
 SAMPLE_PROPERTIES: list[dict[str, Any]] = [
     # --- TP. HỒ CHÍ MINH - BÁN (SALE) ---
@@ -53,6 +276,7 @@ SAMPLE_PROPERTIES: list[dict[str, Any]] = [
         "latitude": 10.7954,
         "longitude": 106.7218,
         "status": "active",
+        "project_slug": "vinhomes-central-park",
     },
     {
         "title": "Penthouse The Metropole Thủ Thiêm 4PN đẳng cấp giới thượng lưu",
@@ -71,6 +295,45 @@ SAMPLE_PROPERTIES: list[dict[str, Any]] = [
         "latitude": 10.7725,
         "longitude": 106.7112,
         "status": "active",
+        "project_slug": "the-metropole-thu-thiem",
+    },
+    {
+        "title": "Căn hộ Masteri Centre Point 2PN view trực diện đại công viên 36ha",
+        "description": "Bán căn hộ Masteri Centre Point tháp Rivera trung tâm Vinhomes Grand Park. Ban công kính tràn viền view trọn vẹn công viên ánh sáng và hồ bơi phi thuyền. Bàn giao thiết bị Hafele, Kohler cao cấp.",
+        "property_type": "apartment",
+        "listing_type": "sale",
+        "price": 4500000000.0,
+        "currency": "VND",
+        "area_sqm": 72.0,
+        "num_bedrooms": 2,
+        "num_bathrooms": 2,
+        "address": "Khu đô thị Vinhomes Grand Park, Phường Long Bình",
+        "ward": "Phường Long Bình",
+        "district": "Thành phố Thủ Đức",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.8442,
+        "longitude": 106.8395,
+        "status": "active",
+        "project_slug": "masteri-centre-point",
+    },
+    {
+        "title": "Căn hộ Vinhomes Grand Park 2PN The Origami vườn Nhật độc đáo",
+        "description": "Bán nhanh căn 2 phòng ngủ tòa S7 phân khu The Origami. Thiết kế cảnh quan chuẩn phong cách Nhật Bản với hồ cá Koi, vườn tùng La Hán. Đầy đủ nội thất chỉ việc xách vali vào ở.",
+        "property_type": "apartment",
+        "listing_type": "sale",
+        "price": 2850000000.0,
+        "currency": "VND",
+        "area_sqm": 69.5,
+        "num_bedrooms": 2,
+        "num_bathrooms": 2,
+        "address": "Phân khu The Origami, Đường Nguyễn Xiển, Phường Long Bình",
+        "ward": "Phường Long Bình",
+        "district": "Thành phố Thủ Đức",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.8415,
+        "longitude": 106.8428,
+        "status": "active",
+        "project_slug": "vinhomes-grand-park",
     },
     {
         "title": "Nhà phố mặt tiền đường Phan Xích Long Phú Nhuận tiện kinh doanh",
@@ -164,6 +427,63 @@ SAMPLE_PROPERTIES: list[dict[str, Any]] = [
     },
 
     # --- TP. HỒ CHÍ MINH - CHO THUÊ (RENT) ---
+    {
+        "title": "Căn hộ Vinhomes Central Park 1PN Landmark Plus đầy đủ tiện nghi",
+        "description": "Cho thuê căn hộ dịch vụ 1 phòng ngủ tháp Landmark Plus Vinhomes Central Park. Trang bị đầy đủ máy giặt, sấy, lò vi sóng, dịch vụ dọn phòng theo tiêu chuẩn khách sạn 5 sao. Miễn phí gym và hồ bơi.",
+        "property_type": "apartment",
+        "listing_type": "rent",
+        "price": 18500000.0,
+        "currency": "VND",
+        "area_sqm": 54.0,
+        "num_bedrooms": 1,
+        "num_bathrooms": 1,
+        "address": "Tòa Landmark Plus, 208 Nguyễn Hữu Cảnh",
+        "ward": "Phường 22",
+        "district": "Quận Bình Thạnh",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.7954,
+        "longitude": 106.7218,
+        "status": "active",
+        "project_slug": "vinhomes-central-park",
+    },
+    {
+        "title": "Căn hộ The Metropole Thủ Thiêm 2PN The Galleria view sông Sài Gòn",
+        "description": "Cho thuê căn hộ cao cấp 2 phòng ngủ phân khu The Galleria Residence. Ban công rộng view trực diện cầu Ba Son và sông Sài Gòn. Nội thất bàn giao chuẩn Châu Âu sang trọng.",
+        "property_type": "apartment",
+        "listing_type": "rent",
+        "price": 42000000.0,
+        "currency": "VND",
+        "area_sqm": 85.0,
+        "num_bedrooms": 2,
+        "num_bathrooms": 2,
+        "address": "The Galleria, Khu đô thị mới Thủ Thiêm",
+        "ward": "Phường An Khánh",
+        "district": "Thành phố Thủ Đức",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.7725,
+        "longitude": 106.7112,
+        "status": "active",
+        "project_slug": "the-metropole-thu-thiem",
+    },
+    {
+        "title": "Căn hộ Studio Vinhomes Grand Park The Rainbow đầy đủ tiện nghi",
+        "description": "Cho thuê căn hộ Studio phân khu The Rainbow Vinhomes Grand Park. Nội thất decor trẻ trung hiện đại, máy lạnh Inverter, tủ lạnh, máy giặt. Tiện ích công viên cầu vồng, hồ bơi ngoài trời.",
+        "property_type": "apartment",
+        "listing_type": "rent",
+        "price": 6500000.0,
+        "currency": "VND",
+        "area_sqm": 33.0,
+        "num_bedrooms": 1,
+        "num_bathrooms": 1,
+        "address": "Phân khu The Rainbow, Vinhomes Grand Park",
+        "ward": "Phường Long Bình",
+        "district": "Thành phố Thủ Đức",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.8415,
+        "longitude": 106.8428,
+        "status": "active",
+        "project_slug": "vinhomes-grand-park",
+    },
     {
         "title": "Cho thuê căn hộ dịch vụ 1PN đường Lê Thánh Tôn Quận 1 khu phố Nhật",
         "description": "Studio/căn hộ dịch vụ 1 phòng ngủ đầy đủ nội thất cao cấp ngay trung tâm phố Nhật Little Tokyo Lê Thánh Tôn. Đã bao gồm dịch vụ dọn phòng, giặt ủi, internet tốc độ cao.",
@@ -378,9 +698,29 @@ SAMPLE_PROPERTIES: list[dict[str, Any]] = [
         "ward": "Phường Tây Mỗ",
         "district": "Quận Nam Từ Liêm",
         "city": "Thành phố Hà Nội",
-        "latitude": 20.9984,
-        "longitude": 105.7421,
+        "latitude": 20.9998,
+        "longitude": 105.7483,
         "status": "active",
+        "project_slug": "vinhomes-smart-city",
+    },
+    {
+        "title": "Căn hộ Vinhomes Ocean Park 2PN góc view hồ nước ngọt Ngọc Trai 24.5ha",
+        "description": "Bán căn góc 2 phòng ngủ tòa S2.05 phân khu Sapphire Vinhomes Ocean Park Gia Lâm. Tầng trung ban công đón gió view trực diện biển hồ nước mặn và hồ lớn Ngọc Trai. Đã có sổ đỏ lâu dài.",
+        "property_type": "apartment",
+        "listing_type": "sale",
+        "price": 3150000000.0,
+        "currency": "VND",
+        "area_sqm": 66.0,
+        "num_bedrooms": 2,
+        "num_bathrooms": 2,
+        "address": "Phân khu Sapphire, Khu đô thị Vinhomes Ocean Park",
+        "ward": "Xã Đa Tốn",
+        "district": "Huyện Gia Lâm",
+        "city": "Thành phố Hà Nội",
+        "latitude": 20.9926,
+        "longitude": 105.9429,
+        "status": "active",
+        "project_slug": "vinhomes-ocean-park",
     },
     {
         "title": "Tòa nhà căn hộ dịch vụ phố Đội Cấn Ba Đình 8 tầng dòng tiền khủng",
@@ -402,6 +742,44 @@ SAMPLE_PROPERTIES: list[dict[str, Any]] = [
     },
 
     # --- HÀ NỘI - CHO THUÊ (RENT) ---
+    {
+        "title": "Căn hộ Vinhomes Smart City 2PN Sapphire 2 đầy đủ nội thất",
+        "description": "Cho thuê chung cư 2 phòng ngủ 2WC phân khu Sapphire 2 Vinhomes Smart City. Nhà mới tinh full nội thất cao cấp xách vali vào ở ngay. Hưởng trọn tiện ích công viên thể thao Sportia Park và vườn Nhật.",
+        "property_type": "apartment",
+        "listing_type": "rent",
+        "price": 11500000.0,
+        "currency": "VND",
+        "area_sqm": 64.0,
+        "num_bedrooms": 2,
+        "num_bathrooms": 2,
+        "address": "Phân khu Sapphire 2, KĐT Vinhomes Smart City",
+        "ward": "Phường Tây Mỗ",
+        "district": "Quận Nam Từ Liêm",
+        "city": "Thành phố Hà Nội",
+        "latitude": 20.9998,
+        "longitude": 105.7483,
+        "status": "active",
+        "project_slug": "vinhomes-smart-city",
+    },
+    {
+        "title": "Căn hộ Vinhomes Ocean Park 1PN tòa Zenpark tiện nghi chuẩn Nhật",
+        "description": "Cho thuê căn hộ 1 phòng ngủ cao cấp phân khu The Zenpark Ruby Vinhomes Ocean Park. Tiêu chuẩn bàn giao thông minh, điều hòa âm trần Daikin, sàn gỗ, sảnh đón lễ tân sang trọng, view vườn Nhật nội khu.",
+        "property_type": "apartment",
+        "listing_type": "rent",
+        "price": 8500000.0,
+        "currency": "VND",
+        "area_sqm": 45.0,
+        "num_bedrooms": 1,
+        "num_bathrooms": 1,
+        "address": "Tòa R1.02 The Zenpark, Vinhomes Ocean Park",
+        "ward": "Xã Đa Tốn",
+        "district": "Huyện Gia Lâm",
+        "city": "Thành phố Hà Nội",
+        "latitude": 20.9926,
+        "longitude": 105.9429,
+        "status": "active",
+        "project_slug": "vinhomes-ocean-park",
+    },
     {
         "title": "Căn hộ cao cấp Ciputra Tây Hồ 3PN view sân golf thoáng đãng",
         "description": "Cho thuê căn hộ khu đô thị Ciputra Nam Thăng Long, 3 phòng ngủ đầy đủ tiện nghi Châu Âu sang trọng. Không gian yên tĩnh trong lành, nhiều trường quốc tế UNIS, SIS, Hanoi Academy.",
@@ -642,15 +1020,93 @@ async def seed_users(session: AsyncSession) -> dict[str, User]:
     return user_map
 
 
+async def seed_projects(
+    session: AsyncSession,
+    projects_data: list[dict[str, Any]] | None = None,
+    embedding_svc: Any = None,
+) -> dict[str, Any]:
+    """
+    Seed real estate projects idempotently into the database.
+    Computes 768-dim vector embeddings and PostGIS geometries for spatial and semantic search.
+    """
+    items_to_seed = projects_data if projects_data is not None else SAMPLE_PROJECTS
+    if embedding_svc is None:
+        embedding_svc = get_embedding_service()
+
+    project_map: dict[str, Project] = {}
+    stats = {"total": len(items_to_seed), "created": 0, "skipped": 0}
+
+    logger.info("Starting project seeding: %d projects to process...", len(items_to_seed))
+
+    for idx, item in enumerate(items_to_seed, start=1):
+        slug = item["slug"]
+        stmt = select(Project).where(Project.slug == slug)
+        res = await session.execute(stmt)
+        existing = res.scalars().first()
+
+        if existing:
+            project_map[slug] = existing
+            logger.info("[%d/%d] Skipping existing project: '%s' (slug: %s)", idx, len(items_to_seed), item["name"], slug)
+            stats["skipped"] += 1
+            continue
+
+        p_data = dict(item)
+        if "id" not in p_data:
+            p_data["id"] = uuid4()
+
+        # Build text to embed
+        text_content = (
+            f"Dự án {item.get('name', '')}. "
+            f"Chủ đầu tư: {item.get('developer', '')}. "
+            f"Địa chỉ: {item.get('address', '')}, {item.get('district', '')}, {item.get('city', '')}. "
+            f"Tiện ích: {', '.join(item.get('amenities', []))}. "
+            f"{item.get('description', '')}"
+        )
+        p_data["embedding"] = embedding_svc.generate_embedding(text_content, is_query=False)
+
+        if item.get("latitude") is not None and item.get("longitude") is not None:
+            p_data["geom"] = f"SRID=4326;POINT({item['longitude']} {item['latitude']})"
+
+        proj = Project(**p_data)
+        session.add(proj)
+        await session.flush()
+        project_map[slug] = proj
+        stats["created"] += 1
+        logger.info(
+            "[%d/%d] Created project: '%s' (%s - %s)",
+            idx,
+            len(items_to_seed),
+            item["name"],
+            item.get("developer"),
+            item.get("city"),
+        )
+
+    await session.commit()
+    logger.info(
+        "Project seeding finished: %d created, %d skipped, %d total.",
+        stats["created"],
+        stats["skipped"],
+        stats["total"],
+    )
+    return {
+        "total": stats["total"],
+        "created": stats["created"],
+        "skipped": stats["skipped"],
+        "project_map": project_map,
+    }
+
+
 async def seed_properties(
     session: AsyncSession,
     properties_data: list[dict[str, Any]] | None = None,
     embedding_svc=None,
     owner_user_id=None,
+    project_map: dict[str, Project] | None = None,
 ) -> dict[str, int]:
     """
     Seed property records idempotently into the database.
     Checks existing records by title to avoid duplicating data.
+    Associates properties to parent projects when project_slug is provided.
     """
     items_to_seed = properties_data if properties_data is not None else SAMPLE_PROPERTIES
     if embedding_svc is None:
@@ -662,6 +1118,16 @@ async def seed_properties(
 
     for idx, item in enumerate(items_to_seed, start=1):
         title = item["title"]
+        project_slug = item.get("project_slug")
+        target_project_id = None
+
+        if project_slug:
+            if project_map and project_slug in project_map:
+                target_project_id = project_map[project_slug].id
+            else:
+                stmt_proj = select(Project.id).where(Project.slug == project_slug)
+                res_proj = await session.execute(stmt_proj)
+                target_project_id = res_proj.scalars().first()
 
         # 1. Check for existing property with identical title
         stmt = select(Property).where(Property.title == title)
@@ -669,6 +1135,15 @@ async def seed_properties(
         existing = res.scalars().first()
 
         if existing:
+            if target_project_id and existing.project_id is None:
+                existing.project_id = target_project_id
+                logger.info(
+                    "[%d/%d] Linked existing property '%s' to project_id: %s",
+                    idx,
+                    len(items_to_seed),
+                    title,
+                    target_project_id,
+                )
             logger.info("[%d/%d] Skipping existing property: '%s'", idx, len(items_to_seed), title)
             stats["skipped"] += 1
             continue
@@ -694,6 +1169,10 @@ async def seed_properties(
 
         # 3. Create Property ORM instance
         prop_data = dict(item)
+        if "project_slug" in prop_data:
+            del prop_data["project_slug"]
+        if target_project_id:
+            prop_data["project_id"] = target_project_id
         if "id" not in prop_data:
             prop_data["id"] = uuid4()
         prop_data["embedding"] = vector_embedding
@@ -704,13 +1183,14 @@ async def seed_properties(
         session.add(prop)
         stats["created"] += 1
         logger.info(
-            "[%d/%d] Created property: '%s' (%s, %s, %s)",
+            "[%d/%d] Created property: '%s' (%s, %s, %s, project_id: %s)",
             idx,
             len(items_to_seed),
             title,
             item.get("property_type"),
             item.get("listing_type"),
             item.get("city"),
+            target_project_id,
         )
 
     await session.commit()
@@ -777,14 +1257,25 @@ async def main():
                 agent_user = user_map.get("agent@space247.vn")
                 agent_id = agent_user.id if agent_user else None
 
-                # 2. Seed properties linked to agent
-                logger.info("--- Step 2: Seeding Properties with Embeddings ---")
+                # 2. Seed real estate projects
+                logger.info("--- Step 2: Seeding Real Estate Projects with Master Plans & Embeddings ---")
+                proj_res = await seed_projects(session=session)
+                logger.info(
+                    "[Space247 Project Seed Summary] Total: %d | Created: %d | Skipped: %d",
+                    proj_res["total"],
+                    proj_res["created"],
+                    proj_res["skipped"],
+                )
+
+                # 3. Seed properties linked to agent and projects
+                logger.info("--- Step 3: Seeding Properties Linked to Projects ---")
                 stats = await seed_properties(
                     session=session,
                     owner_user_id=agent_id,
+                    project_map=proj_res["project_map"],
                 )
                 logger.info(
-                    "[Space247 Seed Summary] Total: %d | Created: %d | Skipped: %d",
+                    "[Space247 Property Seed Summary] Total: %d | Created: %d | Skipped: %d",
                     stats["total"],
                     stats["created"],
                     stats["skipped"],

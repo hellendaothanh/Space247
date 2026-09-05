@@ -18,6 +18,8 @@ import {
   Share2,
   ExternalLink,
   CheckCircle2,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { ProjectDetailResponse, PropertyResponse } from "@shared/types";
@@ -38,25 +40,30 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [activeTab, setActiveTab] = useState<"overview" | "masterplan" | "amenities" | "units">("overview");
   const [listingFilter, setListingFilter] = useState<"all" | "sale" | "rent">("all");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [loadingProps, setLoadingProps] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // Fetch project details
-  useEffect(() => {
-    async function loadProject() {
-      setLoading(true);
-      try {
-        const data = await apiClient.getProject(slug);
-        setProject(data);
-      } catch (err) {
-        console.error("Failed to load project details:", err);
-        setProject(null);
-      } finally {
-        setLoading(false);
-      }
+  const loadProject = useCallback(async () => {
+    if (!slug) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await apiClient.getProject(slug);
+      setProject(data);
+    } catch (err: any) {
+      console.error("Failed to load project details:", err);
+      setError(err?.message || "Không thể tải thông tin dự án.");
+      setProject(null);
+    } finally {
+      setLoading(false);
     }
-    loadProject();
   }, [slug]);
+
+  useEffect(() => {
+    loadProject();
+  }, [loadProject]);
 
   // Fetch project properties
   const fetchUnits = useCallback(async () => {
@@ -93,6 +100,36 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       <div className="flex min-h-[60vh] flex-col items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
         <p className="mt-3 text-xs font-medium text-slate-500">Đang tải thông tin chi tiết dự án...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-20 text-center">
+        <div className="rounded-3xl border border-red-200 bg-red-50/60 p-10 text-center">
+          <AlertCircle className="mx-auto h-12 w-12 text-red-500" />
+          <h2 className="mt-4 text-lg font-bold text-red-900">Không thể kết nối máy chủ Space247</h2>
+          <p className="mt-2 text-xs text-red-700 leading-relaxed max-w-md mx-auto">{error}</p>
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <button
+              onClick={() => {
+                loadProject();
+                fetchUnits();
+              }}
+              className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-red-700 transition cursor-pointer"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Thử kết nối lại
+            </button>
+            <Link
+              href="/projects"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition"
+            >
+              Quay lại danh mục dự án
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }

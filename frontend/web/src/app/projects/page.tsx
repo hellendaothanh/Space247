@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Building2, Search, Filter, Loader2, X } from "lucide-react";
+import { Building2, Search, Filter, Loader2, X, AlertCircle, RefreshCw } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { ProjectResponse, ProjectStatus } from "@shared/types";
 import ProjectCard from "@/components/project/ProjectCard";
@@ -19,6 +19,7 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<ProjectResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(9);
@@ -30,6 +31,7 @@ export default function ProjectsPage() {
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const skip = (page - 1) * pageSize;
       const res = await apiClient.getProjects({
@@ -41,8 +43,9 @@ export default function ProjectsPage() {
       });
       setProjects(res.items);
       setTotal(res.total);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load projects:", err);
+      setError(err?.message || "Không thể kết nối đến máy chủ Space247 API.");
       setProjects([]);
       setTotal(0);
     } finally {
@@ -172,7 +175,20 @@ export default function ProjectsPage() {
 
       {/* Main Content Area */}
       <div className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
-        {loading ? (
+        {error ? (
+          <div className="flex flex-col items-center justify-center rounded-3xl border border-red-200 bg-red-50/60 p-12 text-center">
+            <AlertCircle className="h-12 w-12 text-red-500" />
+            <h3 className="mt-4 text-base font-bold text-red-900">Không thể kết nối máy chủ Space247</h3>
+            <p className="mt-2 max-w-md text-xs text-red-700 leading-relaxed">{error}</p>
+            <button
+              onClick={() => fetchProjects()}
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-red-700 transition cursor-pointer"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Thử kết nối lại
+            </button>
+          </div>
+        ) : loading ? (
           <div className="flex h-80 w-full flex-col items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
             <p className="mt-3 text-xs font-medium text-slate-500">Đang tải danh sách dự án...</p>

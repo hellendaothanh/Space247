@@ -5,7 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from scripts.seed_properties import (
     DEFAULT_SEED_USERS,
+    SAMPLE_PROJECTS,
     SAMPLE_PROPERTIES,
+    seed_projects,
     seed_properties,
     seed_users,
 )
@@ -278,3 +280,166 @@ async def test_seed_properties_links_owner_id():
     assert stats["created"] == 1
     assert len(added_properties) == 1
     assert added_properties[0].user_id == agent_id
+
+
+def test_sample_projects_structure_and_diversity():
+    """Verify that sample projects list has complete information and valid structure."""
+    assert len(SAMPLE_PROJECTS) >= 5, f"Expected at least 5 projects, got {len(SAMPLE_PROJECTS)}"
+
+    slugs = [item["slug"] for item in SAMPLE_PROJECTS]
+    assert len(slugs) == len(set(slugs)), "Duplicate project slugs detected"
+
+    cities = {item["city"] for item in SAMPLE_PROJECTS}
+    assert any("Hồ Chí Minh" in city for city in cities)
+    assert any("Hà Nội" in city for city in cities)
+
+    for item in SAMPLE_PROJECTS:
+        assert item.get("name"), "Project missing name"
+        assert item.get("slug"), "Project missing slug"
+        assert item.get("developer"), "Project missing developer"
+        assert item.get("description"), "Project missing description"
+        assert item.get("status") in ("upcoming", "under_construction", "handing_over", "completed")
+        assert item.get("address"), "Project missing address"
+        assert item.get("city"), "Project missing city"
+        assert isinstance(item.get("amenities"), list) and len(item["amenities"]) > 0
+        assert isinstance(item.get("images"), list) and len(item["images"]) > 0
+        assert item.get("master_plan_url"), "Project missing master_plan_url"
+
+
+@pytest.mark.asyncio
+async def test_seed_projects_logic_and_idempotency():
+    """Verify that seed_projects creates project entities and handles duplicate runs."""
+    mock_session = MagicMock(spec=AsyncSession)
+    mock_session.flush = AsyncMock()
+    mock_embedding = MockEmbeddingServiceForSeed(dim=768)
+
+    sample_projects = [
+        {
+            "name": "Dự án Thử nghiệm Alpha",
+            "slug": "du-an-thu-nghiem-alpha",
+            "developer": "Chủ đầu tư Thử nghiệm",
+            "description": "Mô tả dự án alpha",
+            "status": "completed",
+            "total_units": 500,
+            "address": "123 Nguyễn Huệ",
+            "city": "Thành phố Hồ Chí Minh",
+            "district": "Quận 1",
+            "latitude": 10.77,
+            "longitude": 106.70,
+            "images": ["https://example.com/img1.jpg"],
+            "master_plan_url": "https://example.com/masterplan.jpg",
+            "amenities": ["Hồ bơi", "Công viên"],
+        }
+    ]
+
+    added_projects = []
+    mock_session.add = lambda obj: added_projects.append(obj)
+
+    # 1. First run: No existing project
+    mock_result_empty = MagicMock()
+    mock_result_empty.scalars.return_value.first.return_value = None
+
+    async def fake_execute_empty(stmt):
+        return mock_result_empty
+
+    async def fake_commit():
+        pass
+
+    mock_session.execute = fake_execute_empty
+    mock_session.commit = fake_commit
+
+    result_first = await seed_projects(
+        session=mock_session,
+        projects_data=sample_projects,
+        embedding_svc=mock_embedding,
+    )
+
+    assert result_first["total"] == 1
+    assert result_first["created"] == 1
+    assert result_first["skipped"] == 0
+    assert len(added_projects) == 1
+    assert added_projects[0].name == "Dự án Thử nghiệm Alpha"
+    assert added_projects[0].slug == "du-an-thu-nghiem-alpha"
+    assert len(added_projects[0].embedding) == 768
+    assert added_projects[0].geom == "SRID=4326;POINT(106.7 10.77)"
+    assert "du-an-thu-nghiem-alpha" in result_first["project_map"]
+
+    # 2. Second run: Project already exists
+    mock_existing_proj = MagicMock()
+    mock_existing_proj.slug = "du-an-thu-nghiem-alpha"
+    mock_result_existing = MagicMock()
+    mock_result_existing.scalars.return_value.first.return_value = mock_existing_proj
+
+    async def fake_execute_existing(stmt):
+        return mock_result_existing
+
+    mock_session.execute = fake_execute_existing
+    added_projects.clear()
+
+    result_second = await seed_projects(
+        session=mock_session,
+        projects_data=sample_projects,
+        embedding_svc=mock_embedding,
+    )
+
+    assert result_second["total"] == 1
+    assert result_second["created"] == 0
+    assert result_second["skipped"] == 1
+    assert len(added_projects) == 0
+    assert result_second["project_map"]["du-an-thu-nghiem-alpha"] == mock_existing_proj
+
+
+@pytest.mark.asyncio
+async def test_seed_properties_links_project_id():
+    """Verify that properties with project_slug are linked to parent project id."""
+    mock_session = MagicMock(spec=AsyncSession)
+    mock_embedding = MockEmbeddingServiceForSeed(dim=768)
+
+    sample = [
+        {
+            "title": "Căn hộ thuộc dự án Metropolis",
+            "description": "Mô tả căn hộ",
+            "property_type": "apartment",
+            "listing_type": "sale",
+            "price": 5500000000.0,
+            "currency": "VND",
+            "area_sqm": 75.0,
+            "address": "29 Liễu Giai",
+            "city": "Thành phố Hà Nội",
+            "status": "active",
+            "project_slug": "vinhomes-metropolis",
+        }
+    ]
+
+    added_properties = []
+    mock_session.add = lambda obj: added_properties.append(obj)
+
+    mock_result_empty = MagicMock()
+    mock_result_empty.scalars.return_value.first.return_value = None
+
+    async def fake_execute_empty(stmt):
+        return mock_result_empty
+
+    async def fake_commit():
+        pass
+
+    mock_session.execute = fake_execute_empty
+    mock_session.commit = fake_commit
+
+    fake_project_id = uuid.uuid4()
+    mock_parent_project = MagicMock()
+    mock_parent_project.id = fake_project_id
+
+    project_map = {"vinhomes-metropolis": mock_parent_project}
+
+    stats = await seed_properties(
+        session=mock_session,
+        properties_data=sample,
+        embedding_svc=mock_embedding,
+        project_map=project_map,
+    )
+
+    assert stats["created"] == 1
+    assert len(added_properties) == 1
+    assert added_properties[0].project_id == fake_project_id
+    assert not hasattr(added_properties[0], "project_slug") or getattr(added_properties[0], "project_slug", None) is None

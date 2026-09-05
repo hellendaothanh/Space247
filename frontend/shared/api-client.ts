@@ -120,6 +120,16 @@ export class RealEstateApiClient {
       }
 
       return (await response.json()) as T;
+    } catch (err: any) {
+      if (err.name === "AbortError") {
+        throw new Error(`Yêu cầu mạng hết thời gian chờ (${this.timeoutMs}ms) tới ${url}`);
+      }
+      if (err.message === "Failed to fetch" || err.name === "TypeError") {
+        throw new Error(
+          `Không thể kết nối đến máy chủ Space247 API tại ${this.baseUrl}. Vui lòng kiểm tra backend server đã được khởi động chưa (ví dụ: 'uv run uvicorn src.main:app --host 0.0.0.0 --port 8080').`
+        );
+      }
+      throw err;
     } finally {
       clearTimeout(timeoutId);
     }
