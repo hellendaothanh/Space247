@@ -227,12 +227,14 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
             </div>
           )}
 
-          {/* Mortgage & Financial Affordability Calculator */}
-          <MortgageCalculator
-            propertyPrice={property.price}
-            propertyTitle={property.title}
-            currency={property.currency}
-          />
+          {/* Mortgage & Financial Affordability Calculator (Chỉ hiển thị cho tin Bán, ẩn với tin Cho thuê) */}
+          {property.listing_type !== "rent" && (
+            <MortgageCalculator
+              propertyPrice={property.price}
+              propertyTitle={property.title}
+              currency={property.currency}
+            />
+          )}
         </div>
 
         {/* Right 1 Col: Contact & Safety Sidebar */}
