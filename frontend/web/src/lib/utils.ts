@@ -89,3 +89,47 @@ export function formatProjectStatus(status: string): { label: string; color: str
   return map[status] || { label: status, color: "bg-slate-700/90 text-white" };
 }
 
+/**
+ * Automatically parses coordinate strings (e.g. copied from Google Maps or search bars)
+ * Supports:
+ * - "10.76169819301489, 106.69584455406623"
+ * - "10.76169819301489,106.69584455406623"
+ * - "10.76169819301489 106.69584455406623"
+ * - "https://www.google.com/maps/@10.761698,106.695844,17z"
+ * - "https://maps.google.com/?q=10.761698,106.695844"
+ * - "!3d10.761698!4d106.695844"
+ */
+export function parseCoordinates(input: string): { latitude: string; longitude: string } | null {
+  if (!input) return null;
+  const trimmed = input.trim();
+
+  // Check URL patterns
+  const atMatch = trimmed.match(/@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/);
+  if (atMatch) {
+    return { latitude: atMatch[1], longitude: atMatch[2] };
+  }
+
+  const qMatch = trimmed.match(/[?&]q=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/);
+  if (qMatch) {
+    return { latitude: qMatch[1], longitude: qMatch[2] };
+  }
+
+  const dMatch = trimmed.match(/!3d(-?\d+(?:\.\d+)?)[^!]*!4d(-?\d+(?:\.\d+)?)/);
+  if (dMatch) {
+    return { latitude: dMatch[1], longitude: dMatch[2] };
+  }
+
+  // Check direct latitude, longitude format separated by comma, semicolon, or space
+  const parts = trimmed.split(/[,;\s]+/).filter(Boolean);
+  if (parts.length >= 2) {
+    const lat = parseFloat(parts[0]);
+    const lng = parseFloat(parts[1]);
+    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      return { latitude: parts[0], longitude: parts[1] };
+    }
+  }
+
+  return null;
+}
+
+

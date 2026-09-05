@@ -18,11 +18,15 @@ import {
   FileText,
   Save,
   Check,
+  X,
+  Compass,
+  Building,
+  Sparkles,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { ListingType, PropertyResponse, PropertyStatus, PropertyType } from "@shared/types";
-import { formatPropertyType } from "@/lib/utils";
+import { ListingType, PropertyResponse, PropertyStatus, PropertyType, ProjectResponse } from "@shared/types";
+import { formatPropertyType, parseCoordinates } from "@/lib/utils";
 import AiListingGeneratorModal from "@/components/AiListingGeneratorModal";
 import AvmPriceAdvisor from "@/components/AvmPriceAdvisor";
 
@@ -38,6 +42,7 @@ const editPropertyFormSchema = z.object({
     .min(10, "Mô tả chi tiết phải có ít nhất 10 ký tự"),
   property_type: z.enum(["apartment", "house", "villa", "land", "commercial"] as const),
   listing_type: z.enum(["sale", "rent"] as const),
+  project_id: z.string().uuid().nullable().optional().or(z.literal("").transform(() => null)),
   price: z.number().positive("Giá tiền phải lớn hơn 0"),
   currency: z.string().default("VND"),
   area_sqm: z.number().positive("Diện tích phải lớn hơn 0 m²"),
@@ -95,10 +100,104 @@ export default function EditPropertyPage() {
   const [latitudeStr, setLatitudeStr] = useState("");
   const [longitudeStr, setLongitudeStr] = useState("");
 
+  // Projects State
+  const [projects, setProjects] = useState<ProjectResponse[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [isProjectsLoading, setIsProjectsLoading] = useState(false);
+
+  // Google Maps Coordinates auto-parsing state
+  const [coordsPasteInput, setCoordsPasteInput] = useState("");
+  const [coordsParseMessage, setCoordsParseMessage] = useState<string | null>(null);
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+
+  // Load available projects
+  useEffect(() => {
+    async function loadProjects() {
+      setIsProjectsLoading(true);
+      try {
+        const res = await apiClient.getProjects({ limit: 100 });
+        setProjects(res.items || []);
+      } catch (err) {
+        console.error("Failed to load projects:", err);
+      } finally {
+        setIsProjectsLoading(false);
+      }
+    }
+    loadProjects();
+  }, []);
+
+  const handleProjectChange = (projId: string) => {
+    setSelectedProjectId(projId);
+    if (!projId) return;
+    const proj = projects.find((p) => p.id === projId);
+    if (proj) {
+      if (!city && proj.city) setCity(proj.city);
+      if (!district && proj.district) setDistrict(proj.district);
+      if (!ward && proj.ward) setWard(proj.ward);
+      if (!address && proj.address) setAddress(proj.address);
+      if (!latitudeStr && proj.latitude) setLatitudeStr(proj.latitude.toString());
+      if (!longitudeStr && proj.longitude) setLongitudeStr(proj.longitude.toString());
+    }
+  };
+
+  const applyProjectLocation = () => {
+    if (!selectedProjectId) return;
+    const proj = projects.find((p) => p.id === selectedProjectId);
+    if (proj) {
+      if (proj.city) setCity(proj.city);
+      if (proj.district) setDistrict(proj.district);
+      if (proj.ward) setWard(proj.ward);
+      if (proj.address) setAddress(proj.address);
+      if (proj.latitude) setLatitudeStr(proj.latitude.toString());
+      if (proj.longitude) setLongitudeStr(proj.longitude.toString());
+    }
+  };
+
+  const handleCoordsPasteChange = (val: string) => {
+    setCoordsPasteInput(val);
+    const parsed = parseCoordinates(val);
+    if (parsed) {
+      setLatitudeStr(parsed.latitude);
+      setLongitudeStr(parsed.longitude);
+      setCoordsParseMessage(`Đã tách tọa độ: Vĩ độ ${parsed.latitude} - Kinh độ ${parsed.longitude}`);
+      setTimeout(() => setCoordsParseMessage(null), 5000);
+    }
+  };
+
+  const handleLatitudeInput = (val: string) => {
+    const parsed = parseCoordinates(val);
+    if (parsed) {
+      setLatitudeStr(parsed.latitude);
+      setLongitudeStr(parsed.longitude);
+      setCoordsParseMessage(`Đã tách tọa độ: Vĩ độ ${parsed.latitude} - Kinh độ ${parsed.longitude}`);
+      setTimeout(() => setCoordsParseMessage(null), 5000);
+      return;
+    }
+    setLatitudeStr(val);
+  };
+
+  const handleLongitudeInput = (val: string) => {
+    const parsed = parseCoordinates(val);
+    if (parsed) {
+      setLatitudeStr(parsed.latitude);
+      setLongitudeStr(parsed.longitude);
+      setCoordsParseMessage(`Đã tách tọa độ: Vĩ độ ${parsed.latitude} - Kinh độ ${parsed.longitude}`);
+      setTimeout(() => setCoordsParseMessage(null), 5000);
+      return;
+    }
+    setLongitudeStr(val);
+  };
+
+  const handleClearCoordinates = () => {
+    setLatitudeStr("");
+    setLongitudeStr("");
+    setCoordsPasteInput("");
+    setCoordsParseMessage(null);
+  };
 
   const handleAiApply = (data: {
     title: string;
@@ -145,6 +244,7 @@ export default function EditPropertyPage() {
         setCity(data.city);
         setLatitudeStr(data.latitude !== null && data.latitude !== undefined ? String(data.latitude) : "");
         setLongitudeStr(data.longitude !== null && data.longitude !== undefined ? String(data.longitude) : "");
+        setSelectedProjectId(data.project_id || data.project?.id || "");
       } catch (err: any) {
         setServerError(err?.message || "Không thể tải thông tin bất động sản.");
       } finally {
@@ -178,6 +278,7 @@ export default function EditPropertyPage() {
       description,
       property_type: propertyType,
       listing_type: listingType,
+      project_id: selectedProjectId ? selectedProjectId : null,
       status,
       price: parseFloat(priceStr),
       currency: property?.currency || "VND",
@@ -500,11 +601,61 @@ export default function EditPropertyPage() {
             </div>
           </div>
 
-          {/* Card 3: Vị trí */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs">
-            <div className="flex items-center gap-2 border-b border-slate-100 pb-4 mb-6">
+          {/* Card 3: Vị trí & Tọa độ */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-6">
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-4">
               <MapPin className="h-5 w-5 text-blue-600" />
               <h2 className="text-base font-bold text-slate-900">Địa chỉ & Tọa độ bản đồ</h2>
+            </div>
+
+            {/* Real Estate Project Selection (Optional) */}
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                  <Building className="h-4 w-4 text-blue-600" />
+                  <span>Thuộc Dự án Bất động sản (Tùy chọn)</span>
+                </label>
+                {selectedProjectId && (
+                  <button
+                    type="button"
+                    onClick={applyProjectLocation}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800 transition cursor-pointer"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+                    <span>Áp dụng địa chỉ & tọa độ từ dự án này</span>
+                  </button>
+                )}
+              </div>
+
+              <select
+                value={selectedProjectId}
+                onChange={(e) => handleProjectChange(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-800 shadow-xs focus:border-blue-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+                disabled={isProjectsLoading}
+              >
+                <option value="">-- Không thuộc dự án nào (Nhà đất riêng lẻ) --</option>
+                {projects.map((proj) => (
+                  <option key={proj.id} value={proj.id}>
+                    {proj.name} ({proj.developer || "Chủ đầu tư"} - {proj.district ? `${proj.district}, ` : ""}{proj.city})
+                  </option>
+                ))}
+              </select>
+
+              {selectedProjectId && (() => {
+                const currentProj = projects.find((p) => p.id === selectedProjectId);
+                if (!currentProj) return null;
+                return (
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-xs text-slate-600 border-t border-slate-200/60 mt-2">
+                    <span>Chủ đầu tư: <strong className="text-slate-800">{currentProj.developer || "Chưa cập nhật"}</strong></span>
+                    {currentProj.total_units && (
+                      <span>Quy mô: <strong className="text-slate-800">{currentProj.total_units.toLocaleString("vi-VN")} căn</strong></span>
+                    )}
+                    {currentProj.address && (
+                      <span>Địa chỉ: <strong className="text-slate-800">{currentProj.address}</strong></span>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -577,39 +728,84 @@ export default function EditPropertyPage() {
                   <p className="mt-1 text-[11px] text-rose-600 font-medium">{errors.city}</p>
                 )}
               </div>
+            </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                  Vĩ độ (Latitude)
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  value={latitudeStr}
-                  onChange={(e) => setLatitudeStr(e.target.value)}
-                  placeholder="10.7915"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
-                />
-                {errors.latitude && (
-                  <p className="mt-1 text-[11px] text-rose-600 font-medium">{errors.latitude}</p>
+            {/* Map Coordinates with Auto-Parsing */}
+            <div className="space-y-4 pt-2 border-t border-slate-100">
+              {/* Dedicated Google Maps Quick Paste Box */}
+              <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                  <label className="text-xs font-bold text-blue-950 flex items-center gap-1.5">
+                    <Compass className="h-4 w-4 text-blue-600" />
+                    <span>Dán nhanh tọa độ từ Google Maps</span>
+                  </label>
+                  <span className="text-[11px] text-blue-600 font-normal">
+                    Hỗ trợ dạng <code className="bg-white px-1.5 py-0.5 rounded border border-blue-200 font-semibold">10.761698, 106.695844</code> hoặc link Google Maps
+                  </span>
+                </div>
+                <div className="relative flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Dán tọa độ copy từ Google Maps (VD: 10.76169819301489, 106.69584455406623)..."
+                    value={coordsPasteInput}
+                    onChange={(e) => handleCoordsPasteChange(e.target.value)}
+                    className="flex-1 rounded-xl border border-blue-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 shadow-xs placeholder-slate-400 focus:border-blue-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+                  />
+                  {(latitudeStr || longitudeStr || coordsPasteInput) && (
+                    <button
+                      type="button"
+                      onClick={handleClearCoordinates}
+                      className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition cursor-pointer"
+                      title="Xóa tọa độ hiện tại"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      <span>Xóa</span>
+                    </button>
+                  )}
+                </div>
+                {coordsParseMessage && (
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200 animate-in fade-in duration-150">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>{coordsParseMessage}</span>
+                  </div>
                 )}
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                  Kinh độ (Longitude)
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  value={longitudeStr}
-                  onChange={(e) => setLongitudeStr(e.target.value)}
-                  placeholder="106.7215"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
-                />
-                {errors.longitude && (
-                  <p className="mt-1 text-[11px] text-rose-600 font-medium">{errors.longitude}</p>
-                )}
+              {/* Latitude & Longitude Inputs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    Vĩ độ (Latitude)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={latitudeStr}
+                    onChange={(e) => handleLatitudeInput(e.target.value)}
+                    placeholder="VD: 10.7915 (hoặc dán cả cặp tọa độ)"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
+                  />
+                  {errors.latitude && (
+                    <p className="mt-1 text-[11px] text-rose-600 font-medium">{errors.latitude}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    Kinh độ (Longitude)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={longitudeStr}
+                    onChange={(e) => handleLongitudeInput(e.target.value)}
+                    placeholder="VD: 106.7215 (hoặc dán cả cặp tọa độ)"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
+                  />
+                  {errors.longitude && (
+                    <p className="mt-1 text-[11px] text-rose-600 font-medium">{errors.longitude}</p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
