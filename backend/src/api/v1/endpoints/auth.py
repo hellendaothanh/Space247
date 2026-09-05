@@ -100,6 +100,10 @@ async def login(
 
     user.last_login_at = datetime.now(timezone.utc)
     await db.flush()
+    try:
+        await db.refresh(user)
+    except Exception:
+        pass
 
     access_token = create_access_token(
         subject=str(user.id),
