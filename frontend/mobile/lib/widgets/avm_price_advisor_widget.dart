@@ -35,7 +35,6 @@ class _AvmPriceAdvisorWidgetState extends State<AvmPriceAdvisorWidget> {
   bool _isLoading = false;
   String? _error;
   ValuationResponse? _data;
-  bool _showComps = false;
 
   Future<void> _fetchValuation() async {
     if (widget.areaSqm <= 0) {

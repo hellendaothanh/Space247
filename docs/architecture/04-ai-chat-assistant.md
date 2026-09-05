@@ -70,7 +70,7 @@ sequenceDiagram
 
 ```json
 {
-  "message": "Dạ, Space247 đã tìm thấy **1 bất động sản** phù hợp với bán, căn hộ, khu vực Quận 1, từ 2 phòng ngủ, mức giá dưới 3 tỷ:\n\n🌟 Nổi bật có căn **Căn hộ Vinhomes Golden River 2PN view sông** (Quận 1, Hồ Chí Minh) với giá 2.80 tỷ và diện tích 75.5m².\nBạn có thể bấm vào thẻ bài đăng bên dưới để xem chi tiết ảnh và vị trí trên bản đồ nhé!",
+  "message": "Dạ, Space247 đã tìm thấy **1 bất động sản** phù hợp với bán, căn hộ, khu vực Quận 1, từ 2 phòng ngủ, mức giá dưới 3 tỷ:\n\nNổi bật có căn **Căn hộ Vinhomes Golden River 2PN view sông** (Quận 1, Hồ Chí Minh) với giá 2.80 tỷ và diện tích 75.5m².\nBạn có thể bấm vào thẻ bài đăng bên dưới để xem chi tiết ảnh và vị trí trên bản đồ nhé!",
   "properties": [
     {
       "id": "c1f7a2d4-e8b2-4d1e-9f3a-5b6c7d8e9f01",
