@@ -22,6 +22,7 @@ import {
   Bell,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
+import { useComparison } from "@/lib/comparison";
 import { formatPrice, formatPropertyType, getPlaceholderImage } from "@/lib/utils";
 import { sanitizeUrl } from "@/utils/security";
 import type { ChatMessage, PropertyResponse, ExtractedCriteria } from "@shared/types";
@@ -99,6 +100,9 @@ function FormattedMessageText({ content, isUser }: { content: string; isUser: bo
 }
 
 export default function ChatAssistantWidget() {
+  const { selectedProperties } = useComparison();
+  const hasComparisonBar = selectedProperties.length > 0;
+
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -109,7 +113,7 @@ export default function ChatAssistantWidget() {
       id: "welcome",
       role: "assistant",
       content:
-        "Xin chào! Tôi là Chuyên viên Tư vấn của Space247 🏡\n\nTôi có thể hỗ trợ bạn tìm kiếm và chọn lọc bất động sản phù hợp nhất:\n• Tìm căn hộ hoặc nhà phố theo khoảng giá ngân sách.\n• Lọc vị trí theo Quận/Huyện, Thành phố cụ thể.\n• Tìm kiếm theo tiện ích như có hồ bơi, ban công, đầy đủ nội thất.\n\nBạn đang quan tâm đến việc mua hay thuê bất động sản ở khu vực nào ạ?",
+        "Xin chào! Tôi là Chuyên viên Tư vấn của Space247.\n\nTôi có thể hỗ trợ bạn tìm kiếm và chọn lọc bất động sản phù hợp nhất:\n• Tìm căn hộ hoặc nhà phố theo khoảng giá ngân sách.\n• Lọc vị trí theo Quận/Huyện, Thành phố cụ thể.\n• Tìm kiếm theo tiện ích như có hồ bơi, ban công, đầy đủ nội thất.\n\nBạn đang quan tâm đến việc mua hay thuê bất động sản ở khu vực nào ạ?",
       suggestions: DEFAULT_SUGGESTIONS,
       timestamp: new Date(),
     },
@@ -241,16 +245,20 @@ export default function ChatAssistantWidget() {
       : DEFAULT_SUGGESTIONS;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div
+      className={`fixed ${
+        hasComparisonBar ? "bottom-20 sm:bottom-24" : "bottom-5 sm:bottom-6"
+      } right-3 sm:right-6 z-50 flex flex-col items-end transition-all duration-300`}
+    >
       {/* Floating Chat Modal */}
       {isOpen && (
         <div
-          className={`bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 mb-4 ${
+          className={`bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 mb-3 ${
             isMinimized
-              ? "w-80 h-14"
+              ? "w-72 sm:w-80 h-14"
               : isExpanded
-              ? "w-[94vw] sm:w-[820px] lg:w-[980px] h-[86vh] max-h-[880px]"
-              : "w-[390px] sm:w-[450px] max-w-[calc(100vw-2rem)] h-[600px] max-h-[calc(100vh-7rem)]"
+              ? "w-[95vw] sm:w-[820px] lg:w-[980px] h-[85vh] max-h-[860px]"
+              : "w-[calc(100vw-1.5rem)] sm:w-[440px] h-[540px] sm:h-[600px] max-h-[calc(100vh-8rem)]"
           }`}
         >
           {/* Header */}
@@ -451,7 +459,7 @@ export default function ChatAssistantWidget() {
                             className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 text-xs font-bold transition cursor-pointer shadow-2xs"
                           >
                             <Bell className="w-3.5 h-3.5 text-blue-600" />
-                            <span>🔔 Lưu tìm kiếm & Nhận cảnh báo khi có căn mới</span>
+                            <span>Lưu tìm kiếm & Nhận cảnh báo khi có căn mới</span>
                           </button>
                         )}
                       </div>
@@ -532,16 +540,22 @@ export default function ChatAssistantWidget() {
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="group relative flex items-center gap-2.5 bg-slate-900 hover:bg-slate-800 text-white px-4.5 py-3.5 rounded-full shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer border border-slate-700"
-          aria-label="Mở Tư vấn Bất động sản"
+          className="group relative flex items-center gap-2.5 bg-slate-900 hover:bg-slate-800 text-white pl-3.5 pr-4 py-2.5 sm:pl-4 sm:pr-5 sm:py-3 rounded-full shadow-2xl hover:shadow-blue-500/20 active:scale-95 transition-all duration-200 cursor-pointer border border-slate-700/80 backdrop-blur-md ring-1 ring-white/10"
+          aria-label="Tư vấn bất động sản trực tuyến"
         >
-          <div className="relative flex items-center justify-center">
-            <MessageSquareText className="w-5 h-5 text-blue-400" />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-slate-900"></span>
+          <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-blue-600/30 border border-blue-500/30 text-blue-400 group-hover:text-blue-300 transition shrink-0">
+            <Headphones className="w-4 h-4 text-blue-400" />
+            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-slate-900 animate-pulse" />
           </div>
-          <span className="font-semibold text-sm tracking-wide hidden sm:inline-block">
-            Tư vấn Bất động sản
-          </span>
+          <div className="flex flex-col text-left">
+            <span className="font-bold text-xs sm:text-sm tracking-tight text-white leading-tight whitespace-nowrap">
+              <span className="hidden sm:inline">Tư vấn Bất động sản</span>
+              <span className="sm:hidden">Tư vấn BĐS</span>
+            </span>
+            <span className="text-[10px] text-emerald-400 font-medium leading-none mt-0.5 hidden xs:inline-block">
+              Trực tuyến 24/7
+            </span>
+          </div>
         </button>
       )}
     </div>

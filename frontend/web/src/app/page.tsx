@@ -6,7 +6,7 @@ import { apiClient } from "@/lib/api";
 import SearchSection, { FilterState } from "@/components/SearchSection";
 import PropertyCard from "@/components/PropertyCard";
 import PropertyMap from "@/components/PropertyMap";
-import { Sparkles, Building, AlertCircle, RefreshCw, LayoutGrid, Map as MapIcon } from "lucide-react";
+import { Compass, Building, AlertCircle, RefreshCw, LayoutGrid, Map as MapIcon } from "lucide-react";
 
 export default function HomePage() {
   const [results, setResults] = useState<(SearchResultItem | PropertyResponse)[]>([]);
@@ -193,7 +193,7 @@ export default function HomePage() {
         {!isLoading && results.length === 0 && !error && (
           <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-              <Sparkles className="h-6 w-6" />
+              <Compass className="h-6 w-6" />
             </div>
             <h3 className="mt-4 text-base font-semibold text-slate-900">
               Không tìm thấy bất động sản phù hợp

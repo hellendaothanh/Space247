@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Building2, Lock, Mail, User, Phone, AlertCircle, Sparkles, Shield } from "lucide-react";
+import { Building2, Lock, Mail, User, Phone, AlertCircle, UserPlus, Shield } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { UserRole } from "@shared/types";
@@ -187,8 +187,8 @@ export default function RegisterPage() {
               </>
             ) : (
               <>
-                <Sparkles className="h-4 w-4" />
-                <span>Đăng ký ngay</span>
+                <UserPlus className="h-4 w-4" />
+                <span>Đăng ký tài khoản</span>
               </>
             )}
           </button>

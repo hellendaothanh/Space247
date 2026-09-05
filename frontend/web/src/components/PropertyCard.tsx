@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bed, Bath, Maximize2, MapPin, Sparkles, ArrowUpRight, Heart } from "lucide-react";
+import { Bed, Bath, Maximize2, MapPin, BadgeCheck, ArrowUpRight, Heart } from "lucide-react";
 import { PropertyResponse, SearchResultItem } from "@shared/types";
 import { formatPrice, formatPropertyType, getPlaceholderImage } from "@/lib/utils";
 import { useFavorites } from "@/lib/favorites";
@@ -63,8 +63,8 @@ export default function PropertyCard({ item, index = 0 }: PropertyCardProps) {
         {/* Top Right Badges: Favorite Button & Semantic Match Badge */}
         <div className="absolute top-3 right-3 flex items-center gap-1.5">
           {typeof similarityScore === "number" && !Number.isNaN(similarityScore) && (
-            <div className="flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-xs font-bold text-indigo-700 shadow-md backdrop-blur-md">
-              <Sparkles className="h-3.5 w-3.5 text-indigo-500 fill-indigo-500" />
+            <div className="flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-xs font-bold text-blue-700 shadow-md backdrop-blur-md">
+              <BadgeCheck className="h-3.5 w-3.5 text-blue-600" />
               <span>{Math.max(0, Math.min(100, similarityScore * 100)).toFixed(1)}% phù hợp</span>
             </div>
           )}

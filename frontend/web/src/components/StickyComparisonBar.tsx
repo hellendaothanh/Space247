@@ -4,7 +4,7 @@ import { useComparison } from "@/lib/comparison";
 import { useState } from "react";
 import ComparisonModal from "./ComparisonModal";
 import { getPlaceholderImage, formatPrice } from "@/lib/utils";
-import { X, Sparkles } from "lucide-react";
+import { X, Scale } from "lucide-react";
 
 export default function StickyComparisonBar() {
   const { selectedProperties, toggleComparison, clearComparison } = useComparison();
@@ -74,8 +74,8 @@ export default function StickyComparisonBar() {
                   : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
               }`}
             >
-              <Sparkles className="w-4 h-4" />
-              <span>So sánh bằng AI {selectedProperties.length < 2 && "(chọn ít nhất 2 căn)"}</span>
+              <Scale className="w-4 h-4" />
+              <span>So sánh chi tiết {selectedProperties.length < 2 && "(chọn ít nhất 2 căn)"}</span>
             </button>
           </div>
         </div>

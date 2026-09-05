@@ -10,7 +10,7 @@ import {
   Scale,
   Compass,
   Building,
-  Sparkles,
+  Calculator,
   Info,
   ArrowRight,
 } from "lucide-react";
@@ -115,9 +115,9 @@ export default function AvmPriceAdvisor({
           </div>
           <div>
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-              Smart AVM Pricing Advisor
+              Cố Vấn Định Giá AVM Thông Minh
               <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
-                AI Agent
+                Mô hình KNN
               </span>
             </h3>
             <p className="text-xs text-slate-500">
@@ -130,9 +130,9 @@ export default function AvmPriceAdvisor({
           type="button"
           onClick={fetchValuation}
           disabled={isLoading}
-          className="px-3 py-1.5 bg-white hover:bg-blue-50 text-blue-600 border border-blue-200 text-xs font-semibold rounded-lg shadow-sm transition flex items-center gap-1.5 disabled:opacity-50"
+          className="px-3 py-1.5 bg-white hover:bg-blue-50 text-blue-600 border border-blue-200 text-xs font-semibold rounded-lg shadow-sm transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
         >
-          <Sparkles className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
+          <Calculator className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
           <span>{isLoading ? "Đang định giá..." : data ? "Cập nhật định giá" : "Định giá AVM"}</span>
         </button>
       </div>

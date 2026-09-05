@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  Sparkles,
+  FileEdit,
   X,
   Upload,
   CheckCircle2,
@@ -11,7 +11,7 @@ import {
   Copy,
   Check,
   Layers,
-  Wand2,
+  Loader2,
   Image as ImageIcon,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -120,22 +120,22 @@ export default function AiListingGeneratorModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-3 sm:p-4 backdrop-blur-sm animate-fade-in">
       <div className="relative w-full max-w-4xl max-h-[92vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-slate-50">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 bg-slate-50/70">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-blue-600 text-white rounded-xl shadow-md shadow-blue-500/20">
-              <Sparkles className="w-5 h-5 animate-pulse" />
+              <FileEdit className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg sm:text-xl font-bold text-slate-900">
-                  AI Listing Co-Pilot
+                  Hỗ Trợ Soạn Thảo Tin Đăng
                 </h2>
                 <span className="px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 rounded-full">
-                  Agent Pro
+                  Tiện ích thông minh
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                Tự động tạo tiêu đề SEO, bài viết chuẩn và trích xuất thông số từ ghi chú hoặc ảnh sổ đỏ
+                Tự động chuẩn hóa tiêu đề, nội dung và trích xuất thông số từ ghi chú hoặc ảnh pháp lý
               </p>
             </div>
           </div>
@@ -249,17 +249,17 @@ export default function AiListingGeneratorModal({
                 type="button"
                 onClick={handleGenerate}
                 disabled={isGenerating}
-                className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-semibold rounded-xl shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 transition disabled:opacity-50"
+                className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer"
               >
                 {isGenerating ? (
                   <>
-                    <Wand2 className="w-4 h-4 animate-spin" />
-                    <span>AI đang phân tích & tạo tin...</span>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Đang xử lý & soạn thảo tin...</span>
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4" />
-                    <span>Tạo bài đăng bằng AI</span>
+                    <FileEdit className="w-4 h-4" />
+                    <span>Tự động soạn bài đăng</span>
                   </>
                 )}
               </button>
@@ -404,14 +404,14 @@ export default function AiListingGeneratorModal({
                 </>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-400">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center mb-3">
-                    <Wand2 className="w-6 h-6" />
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
+                    <FileEdit className="w-6 h-6" />
                   </div>
                   <h4 className="font-semibold text-slate-700 mb-1">
-                    Bản xem trước bài đăng AI
+                    Bản xem trước nội dung tin đăng
                   </h4>
-                  <p className="text-xs max-w-sm">
-                    Nhập ghi chú nhanh hoặc đính kèm ảnh sổ đỏ bên trái và bấm &ldquo;Tạo bài đăng bằng AI&rdquo; để hệ thống tự động soạn thảo.
+                  <p className="text-xs max-w-sm text-slate-500">
+                    Nhập ghi chú nhanh hoặc đính kèm tài liệu pháp lý bên trái và chọn &ldquo;Tự động soạn bài đăng&rdquo; để hoàn tất thông tin.
                   </p>
                 </div>
               )}

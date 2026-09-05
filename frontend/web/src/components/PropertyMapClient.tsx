@@ -29,7 +29,6 @@ import {
   ShoppingCart,
   Loader2,
   MapPin,
-  Sparkles,
 } from "lucide-react";
 
 interface PropertyMapClientProps {

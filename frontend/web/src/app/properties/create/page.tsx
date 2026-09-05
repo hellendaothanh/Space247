@@ -10,7 +10,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Upload,
-  Sparkles,
+  FileEdit,
+  ShieldCheck,
   MapPin,
   Home,
   Tag,
@@ -337,8 +338,8 @@ export default function CreatePropertyPage() {
         </div>
 
         <div className="flex items-center gap-2 rounded-xl bg-blue-50/80 px-3.5 py-2 text-xs font-medium text-blue-700 border border-blue-100">
-          <Sparkles className="h-4 w-4 shrink-0 text-blue-600" />
-          <span>Tự động sinh AI Semantic Embedding</span>
+          <ShieldCheck className="h-4 w-4 shrink-0 text-blue-600" />
+          <span>Định danh & chuẩn hóa Vector 768 chiều</span>
         </div>
       </div>
 
@@ -465,10 +466,10 @@ export default function CreatePropertyPage() {
             <button
               type="button"
               onClick={() => setIsAiModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-semibold rounded-xl shadow-xs transition"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>AI Soạn Tin (Agent Co-Pilot)</span>
+              <FileEdit className="w-3.5 h-3.5" />
+              <span>Hỗ trợ soạn tin</span>
             </button>
           </div>
 
@@ -860,7 +861,7 @@ export default function CreatePropertyPage() {
               </>
             ) : (
               <>
-                <Sparkles className="h-4 w-4" />
+                <CheckCircle2 className="h-4 w-4" />
                 <span>Hoàn tất & Đăng tin</span>
               </>
             )}

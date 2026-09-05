@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Building2, Lock, Mail, AlertCircle, Sparkles } from "lucide-react";
+import { Building2, Lock, Mail, AlertCircle, LogIn } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
@@ -112,8 +112,8 @@ export default function LoginPage() {
               </>
             ) : (
               <>
-                <Sparkles className="h-4 w-4" />
-                <span>Đăng nhập ngay</span>
+                <LogIn className="h-4 w-4" />
+                <span>Đăng nhập</span>
               </>
             )}
           </button>

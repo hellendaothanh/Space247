@@ -12,7 +12,6 @@ import {
   KeyRound,
   TrendingUp,
   Layers,
-  Sparkles,
   ChevronRight,
   Loader2,
   Share2,
@@ -478,8 +477,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     key={idx}
                     className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-4 transition hover:bg-blue-50/50 hover:border-blue-200"
                   >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-                      <Sparkles className="h-4 w-4" />
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 border border-blue-100">
+                      <CheckCircle2 className="h-4 w-4" />
                     </div>
                     <span className="text-xs font-semibold text-slate-800">{amenity}</span>
                   </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Sparkles, Filter, SlidersHorizontal, Loader2 } from "lucide-react";
+import { Search, Compass, Filter, SlidersHorizontal, Loader2 } from "lucide-react";
 import { ListingType, PropertyType } from "@shared/types";
 
 export interface FilterState {
@@ -76,15 +76,15 @@ export default function SearchSection({ onSearch, isLoading, totalResults }: Sea
 
       <div className="relative mx-auto max-w-4xl text-center">
         <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-3.5 py-1 text-xs font-semibold text-blue-300 backdrop-blur-md">
-          <Sparkles className="h-3.5 w-3.5 text-blue-400" />
-          <span>Tìm kiếm ngữ nghĩa thế hệ mới với AI Embedding 768 chiều</span>
+          <Compass className="h-3.5 w-3.5 text-blue-400" />
+          <span>Tìm kiếm thông minh với Vector Embedding 768 chiều & PostGIS</span>
         </div>
 
         <h1 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-5xl text-white">
           Tìm ngôi nhà mơ ước bằng ngôn ngữ tự nhiên
         </h1>
         <p className="mt-3 text-sm sm:text-base text-slate-300 max-w-2xl mx-auto">
-          Mô tả không gian sống lý tưởng của bạn như cách bạn nói chuyện với một chuyên viên tư vấn bất động sản giàu kinh nghiệm.
+          Mô tả không gian sống lý tưởng của bạn như cách bạn trao đổi với một chuyên viên bất động sản am hiểu thị trường.
         </p>
 
         {/* Search Box Form */}
@@ -96,7 +96,7 @@ export default function SearchSection({ onSearch, isLoading, totalResults }: Sea
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                aria-label="Tìm kiếm bất động sản bằng AI"
+                aria-label="Tìm kiếm bất động sản"
                 placeholder="Nhập yêu cầu: 'Căn hộ 2PN ban công view sông Bình Thạnh'..."
                 className="w-full rounded-xl bg-transparent py-3.5 pl-12 pr-4 text-sm sm:text-base text-white placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-400"
               />
@@ -105,7 +105,7 @@ export default function SearchSection({ onSearch, isLoading, totalResults }: Sea
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/40 hover:bg-blue-500 active:scale-[0.98] transition disabled:opacity-50"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/40 hover:bg-blue-500 active:scale-[0.98] transition disabled:opacity-50 cursor-pointer"
             >
               {isLoading ? (
                 <>
@@ -114,8 +114,8 @@ export default function SearchSection({ onSearch, isLoading, totalResults }: Sea
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4 text-blue-200" />
-                  <span>Tìm kiếm AI</span>
+                  <Search className="h-4 w-4 text-blue-200" />
+                  <span>Tìm kiếm</span>
                 </>
               )}
             </button>
