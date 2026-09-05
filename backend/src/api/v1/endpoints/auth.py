@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -97,6 +97,9 @@ async def login(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive or disabled",
         )
+
+    user.last_login_at = datetime.now(timezone.utc)
+    await db.flush()
 
     access_token = create_access_token(
         subject=str(user.id),

@@ -59,4 +59,38 @@ class AuthService {
     final token = await apiClient.secureStorage.read(key: AppConstants.tokenKey);
     return token != null && token.isNotEmpty;
   }
+
+  Future<User> updateProfile({String? fullName, String? phone, String? avatarUrl}) async {
+    try {
+      final response = await apiClient.dio.put(
+        '/users/me',
+        data: {
+          if (fullName != null) 'full_name': fullName,
+          if (phone != null) 'phone': phone,
+          if (avatarUrl != null) 'avatar_url': avatarUrl,
+        },
+      );
+      final user = User.fromJson(response.data as Map<String, dynamic>);
+      await apiClient.secureStorage.write(key: AppConstants.userKey, value: jsonEncode(user.toJson()));
+      return user;
+    } on DioException catch (e) {
+      final detail = e.response?.data is Map ? e.response?.data['detail'] : e.message;
+      throw Exception(detail ?? 'Cập nhật thông tin thất bại');
+    }
+  }
+
+  Future<void> changePassword(String oldPassword, String newPassword) async {
+    try {
+      await apiClient.dio.post(
+        '/users/me/change-password',
+        data: {
+          'old_password': oldPassword,
+          'new_password': newPassword,
+        },
+      );
+    } on DioException catch (e) {
+      final detail = e.response?.data is Map ? e.response?.data['detail'] : e.message;
+      throw Exception(detail ?? 'Đổi mật khẩu thất bại');
+    }
+  }
 }

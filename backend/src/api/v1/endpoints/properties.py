@@ -552,13 +552,13 @@ async def update_property(
         )
 
     if property_obj.user_id:
-        if property_obj.user_id != current_user.id and current_user.role != "admin":
+        if property_obj.user_id != current_user.id and current_user.role not in ("admin", "superadmin"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You do not have permission to update this property listing",
             )
     else:
-        if current_user.role != "admin":
+        if current_user.role not in ("admin", "superadmin"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only administrators can update unassigned property listings",
@@ -663,13 +663,13 @@ async def delete_property(
         )
 
     if property_obj.user_id:
-        if property_obj.user_id != current_user.id and current_user.role != "admin":
+        if property_obj.user_id != current_user.id and current_user.role not in ("admin", "superadmin"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You do not have permission to delete this property listing",
             )
     else:
-        if current_user.role != "admin":
+        if current_user.role not in ("admin", "superadmin"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only administrators can delete unassigned property listings",

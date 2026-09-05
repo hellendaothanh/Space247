@@ -18,6 +18,8 @@ import {
   X,
   MapPin,
   Compass,
+  User as UserIcon,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useFavorites } from "@/lib/favorites";
@@ -350,6 +352,26 @@ function NavbarContent() {
                     </div>
 
                     <Link
+                      href="/profile"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition"
+                    >
+                      <UserIcon className="h-4 w-4 text-blue-600" />
+                      <span>Thông tin tài khoản</span>
+                    </Link>
+
+                    {user.role === "superadmin" && (
+                      <Link
+                        href="/admin/users"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-purple-700 bg-purple-50/50 hover:bg-purple-100/70 transition"
+                      >
+                        <ShieldCheck className="h-4 w-4 text-purple-600" />
+                        <span>Quản lý người dùng (RBAC)</span>
+                      </Link>
+                    )}
+
+                    <Link
                       href="/properties/my"
                       onClick={() => setDropdownOpen(false)}
                       className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition"
@@ -509,7 +531,28 @@ function NavbarContent() {
               <span>Đăng tin miễn phí</span>
             </Link>
 
-            {!user && (
+            {user ? (
+              <div className="flex flex-col gap-1.5 pt-1 border-t border-slate-100">
+                <Link
+                  href="/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:bg-blue-50 transition"
+                >
+                  <UserIcon className="h-4 w-4 text-blue-600" />
+                  <span>Hồ sơ tài khoản ({user.full_name})</span>
+                </Link>
+                {user.role === "superadmin" && (
+                  <Link
+                    href="/admin/users"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-purple-700 bg-purple-50/50 hover:bg-purple-100 transition"
+                  >
+                    <ShieldCheck className="h-4 w-4 text-purple-600" />
+                    <span>Quản lý người dùng (RBAC)</span>
+                  </Link>
+                )}
+              </div>
+            ) : (
               <div className="grid grid-cols-2 gap-2 mt-1">
                 <Link
                   href="/login"

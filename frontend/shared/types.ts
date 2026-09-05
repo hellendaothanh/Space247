@@ -148,7 +148,7 @@ export interface HealthResponse {
 // User & Authentication Types
 // ---------------------------------------------------------------------------
 
-export type UserRole = "user" | "agent" | "admin";
+export type UserRole = "superadmin" | "admin" | "agent" | "user";
 
 export interface UserBase {
   email: string;
@@ -173,14 +173,69 @@ export interface UserUpdate {
   avatar_url?: string | null;
 }
 
+export interface UserProfileUpdateRequest {
+  full_name?: string;
+  phone?: string | null;
+  avatar_url?: string | null;
+}
+
+export interface ChangePasswordRequest {
+  old_password: string;
+  new_password: string;
+}
+
 export interface UserResponse extends UserBase {
   id: string; // UUID
   role: UserRole;
+  phone?: string | null;
   phone_number?: string | null;
   avatar_url?: string | null;
   is_active: boolean;
+  phone_verified: boolean;
+  last_login_at?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface UserProfileDetailResponse extends UserResponse {
+  total_properties: number;
+  total_favorites: number;
+  total_alerts: number;
+}
+
+export interface UserCreateByAdminRequest {
+  email: string;
+  password: string;
+  full_name: string;
+  phone?: string | null;
+  avatar_url?: string | null;
+  role?: UserRole;
+  is_active?: boolean;
+  phone_verified?: boolean;
+}
+
+export interface UserUpdateByAdminRequest {
+  full_name?: string;
+  phone?: string | null;
+  avatar_url?: string | null;
+  role?: UserRole;
+  is_active?: boolean;
+  phone_verified?: boolean;
+  reset_password?: string;
+}
+
+export interface UserAdminDetailResponse extends UserResponse {
+  total_properties: number;
+  total_favorites: number;
+  total_alerts: number;
+}
+
+export interface UserPaginationResponse {
+  items: UserResponse[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }
 
 export interface AuthTokenResponse {

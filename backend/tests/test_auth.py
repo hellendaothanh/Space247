@@ -8,7 +8,7 @@ from src.core.database import get_db_session
 from src.core.security import create_access_token, hash_password
 from src.main import app
 from src.models.property import Property
-from src.models.user import User
+from src.models.user import User, UserRole
 
 
 @pytest.mark.asyncio
@@ -85,6 +85,7 @@ async def test_register_and_login_flow():
         login_data = login_resp.json()
         assert "access_token" in login_data
         assert login_data["user"]["full_name"] == "Nguyễn Văn Chuyên Nghiệp"
+        assert login_data["user"]["last_login_at"] is not None
 
         # 4. Reject login with wrong password
         wrong_resp = await client.post(
@@ -196,5 +197,36 @@ async def test_protected_property_creation_with_auth():
         created_prop = auth_prop_resp.json()
         assert created_prop["title"] == property_payload["title"]
         assert created_prop["user_id"] == str(user_id)
+
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_inactive_user_cannot_login():
+    mock_session = AsyncMock()
+
+    inactive_user = User(
+        id=uuid.uuid4(),
+        email="locked@space247.vn",
+        hashed_password=hash_password("Password123@"),
+        full_name="Người Dùng Bị Khóa",
+        role=UserRole.USER.value,
+        is_active=False,
+    )
+
+    user_result = MagicMock()
+    user_result.scalar_one_or_none.return_value = inactive_user
+    mock_session.execute.return_value = user_result
+
+    app.dependency_overrides[get_db_session] = lambda: mock_session
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        login_resp = await client.post(
+            "/api/v1/auth/login",
+            json={"email": "locked@space247.vn", "password": "Password123@"},
+        )
+        assert login_resp.status_code == 403
+        assert "inactive" in login_resp.json()["detail"].lower()
 
     app.dependency_overrides.clear()

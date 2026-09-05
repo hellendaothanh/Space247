@@ -83,12 +83,29 @@ async def get_optional_current_user(
 async def get_current_agent_user(
     current_user: User = Depends(get_current_active_user),
 ) -> User:
-    """Ensure the authenticated user has Agent or Admin privileges."""
-    if current_user.role not in ("agent", "admin"):
+    """Ensure the authenticated user has Agent, Admin, or Superadmin privileges."""
+    if current_user.role not in ("agent", "admin", "superadmin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Tính năng chỉ dành cho Môi giới (Agent) hoặc Quản trị viên (Admin).",
+            detail="Tính năng chỉ dành cho Môi giới (Agent) hoặc Quản trị viên.",
         )
     return current_user
+
+
+def require_roles(allowed_roles: list[str]):
+    """Dependency factory ensuring current user has one of the allowed roles."""
+    async def role_checker(current_user: User = Depends(get_current_active_user)) -> User:
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Yêu cầu quyền truy cập cấp cao.",
+            )
+        return current_user
+
+    return role_checker
+
+
+get_current_superadmin_user = require_roles(["superadmin"])
+
 
 

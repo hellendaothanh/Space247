@@ -54,6 +54,10 @@ class AuthNotifier extends Notifier<AsyncValue<User?>> {
     await ref.read(authServiceProvider).logout();
     state = const AsyncValue.data(null);
   }
+
+  void setUser(User? user) {
+    state = AsyncValue.data(user);
+  }
 }
 
 final authStateProvider = NotifierProvider<AuthNotifier, AsyncValue<User?>>(AuthNotifier.new);

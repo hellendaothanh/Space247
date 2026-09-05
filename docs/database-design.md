@@ -51,9 +51,11 @@ erDiagram
         varchar_255 hashed_password
         varchar_255 full_name
         varchar_50 phone
+        boolean phone_verified
         varchar_500 avatar_url
-        varchar_20 role "user | agent | admin"
+        varchar_20 role "superadmin | admin | agent | user"
         boolean is_active
+        timestamptz last_login_at
         timestamptz created_at
         timestamptz updated_at
     }
@@ -286,3 +288,11 @@ Toàn bộ các bước tiến hóa cơ sở dữ liệu được phiên bản h
 5. **`0005_add_property_images_and_user_avatar.py`**:
    - Bổ sung cột mảng `images TEXT[]` vào `properties`.
    - Bổ sung cột `avatar_url VARCHAR(500)` vào `users`.
+6. **`0006_add_projects_table_and_property_project_fk.py`**:
+   - Tạo bảng `projects` đại diện cho các đại đô thị và dự án chung cư lớn với vector 768-dim và PostGIS GiST.
+   - Bổ sung cột khóa ngoại `project_id` vào bảng `properties`.
+7. **`0007_user_management_superadmin_rbac.py`**:
+   - Mở rộng phân quyền vai trò người dùng hỗ trợ cấp quản trị tối cao (`superadmin`).
+   - Bổ sung các cột trạng thái định danh: `phone_verified` (Boolean) và `last_login_at` (TIMESTAMPTZ).
+   - Thiết lập chỉ mục B-Tree `ix_users_role` trên bảng `users` tối ưu lọc theo nhóm quyền quản trị.
+

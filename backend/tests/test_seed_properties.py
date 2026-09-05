@@ -179,14 +179,18 @@ async def test_seed_users_idempotency():
     mock_session.execute = fake_execute_no_users
 
     users_map_first = await seed_users(session=mock_session)
-    assert len(users_map_first) == 3
+    assert len(users_map_first) == 4
+    assert "superadmin@space247.vn" in users_map_first
     assert "admin@space247.vn" in users_map_first
     assert "agent@space247.vn" in users_map_first
     assert "user@space247.vn" in users_map_first
-    assert len(added_users) == 3
-    assert all(u.role in ("admin", "agent", "user") for u in added_users)
+    assert len(added_users) == 4
+    assert all(u.role in ("superadmin", "admin", "agent", "user") for u in added_users)
 
     # 2. Second run: Users already exist
+    existing_superadmin = MagicMock()
+    existing_superadmin.role = "superadmin"
+    existing_superadmin.email = "superadmin@space247.vn"
     existing_admin = MagicMock()
     existing_admin.role = "admin"
     existing_admin.email = "admin@space247.vn"
@@ -202,22 +206,23 @@ async def test_seed_users_idempotency():
     async def fake_execute_existing_users(stmt):
         nonlocal call_count
         res = MagicMock()
-        # Extract bound parameter value from statement if present, or toggle by call order
         params = getattr(stmt, "_compile_state", None)
         try:
             param_values = [p.value for p in stmt._bind_params.values()]
         except Exception:
             param_values = []
 
-        if any("admin@space247.vn" in str(v) for v in param_values):
+        if any("superadmin@space247.vn" in str(v) for v in param_values):
+            res.scalar_one_or_none.return_value = existing_superadmin
+        elif any("admin@space247.vn" in str(v) for v in param_values):
             res.scalar_one_or_none.return_value = existing_admin
         elif any("agent@space247.vn" in str(v) for v in param_values):
             res.scalar_one_or_none.return_value = existing_agent
         elif any("user@space247.vn" in str(v) for v in param_values):
             res.scalar_one_or_none.return_value = existing_user
         else:
-            # By call order: admin, agent, user
-            order_map = [existing_admin, existing_agent, existing_user]
+            # By call order: superadmin, admin, agent, user
+            order_map = [existing_superadmin, existing_admin, existing_agent, existing_user]
             res.scalar_one_or_none.return_value = order_map[call_count % len(order_map)]
         call_count += 1
         return res
@@ -226,7 +231,8 @@ async def test_seed_users_idempotency():
     added_users.clear()
 
     users_map_second = await seed_users(session=mock_session)
-    assert len(users_map_second) == 3
+    assert len(users_map_second) == 4
+    assert users_map_second["superadmin@space247.vn"].role == "superadmin"
     assert users_map_second["admin@space247.vn"].role == "admin"
     assert users_map_second["agent@space247.vn"].role == "agent"
     assert users_map_second["user@space247.vn"].role == "user"

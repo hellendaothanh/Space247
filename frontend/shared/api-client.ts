@@ -47,6 +47,13 @@ import {
   ProjectDetailResponse,
   PaginatedProjectResponse,
   ProjectFilterQuery,
+  UserProfileUpdateRequest,
+  ChangePasswordRequest,
+  UserProfileDetailResponse,
+  UserCreateByAdminRequest,
+  UserUpdateByAdminRequest,
+  UserAdminDetailResponse,
+  UserPaginationResponse,
 } from "./types";
 
 
@@ -158,6 +165,68 @@ export class RealEstateApiClient {
     return this.request<UserResponse>("/api/v1/auth/me", {
       method: "PUT",
       body: JSON.stringify(data),
+    });
+  }
+
+  // User Profile Self-Management
+  async getMyProfile(): Promise<UserProfileDetailResponse> {
+    return this.request<UserProfileDetailResponse>("/api/v1/users/me");
+  }
+
+  async updateMyProfile(data: UserProfileUpdateRequest): Promise<UserResponse> {
+    return this.request<UserResponse>("/api/v1/users/me", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async changeMyPassword(data: ChangePasswordRequest): Promise<{ message: string }> {
+    return this.request<{ message: string }>("/api/v1/users/me/change-password", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Superadmin User Management
+  async getAdminUsers(params?: {
+    q?: string;
+    role?: string;
+    is_active?: boolean;
+    page?: number;
+    page_size?: number;
+  }): Promise<UserPaginationResponse> {
+    const searchParams = new URLSearchParams();
+    if (params?.q) searchParams.append("q", params.q);
+    if (params?.role) searchParams.append("role", params.role);
+    if (params?.is_active !== undefined) searchParams.append("is_active", String(params.is_active));
+    if (params?.page) searchParams.append("page", String(params.page));
+    if (params?.page_size) searchParams.append("page_size", String(params.page_size));
+
+    const qs = searchParams.toString();
+    return this.request<UserPaginationResponse>(`/api/v1/admin/users${qs ? `?${qs}` : ""}`);
+  }
+
+  async createAdminUser(data: UserCreateByAdminRequest): Promise<UserResponse> {
+    return this.request<UserResponse>("/api/v1/admin/users", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getAdminUserDetail(userId: string): Promise<UserAdminDetailResponse> {
+    return this.request<UserAdminDetailResponse>(`/api/v1/admin/users/${userId}`);
+  }
+
+  async updateAdminUser(userId: string, data: UserUpdateByAdminRequest): Promise<UserResponse> {
+    return this.request<UserResponse>(`/api/v1/admin/users/${userId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteAdminUser(userId: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/api/v1/admin/users/${userId}`, {
+      method: "DELETE",
     });
   }
 

@@ -9,9 +9,10 @@ from src.core.database import Base
 
 
 class UserRole(str, Enum):
-    USER = "user"
-    AGENT = "agent"
+    SUPERADMIN = "superadmin"
     ADMIN = "admin"
+    AGENT = "agent"
+    USER = "user"
 
 
 class User(Base):
@@ -27,9 +28,11 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    phone_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     role: Mapped[str] = mapped_column(String(20), nullable=False, default=UserRole.USER.value)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -61,8 +64,18 @@ class User(Base):
             kwargs["id"] = uuid.uuid4()
         if "role" not in kwargs or kwargs["role"] is None:
             kwargs["role"] = UserRole.USER.value
+        elif hasattr(kwargs["role"], "value"):
+            kwargs["role"] = kwargs["role"].value
+        else:
+            kwargs["role"] = str(kwargs["role"]).lower()
+            if kwargs["role"].startswith("userrole."):
+                kwargs["role"] = kwargs["role"].split(".", 1)[1].lower()
         if "is_active" not in kwargs or kwargs["is_active"] is None:
             kwargs["is_active"] = True
+        if "phone_verified" not in kwargs or kwargs["phone_verified"] is None:
+            kwargs["phone_verified"] = False
+        if "last_login_at" not in kwargs:
+            kwargs["last_login_at"] = None
         if "avatar_url" not in kwargs:
             kwargs["avatar_url"] = None
         if "phone_number" in kwargs and "phone" not in kwargs:

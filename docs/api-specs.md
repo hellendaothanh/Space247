@@ -13,7 +13,8 @@ Hệ thống sử dụng cơ chế xác thực dựa trên JSON Web Token (JWT B
 - **Phân quyền vai trò (Role-Based Access Control)**:
   - `user`: Khách hàng tìm nhà, thuê nhà hoặc nhà đầu tư cá nhân.
   - `agent`: Môi giới bất động sản, được cấp quyền đăng tin, sửa tin và sử dụng bộ công cụ AI Co-Pilot.
-  - `admin`: Quản trị viên toàn quyền hệ thống.
+  - `admin`: Quản trị viên nghiệp vụ hệ thống.
+  - `superadmin`: Quản trị viên tối cao hệ thống, quản lý tài khoản người dùng, cấp phát vai trò và kiểm soát phân quyền RBAC toàn diện.
 
 ---
 
@@ -83,7 +84,156 @@ Hệ thống sử dụng cơ chế xác thực dựa trên JSON Web Token (JWT B
 
 ---
 
-### 2.2. Module Bất Động Sản (`/properties`)
+### 2.2. Module Hồ Sơ Người Dùng Cá Nhân (`/users`)
+
+#### 1. Lấy thông tin hồ sơ chi tiết kèm số liệu tương tác
+- **Endpoint**: `GET /api/v1/users/me`
+- **Xác thực**: Bắt buộc (`user`, `agent`, `admin`, `superadmin`)
+- **Response (`UserProfileDetailResponse` - HTTP 200)**:
+  ```json
+  {
+    "id": "c1f7a08b-7032-4d29-a78b-0c6778f658ba",
+    "email": "user@space247.vn",
+    "full_name": "Nguyễn Văn A",
+    "phone": "0912345678",
+    "phone_verified": true,
+    "avatar_url": "https://example.com/avatar.jpg",
+    "role": "user",
+    "is_active": true,
+    "last_login_at": "2026-09-05T09:30:00Z",
+    "created_at": "2026-09-01T00:00:00Z",
+    "updated_at": "2026-09-05T09:30:00Z",
+    "total_properties": 0,
+    "total_favorites": 12,
+    "total_alerts": 3
+  }
+  ```
+
+#### 2. Cập nhật thông tin định danh cá nhân
+- **Endpoint**: `PUT /api/v1/users/me`
+- **Xác thực**: Bắt buộc
+- **Request Body (`UserProfileUpdateRequest`)**:
+  ```json
+  {
+    "full_name": "Nguyễn Văn A (Cập nhật)",
+    "phone": "0912345678",
+    "avatar_url": "https://example.com/avatar.jpg"
+  }
+  ```
+- **Response (`UserResponse` - HTTP 200)**: Dữ liệu hồ sơ sau khi cập nhật.
+
+#### 3. Đổi mật khẩu tài khoản
+- **Endpoint**: `POST /api/v1/users/me/change-password`
+- **Xác thực**: Bắt buộc
+- **Request Body (`ChangePasswordRequest`)**:
+  ```json
+  {
+    "old_password": "OldPassword123@",
+    "new_password": "NewSecurePassword456@"
+  }
+  ```
+- **Validation Rules**: Mật khẩu cũ phải trùng khớp với hash trong DB; mật khẩu mới phải tối thiểu 8 ký tự.
+- **Response (HTTP 200)**:
+  ```json
+  {
+    "message": "Đổi mật khẩu thành công."
+  }
+  ```
+
+---
+
+### 2.3. Module Quản Trị Người Dùng & Phân Quyền RBAC (`/admin/users`)
+
+Toàn bộ các endpoint trong module này yêu cầu quyền **`superadmin`** (xác thực qua dependency `get_current_superadmin_user`). Mọi vai trò khác sẽ nhận phản hồi HTTP 403 Forbidden.
+
+#### 1. Tra cứu và phân trang danh sách người dùng
+- **Endpoint**: `GET /api/v1/admin/users`
+- **Xác thực**: Bắt buộc (`superadmin`)
+- **Query Parameters**:
+  - `q` (string, optional): Tìm kiếm theo email hoặc họ tên người dùng.
+  - `role` (string, optional): Lọc theo vai trò (`superadmin`, `admin`, `agent`, `user`).
+  - `is_active` (boolean, optional): Lọc theo trạng thái hoạt động (`true`, `false`).
+  - `page` (int, default 1): Số thứ tự trang.
+  - `page_size` (int, default 20, max 100): Kích thước trang.
+- **Response (`UserPaginationResponse` - HTTP 200)**:
+  ```json
+  {
+    "items": [
+      {
+        "id": "c1f7a08b-7032-4d29-a78b-0c6778f658ba",
+        "email": "agent@space247.vn",
+        "full_name": "Môi Giới Chuyên Nghiệp",
+        "phone": "0988889999",
+        "phone_verified": true,
+        "avatar_url": null,
+        "role": "agent",
+        "is_active": true,
+        "last_login_at": "2026-09-05T09:15:00Z",
+        "created_at": "2026-09-01T00:00:00Z",
+        "updated_at": "2026-09-05T09:15:00Z"
+      }
+    ],
+    "total": 4,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 1
+  }
+  ```
+
+#### 2. Tạo tài khoản người dùng mới (chỉ định vai trò)
+- **Endpoint**: `POST /api/v1/admin/users`
+- **Xác thực**: Bắt buộc (`superadmin`)
+- **Request Body (`UserCreateByAdminRequest`)**:
+  ```json
+  {
+    "email": "agent.vip@space247.vn",
+    "password": "InitialPassword123@",
+    "full_name": "Môi Giới VIP Space247",
+    "phone": "0933334444",
+    "role": "agent",
+    "is_active": true,
+    "phone_verified": true
+  }
+  ```
+- **Response (`UserResponse` - HTTP 201)**: Chi tiết người dùng mới được tạo.
+
+#### 3. Xem chi tiết người dùng và số liệu hoạt động
+- **Endpoint**: `GET /api/v1/admin/users/{user_id}`
+- **Xác thực**: Bắt buộc (`superadmin`)
+- **Response (`UserAdminDetailResponse` - HTTP 200)**: Chi tiết tài khoản kèm tổng số tin đăng, yêu thích và cảnh báo tìm kiếm.
+
+#### 4. Cập nhật thông tin, đổi vai trò hoặc đặt lại mật khẩu người dùng
+- **Endpoint**: `PUT /api/v1/admin/users/{user_id}`
+- **Xác thực**: Bắt buộc (`superadmin`)
+- **Request Body (`UserUpdateByAdminRequest`)**:
+  ```json
+  {
+    "full_name": "Tên Người Dùng Cập Nhật",
+    "phone": "0911223344",
+    "role": "admin",
+    "is_active": true,
+    "phone_verified": true,
+    "reset_password": "NewSecretPassword123@"
+  }
+  ```
+- **Cơ chế an toàn**: Superadmin không thể tự giáng quyền hoặc tự vô hiệu hóa chính mình.
+- **Response (`UserResponse` - HTTP 200)**: Hồ sơ sau khi cập nhật.
+
+#### 5. Vô hiệu hóa tài khoản (Soft Delete)
+- **Endpoint**: `DELETE /api/v1/admin/users/{user_id}`
+- **Xác thực**: Bắt buộc (`superadmin`)
+- **Cơ chế**: Thiết lập cờ `is_active = False` mà không xóa vật lý bản ghi để bảo toàn toàn vẹn dữ liệu quan hệ bài đăng và cảnh báo.
+- **Response (HTTP 200)**:
+  ```json
+  {
+    "message": "Đã vô hiệu hóa tài khoản người dùng thành công."
+  }
+  ```
+
+---
+
+
+### 2.4. Module Bất Động Sản (`/properties`)
 
 #### 1. Lấy danh sách bất động sản (kèm phân trang và lọc)
 - **Endpoint**: `GET /api/v1/properties`
@@ -239,7 +389,7 @@ Hệ thống sử dụng cơ chế xác thực dựa trên JSON Web Token (JWT B
 
 ---
 
-### 2.3. Module Dự Án Bất Động Sản (`/projects`)
+### 2.5. Module Dự Án Bất Động Sản (`/projects`)
 
 #### 1. Lấy danh sách dự án với bộ lọc và phân trang
 - **Endpoint**: `GET /api/v1/projects`
@@ -357,178 +507,169 @@ Hệ thống sử dụng cơ chế xác thực dựa trên JSON Web Token (JWT B
     "results": [
       {
         "property": { "id": "...", "title": "..." },
-        "score": 0.0328,
-        "rank": 1
-      }
-    ]
-  }
-  ```
+### 2.6. Module Tìm Kiếm Lai & Ngữ Nghĩa (`/properties/search` & `/search`)
+
+#### 1. Tìm kiếm lai kết hợp (Hybrid Search RRF)
+- **Endpoint**: `GET /api/v1/properties/search`
+- **Xác thực**: Không yêu cầu
+- **Query Parameters**:
+  - `q` (string, required): Câu truy vấn tìm kiếm bằng ngôn ngữ tự nhiên.
+  - `limit` (int, default 10): Số lượng kết quả trả về.
+  - `vector_weight` (float, default 0.6): Trọng số điểm cosine tương đồng ngữ nghĩa.
+  - `text_weight` (float, default 0.4): Trọng số điểm toàn văn (Full-Text Search).
+- **Response (`PropertySearchResponse` - HTTP 200)**: Danh sách kết quả được xếp hạng theo thuật toán Reciprocal Rank Fusion (RRF).
 
 #### 2. Tìm kiếm thuần vector ngữ nghĩa
 - **Endpoint**: `POST /api/v1/search/semantic`
 - **Xác thực**: Không yêu cầu
-- **Request Body (`PropertySearchQuery`)**: Tương tự cấu trúc tìm kiếm lai, thực thi tìm kiếm qua khoảng cách vector cosine.
+- **Request Body (`SemanticSearchQuery`)**:
+  ```json
+  {
+    "query": "căn hộ ban công hướng đông nam gần công viên thoáng mát",
+    "top_k": 5
+  }
+  ```
+- **Response (`SemanticSearchResponse` - HTTP 200)**: Danh sách kết quả xếp hạng theo khoảng cách cosine.
 
 ---
 
-### 2.5. Module Trợ Lý Trí Tuệ Nhân Tạo (`/chat`)
+### 2.7. Module Trợ Lý Trí Tuệ Nhân Tạo (`/chat`)
 
-#### Tương tác với Trợ lý AI Chatbot
+#### 1. Tương tác đa vòng với trợ lý AI Co-Pilot
 - **Endpoint**: `POST /api/v1/chat/assistant`
-- **Xác thực**: Không yêu cầu
-- **Request Body (`ChatRequest`)**:
+- **Xác thực**: Không yêu cầu (Hỗ trợ định danh tùy chọn qua Bearer Token)
+- **Request Body (`ChatAssistantRequest`)**:
   ```json
   {
-    "message": "Tôi đang tìm căn hộ 2 phòng ngủ ở quận Cầu Giấy tầm tài chính 4.5 tỷ, có trường mầm non gần đó không?",
-    "conversation_history": [
-      { "role": "user", "content": "Xin chào" },
-      { "role": "assistant", "content": "Dạ chào bạn, Space247 có thể hỗ trợ bạn tìm kiếm bất động sản nào ạ?" }
+    "messages": [
+      {
+        "role": "user",
+        "content": "Tôi muốn tìm căn hộ 3 phòng ngủ ở Cầu Giấy tầm tài chính dưới 6 tỷ"
+      }
     ]
   }
   ```
-- **Response (`ChatResponse` - HTTP 200)**:
+- **Response (`ChatAssistantResponse` - HTTP 200)**:
   ```json
   {
-    "response_text": "Dựa trên yêu cầu của bạn, Space247 xin giới thiệu 2 căn hộ phù hợp tại Cầu Giấy...",
-    "extracted_criteria": {
-      "city": "Hà Nội",
-      "district": "Cầu Giấy",
-      "property_type": "apartment",
-      "max_price": 4500000000.0,
-      "num_bedrooms": 2
+    "message": {
+      "role": "assistant",
+      "content": "Dạ, em đã tìm thấy một số căn hộ 3 phòng ngủ tại khu vực Cầu Giấy trong ngân sách của anh/chị..."
     },
-    "suggested_properties": [
-      { "id": "...", "title": "Căn hộ Golden Park Cầu Giấy...", "price": 4300000000.0 }
-    ],
-    "financial_advice": "Với căn hộ 4.3 tỷ, nếu vay ngân hàng 70% (3 tỷ) trong 20 năm, số tiền trả tháng đầu khoảng 28.5 triệu VNĐ."
+    "extracted_criteria": {
+      "listing_type": "sale",
+      "property_type": "apartment",
+      "district": "Cầu Giấy",
+      "city": "Hà Nội",
+      "max_price": 6000000000.0,
+      "min_bedrooms": 3
+    },
+    "suggested_properties": []
   }
   ```
 
 ---
 
-### 2.6. Module Tiện Ích Môi Giới AI Co-Pilot (`/agent`)
+### 2.8. Module Tiện Ích Môi Giới AI Co-Pilot (`/agent`)
 
-#### 1. AI sinh tiêu đề SEO và bài mô tả tin đăng
-- **Endpoint**: `POST /api/v1/agent/listing/generate`
-- **Xác thực**: Bắt buộc (Vai trò `agent` hoặc `admin`)
+#### 1. Tạo bài viết tin đăng chuẩn SEO từ thông số kỹ thuật
+- **Endpoint**: `POST /api/v1/agent/generate-listing`
+- **Xác thực**: Bắt buộc (`agent` hoặc `admin`)
 - **Request Body (`GenerateListingRequest`)**:
   ```json
   {
-    "text_prompts": [
-      "Căn góc 3PN D'Capitale Trần Duy Hưng 95m2",
-      "Tầng trung view hồ điều hòa thoáng mát",
-      "Full nội thất gỗ tự nhiên cao cấp",
-      "Sổ đỏ cất két sẵn sàng giao dịch"
-    ],
     "property_type": "apartment",
-    "target_audience": "Gia đình trẻ thành đạt"
+    "listing_type": "sale",
+    "address": "29 Liễu Giai, Ba Đình, Hà Nội",
+    "area_sqm": 115.0,
+    "num_bedrooms": 3,
+    "num_bathrooms": 2,
+    "highlights": ["View hồ Tây", "Nội thất nhập khẩu Ý", "Cửa khóa vân tay cao cấp"],
+    "target_audience": "Gia đình thượng lưu, chuyên gia nước ngoài"
   }
   ```
 - **Response (`GenerateListingResponse` - HTTP 200)**:
   ```json
   {
-    "title_seo": "Bán Căn Góc 3PN D'Capitale Trần Duy Hưng 95m² View Hồ Điều Hòa Đẹp Nhất Dự Án",
-    "description_markdown": "### Điểm Nhấn Bất Động Sản\n\n- **Vị trí**: Nằm tại tòa tháp trung tâm...",
-    "extracted_specs": {
-      "area_sqm": 95.0,
-      "num_bedrooms": 3,
-      "num_bathrooms": 2,
-      "orientation": "Đông Nam",
-      "legal_status": "Sổ đỏ cất két",
-      "amenities": ["Hồ bơi", "Hồ điều hòa", "Khu vui chơi trẻ em"]
-    }
+    "title": "Bán Căn Hộ Cao Cấp 3PN Vinhomes Metropolis Liễu Giai - View Trọn Hồ Tây",
+    "description_markdown": "### Điểm Nhấn Không Gian Sống Thượng Lưu...",
+    "suggested_tags": ["vinhomes-metropolis", "lieu-giai", "view-ho-tay", "can-ho-cao-cap"]
   }
   ```
 
 #### 2. Mô hình định giá tự động AVM (Automated Valuation Model)
-- **Endpoint**: `POST /api/v1/agent/valuation/estimate`
-- **Xác thực**: Bắt buộc (Vai trò `agent` hoặc `admin`)
+- **Endpoint**: `POST /api/v1/agent/valuation`
+- **Xác thực**: Bắt buộc (`agent` hoặc `admin`)
 - **Request Body (`ValuationRequest`)**:
   ```json
   {
     "property_type": "apartment",
-    "area_sqm": 85.0,
-    "num_bedrooms": 2,
-    "num_bathrooms": 2,
-    "latitude": 21.0169,
-    "longitude": 105.7839,
-    "radius_km": 2.5,
-    "user_proposed_price": 5200000000.0
+    "city": "Hà Nội",
+    "district": "Ba Đình",
+    "ward": "Ngọc Khánh",
+    "area_sqm": 115.0,
+    "num_bedrooms": 3,
+    "num_bathrooms": 2
   }
   ```
 - **Response (`ValuationResponse` - HTTP 200)**:
   ```json
   {
-    "estimated_price_per_sqm": 58500000.0,
-    "estimated_total_price": 4972500000.0,
-    "price_range_low": 4723875000.0,
-    "price_range_high": 5221125000.0,
+    "estimated_price": 8250000000.0,
     "confidence_score": 0.88,
-    "market_trend": "up",
-    "radius_used_km": 2.5,
-    "comparable_properties": [ ... ],
-    "deviation_percentage": 4.57,
-    "pricing_advice": "Giá bạn đề xuất (5.2 tỷ) đang cao hơn 4.57% so với mức trung bình 4.97 tỷ của 5 căn tương đồng trong bán kính 2.5 km..."
+    "price_range_low": 7800000000.0,
+    "price_range_high": 8700000000.0,
+    "price_per_sqm": 71739130.43,
+    "comparable_properties_count": 8,
+    "methodology": "Hedonic pricing regression kết hợp khoảng cách PostGIS và tương đồng vector phân khúc"
   }
   ```
 
 ---
 
-### 2.7. Module Địa Không Gian & Bản Đồ (`/spatial`)
+### 2.9. Module Địa Không Gian & Bản Đồ (`/spatial`)
 
-#### 1. Tìm kiếm theo vùng di chuyển (Isochrone Search)
+#### 1. Tìm kiếm theo vùng di chuyển đẳng thời (Isochrone Search)
 - **Endpoint**: `POST /api/v1/spatial/isochrone-search`
 - **Xác thực**: Không yêu cầu
 - **Request Body (`IsochroneSearchRequest`)**:
   ```json
   {
-    "target_landmark": "Keangnam Hanoi Landmark Tower",
+    "latitude": 21.0326,
+    "longitude": 105.8142,
     "max_duration_minutes": 15,
-    "transport_mode": "motorcycle",
-    "property_type": "apartment",
-    "max_price": 6000000000.0,
-    "limit": 20
+    "travel_mode": "driving"
   }
   ```
 - **Response (`IsochroneSearchResponse` - HTTP 200)**:
   ```json
   {
-    "target_location": {
-      "name": "Keangnam Hanoi Landmark Tower",
-      "latitude": 21.0169,
-      "longitude": 105.7839,
-      "formatted_address": "Phạm Hùng, Mễ Trì, Nam Từ Liêm, Hà Nội"
-    },
+    "center": { "latitude": 21.0326, "longitude": 105.8142 },
     "max_duration_minutes": 15,
-    "transport_mode": "motorcycle",
-    "isochrone_geojson": {
-      "type": "Feature",
-      "geometry": { "type": "Polygon", "coordinates": [ ... ] }
-    },
-    "total": 5,
-    "properties": [
-      {
-        "property": { "id": "...", "title": "..." },
-        "estimated_travel_minutes": 8.5,
-        "distance_km": 2.8
-      }
-    ]
+    "travel_mode": "driving",
+    "properties": [],
+    "total_found": 12
   }
   ```
 
 #### 2. Bản đồ nhiệt mật độ tiện ích (Amenity Heatmap)
-- **Endpoint**: `GET /api/v1/spatial/amenities/heatmap`
+- **Endpoint**: `POST /api/v1/spatial/amenity-heatmap`
 - **Xác thực**: Không yêu cầu
-- **Query Parameters**:
-  - `category` (string, default `all`): `school`, `hospital`, `metro`, `supermarket`, `all`.
-  - `city` (string, default `Hà Nội`).
-- **Response (`AmenityHeatmapResponse` - HTTP 200)**: Mảng điểm `[lat, lng, weight]` sẵn sàng dùng cho thư viện `leaflet.heat`.
+- **Request Body (`AmenityHeatmapQuery`)**:
+  ```json
+  {
+    "city": "Hà Nội",
+    "district": "Ba Đình",
+    "amenity_types": ["school", "hospital", "supermarket", "park"]
+  }
+  ```
+- **Response (`AmenityHeatmapResponse` - HTTP 200)**: Tập hợp các điểm nhiệt kèm trọng số mật độ phục vụ hiển thị lớp phủ Leaflet/MapLibre.
 
 ---
 
-### 2.8. Module Công Cụ Tài Chính (`/financial`)
+### 2.10. Module Công Cụ Tài Chính (`/financial`)
 
-#### Bảng tính vay mua nhà và lịch trả góp (Mortgage Calculator)
+#### 1. Tính toán lịch trả góp vay mua nhà (Mortgage Calculator)
 - **Endpoint**: `POST /api/v1/financial/mortgage-calc`
 - **Xác thực**: Không yêu cầu
 - **Request Body (`MortgageCalcRequest`)**:
@@ -537,45 +678,27 @@ Hệ thống sử dụng cơ chế xác thực dựa trên JSON Web Token (JWT B
     "property_price": 5000000000.0,
     "down_payment_percent": 30.0,
     "loan_term_years": 20,
-    "annual_interest_rate": 7.5,
-    "preferential_period_months": 12,
-    "post_preferential_rate": 10.5,
-    "calculation_method": "declining_balance"
+    "interest_rate_percent": 8.5,
+    "amortization_type": "reducing_balance"
   }
   ```
 - **Response (`MortgageCalcResponse` - HTTP 200)**:
   ```json
   {
-    "property_price": 5000000000.0,
-    "down_payment_amount": 1500000000.0,
-    "down_payment_percent": 30.0,
     "loan_amount": 3500000000.0,
-    "loan_term_years": 20,
-    "loan_term_months": 240,
-    "calculation_method": "declining_balance",
-    "monthly_payment_first_month": 36458333.33,
-    "monthly_payment_max": 45208333.33,
-    "monthly_payment_min": 14710069.44,
-    "total_interest": 3574375000.0,
-    "total_payment": 7074375000.0,
-    "schedule": [
-      {
-        "month": 1,
-        "principal_payment": 14583333.33,
-        "interest_payment": 21875000.0,
-        "total_payment": 36458333.33,
-        "remaining_balance": 3485416666.67,
-        "interest_rate": 7.5
-      }
-    ]
+    "down_payment": 1500000000.0,
+    "monthly_payment": 30373500.0,
+    "total_payment": 7289640000.0,
+    "total_interest": 3789640000.0,
+    "amortization_schedule": []
   }
   ```
 
 ---
 
-### 2.9. Module Cảnh Báo & Thông Báo (`/alerts` & `/notifications`)
+### 2.11. Module Cảnh Báo & Thông Báo (`/alerts` & `/notifications`)
 
-#### 1. Tạo cảnh báo tìm kiếm
+#### 1. Tạo cảnh báo tìm kiếm mới (Saved Search Alert)
 - **Endpoint**: `POST /api/v1/alerts`
 - **Xác thực**: Bắt buộc (Bearer Token)
 - **Request Body (`CreateAlertRequest`)**:
@@ -591,48 +714,43 @@ Hệ thống sử dụng cơ chế xác thực dựa trên JSON Web Token (JWT B
     "frequency": "instant"
   }
   ```
-- **Response (`AlertResponse` - HTTP 201)**: Chi tiết cảnh báo vừa tạo.
+- **Response (`SavedSearchAlert` - HTTP 201)**
 
 #### 2. Lấy danh sách cảnh báo của tôi
-- **Endpoint**: `GET /api/v1/alerts`
+- **Endpoint**: `GET /api/v1/alerts/my`
 - **Xác thực**: Bắt buộc (Bearer Token)
-- **Response (`list[AlertResponse]` - HTTP 200)**.
 
-#### 3. Cập nhật bật/tắt cảnh báo
-- **Endpoint**: `PATCH /api/v1/alerts/{id}`
-- **Xác thực**: Bắt buộc (Chủ sở hữu)
-- **Request Body (`UpdateAlertRequest`)**: `{"is_active": false}`.
+#### 3. Xóa cảnh báo tìm kiếm
+- **Endpoint**: `DELETE /api/v1/alerts/{alert_id}`
+- **Xác thực**: Bắt buộc (Bearer Token)
 
-#### 4. Xóa cảnh báo
-- **Endpoint**: `DELETE /api/v1/alerts/{id}`
-- **Xác thực**: Bắt buộc (Chủ sở hữu)
-- **Response**: HTTP 204 No Content.
-
-#### 5. Danh sách thông báo in-app
+#### 4. Lấy danh sách thông báo người dùng
 - **Endpoint**: `GET /api/v1/notifications`
 - **Xác thực**: Bắt buộc (Bearer Token)
-- **Response (`NotificationListResponse` - HTTP 200)**: Danh sách các thông báo nhận được kèm số lượng chưa đọc (`unread_count`).
 
-#### 6. Đánh dấu tất cả đã đọc
-- **Endpoint**: `POST /api/v1/notifications/read-all`
+#### 5. Đánh dấu tất cả thông báo đã đọc
+- **Endpoint**: `PUT /api/v1/notifications/read-all`
 - **Xác thực**: Bắt buộc (Bearer Token)
-- **Response**: `{"message": "Marked all notifications as read"}`.
 
 ---
 
-### 2.10. Module Giám Sát Hệ Thống (`/health`)
+### 2.12. Module Giám Sát Hệ Thống (`/health`)
 
-#### Kiểm tra tình trạng hoạt động (Healthcheck)
+#### 1. Kiểm tra trạng thái sức khỏe dịch vụ
 - **Endpoint**: `GET /api/v1/health`
 - **Xác thực**: Không yêu cầu
-- **Response (HTTP 200)**:
+- **Response (`HealthResponse` - HTTP 200)**:
   ```json
   {
-    "status": "ok",
-    "app_name": "Space247",
-    "version": "0.1.0",
-    "database": "connected",
-    "pgvector": "available",
-    "redis": "connected"
+    "status": "healthy",
+    "version": "1.0.0",
+    "database": {
+      "status": "connected",
+      "postgis_enabled": true,
+      "pgvector_enabled": true
+    },
+    "redis": {
+      "status": "connected"
+    }
   }
   ```

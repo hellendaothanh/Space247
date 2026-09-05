@@ -38,9 +38,10 @@ Phân quyền được thực thi ở tầng middleware và dependency injection
 
 | Vai trò | Phạm vi quyền hạn chi tiết |
 |---|---|
-| **`user`** | Tra cứu bất động sản, sử dụng bản đồ và công cụ tài chính, lưu danh sách yêu thích, đăng ký cảnh báo tìm kiếm, nhận thông báo in-app. Không có quyền đăng tin hoặc gọi API AI Co-Pilot. |
+| **`user`** | Tra cứu bất động sản, sử dụng bản đồ và công cụ tài chính, lưu danh sách yêu thích, quản lý hồ sơ cá nhân và đổi mật khẩu (`/profile`), đăng ký cảnh báo tìm kiếm, nhận thông báo in-app. Không có quyền đăng tin hoặc gọi API AI Co-Pilot. |
 | **`agent`** | Thừa hưởng toàn bộ quyền của `user`, được phép đăng tin bất động sản mới, cập nhật và quản lý danh mục tin đăng của mình (`/properties/my`), sử dụng công cụ Agent AI Co-Pilot (tạo bài viết Markdown và định giá AVM). |
-| **`admin`** | Toàn quyền kiểm duyệt, chỉnh sửa hoặc xóa bất kỳ bài đăng nào trong hệ thống, quản lý tài khoản người dùng, giám sát các chỉ số vận hành hệ thống. |
+| **`admin`** | Quản trị viên nghiệp vụ: Toàn quyền kiểm duyệt, chỉnh sửa hoặc quản lý bất kỳ bài đăng bất động sản hoặc dự án nào trong hệ thống, giám sát các chỉ số vận hành. |
+| **`superadmin`** | Quản trị viên tối cao: Toàn quyền quản trị phân quyền RBAC (`/api/v1/admin/users`), tạo người dùng mới với mọi vai trò, thay đổi vai trò, mở/khóa tài khoản (soft delete), đặt lại mật khẩu của người dùng. Hệ thống có cơ chế bảo vệ ngăn Superadmin tự giáng quyền hoặc tự vô hiệu hóa tài khoản của chính mình. |
 
 ---
 

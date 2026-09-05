@@ -37,7 +37,7 @@ def test_alembic_script_directory_and_head_revision():
 
     heads = script.get_heads()
     assert len(heads) == 1, f"Expected exactly 1 head revision, got {heads}"
-    assert heads[0] == "0006", f"Expected head revision to be '0006', got {heads[0]}"
+    assert heads[0] == "0007", f"Expected head revision to be '0007', got {heads[0]}"
 
     rev1 = script.get_revision("0001")
     assert rev1 is not None
@@ -69,6 +69,11 @@ def test_alembic_script_directory_and_head_revision():
     assert rev6 is not None
     assert "project" in rev6.doc.lower()
     assert rev6.down_revision == "0005"
+
+    rev7 = script.get_revision("0007")
+    assert rev7 is not None
+    assert "user" in rev7.doc.lower() or "rbac" in rev7.doc.lower()
+    assert rev7.down_revision == "0006"
 
 
 def test_alembic_offline_sql_generation(capsys):
@@ -106,20 +111,26 @@ def test_alembic_offline_sql_generation(capsys):
     assert "CREATE TABLE projects" in generated_sql
     assert "ALTER TABLE properties ADD COLUMN project_id UUID" in generated_sql
 
+    # Verify 0007 additions
+    assert "ALTER TABLE users ADD COLUMN phone_verified" in generated_sql
+    assert "ALTER TABLE users ADD COLUMN last_login_at" in generated_sql
+
     # Verify alembic version stamp
     assert "INSERT INTO alembic_version" in generated_sql
-    assert "'0006'" in generated_sql
+    assert "'0007'" in generated_sql
 
 
 def test_alembic_downgrade_offline_sql_generation(capsys):
-    """Verify that offline SQL generation for downgrade ('downgrade 0006:base --sql') produces clean rollback DDL."""
+    """Verify that offline SQL generation for downgrade ('downgrade 0007:base --sql') produces clean rollback DDL."""
     cfg = get_alembic_config()
 
-    # Generate downgrade SQL from 0006 to base using range syntax required by --sql mode
-    command.downgrade(cfg, "0006:base", sql=True)
+    # Generate downgrade SQL from 0007 to base using range syntax required by --sql mode
+    command.downgrade(cfg, "0007:base", sql=True)
     captured = capsys.readouterr()
     generated_sql = captured.out
 
+    assert "ALTER TABLE users DROP COLUMN phone_verified;" in generated_sql
+    assert "ALTER TABLE users DROP COLUMN last_login_at;" in generated_sql
     assert "ALTER TABLE properties DROP COLUMN project_id;" in generated_sql
     assert "DROP TABLE projects;" in generated_sql
     assert "ALTER TABLE properties DROP COLUMN images;" in generated_sql
@@ -159,6 +170,8 @@ def test_models_metadata_aligned_with_properties():
     assert "hashed_password" in user_table.c
     assert "role" in user_table.c
     assert "avatar_url" in user_table.c
+    assert "phone_verified" in user_table.c
+    assert "last_login_at" in user_table.c
 
     fav_table = Base.metadata.tables["favorite_properties"]
     assert "user_id" in fav_table.c

@@ -10,6 +10,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (token: string, user: UserResponse) => void;
   logout: () => void;
+  updateUser: (user: UserResponse) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   login: () => {},
   logout: () => {},
+  updateUser: () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -75,8 +77,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("space247_user");
   };
 
+  const updateUser = (newUser: UserResponse) => {
+    setUser(newUser);
+    localStorage.setItem("space247_user", JSON.stringify(newUser));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

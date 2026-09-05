@@ -966,11 +966,20 @@ SAMPLE_PROPERTIES: list[dict[str, Any]] = [
 
 DEFAULT_SEED_USERS = [
     {
+        "email": "superadmin@space247.vn",
+        "full_name": "Superadmin Space247",
+        "phone": "0900000001",
+        "password": "Password123@",
+        "role": UserRole.SUPERADMIN.value,
+        "phone_verified": True,
+    },
+    {
         "email": "admin@space247.vn",
         "full_name": "Quản Trị Viên Space247",
         "phone": "0901234567",
         "password": "Password123@",
         "role": UserRole.ADMIN.value,
+        "phone_verified": True,
     },
     {
         "email": "agent@space247.vn",
@@ -978,6 +987,7 @@ DEFAULT_SEED_USERS = [
         "phone": "0988889999",
         "password": "Password123@",
         "role": UserRole.AGENT.value,
+        "phone_verified": True,
     },
     {
         "email": "user@space247.vn",
@@ -985,13 +995,14 @@ DEFAULT_SEED_USERS = [
         "phone": "0912345678",
         "password": "Password123@",
         "role": UserRole.USER.value,
+        "phone_verified": False,
     },
 ]
 
 
 async def seed_users(session: AsyncSession) -> dict[str, User]:
     """
-    Seed default users (admin and agent) idempotently.
+    Seed default users (superadmin, admin, agent, user) idempotently.
     Returns a dictionary of email -> User model instances.
     """
     user_map: dict[str, User] = {}
@@ -1001,6 +1012,9 @@ async def seed_users(session: AsyncSession) -> dict[str, User]:
         res = await session.execute(stmt)
         existing = res.scalar_one_or_none()
         if existing:
+            existing.role = item["role"]
+            existing.phone_verified = item.get("phone_verified", False)
+            existing.is_active = True
             user_map[email] = existing
             logger.info("Found existing seed user: %s (role: %s)", email, existing.role)
         else:
@@ -1011,6 +1025,7 @@ async def seed_users(session: AsyncSession) -> dict[str, User]:
                 phone=item["phone"],
                 role=item["role"],
                 is_active=True,
+                phone_verified=item.get("phone_verified", False),
             )
             session.add(new_user)
             await session.flush()
