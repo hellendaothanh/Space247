@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, Compass, Filter, SlidersHorizontal, Loader2 } from "lucide-react";
 import { ListingType, PropertyType } from "@shared/types";
 
@@ -18,15 +18,25 @@ interface SearchSectionProps {
   onSearch: (filters: FilterState) => void;
   isLoading: boolean;
   totalResults?: number;
+  initialListingType?: ListingType;
 }
 
-export default function SearchSection({ onSearch, isLoading, totalResults }: SearchSectionProps) {
+export default function SearchSection({
+  onSearch,
+  isLoading,
+  totalResults,
+  initialListingType,
+}: SearchSectionProps) {
   const [query, setQuery] = useState("");
-  const [listingType, setListingType] = useState<ListingType | undefined>(undefined);
+  const [listingType, setListingType] = useState<ListingType | undefined>(initialListingType);
   const [propertyType, setPropertyType] = useState<PropertyType | undefined>(undefined);
   const [city, setCity] = useState<string | undefined>(undefined);
   const [priceRange, setPriceRange] = useState<string>("all");
   const [enableHybrid, setEnableHybrid] = useState(true);
+
+  useEffect(() => {
+    setListingType(initialListingType);
+  }, [initialListingType]);
 
   const handlePriceChange = (val: string) => {
     setPriceRange(val);
@@ -68,10 +78,24 @@ export default function SearchSection({ onSearch, isLoading, totalResults }: Sea
     "Chung cư cao cấp 3PN cạnh Metro",
   ];
 
+  const handleListingTypeSelect = (type: ListingType | undefined) => {
+    setListingType(type);
+    const bounds = getPriceBounds(priceRange);
+    onSearch({
+      query: query.trim(),
+      listing_type: type,
+      property_type: propertyType,
+      city: city || undefined,
+      min_price: bounds.min,
+      max_price: bounds.max,
+      enable_hybrid: enableHybrid,
+    });
+  };
+
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-linear-to-b from-blue-900 via-indigo-950 to-slate-900 px-6 py-12 sm:px-12 sm:py-20 text-white shadow-2xl">
+    <div className="relative overflow-hidden rounded-3xl bg-linear-to-b from-slate-900 via-blue-950 to-slate-900 px-6 py-12 sm:px-12 sm:py-16 shadow-2xl border border-slate-800">
       {/* Decorative gradient blur balls */}
-      <div className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full bg-blue-500/20 blur-3xl" />
+      <div className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full bg-blue-600/20 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-purple-500/20 blur-3xl" />
 
       <div className="relative mx-auto max-w-4xl text-center">
@@ -141,9 +165,9 @@ export default function SearchSection({ onSearch, isLoading, totalResults }: Sea
                     enable_hybrid: enableHybrid,
                   });
                 }}
-                className="rounded-full bg-white/10 px-3 py-1 text-slate-200 hover:bg-white/20 hover:text-white transition"
+                className="rounded-lg bg-white/10 px-2.5 py-1 hover:bg-white/20 transition cursor-pointer border border-white/5"
               >
-                {sample}
+                &ldquo;{sample}&rdquo;
               </button>
             ))}
           </div>
@@ -154,8 +178,8 @@ export default function SearchSection({ onSearch, isLoading, totalResults }: Sea
             <div className="flex rounded-lg bg-black/20 p-1 text-xs">
               <button
                 type="button"
-                onClick={() => setListingType(undefined)}
-                className={`rounded-md px-3 py-1.5 transition ${
+                onClick={() => handleListingTypeSelect(undefined)}
+                className={`rounded-md px-3 py-1.5 transition cursor-pointer ${
                   listingType === undefined ? "bg-blue-600 text-white font-semibold" : "text-slate-300 hover:text-white"
                 }`}
               >
@@ -163,8 +187,8 @@ export default function SearchSection({ onSearch, isLoading, totalResults }: Sea
               </button>
               <button
                 type="button"
-                onClick={() => setListingType("sale")}
-                className={`rounded-md px-3 py-1.5 transition ${
+                onClick={() => handleListingTypeSelect("sale")}
+                className={`rounded-md px-3 py-1.5 transition cursor-pointer ${
                   listingType === "sale" ? "bg-blue-600 text-white font-semibold" : "text-slate-300 hover:text-white"
                 }`}
               >
@@ -172,8 +196,8 @@ export default function SearchSection({ onSearch, isLoading, totalResults }: Sea
               </button>
               <button
                 type="button"
-                onClick={() => setListingType("rent")}
-                className={`rounded-md px-3 py-1.5 transition ${
+                onClick={() => handleListingTypeSelect("rent")}
+                className={`rounded-md px-3 py-1.5 transition cursor-pointer ${
                   listingType === "rent" ? "bg-emerald-600 text-white font-semibold" : "text-slate-300 hover:text-white"
                 }`}
               >

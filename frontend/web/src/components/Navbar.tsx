@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Building2,
   PlusCircle,
@@ -24,8 +24,17 @@ import { useFavorites } from "@/lib/favorites";
 import { apiClient } from "@/lib/api";
 import type { UserNotification } from "@shared/types";
 
-export default function Navbar() {
+function NavbarContent() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const listingType = searchParams.get("listing_type");
+  const view = searchParams.get("view");
+
+  const isExploreActive = pathname === "/" && !listingType && view !== "map";
+  const isSaleActive = pathname === "/" && listingType === "sale";
+  const isRentActive = pathname === "/" && listingType === "rent";
+  const isMapActive = pathname === "/" && view === "map";
+
   const { user, logout } = useAuth();
   const { favoriteIds } = useFavorites();
 
@@ -129,20 +138,24 @@ export default function Navbar() {
           <Link
             href="/"
             className={`transition hover:text-blue-600 ${
-              pathname === "/" ? "text-blue-600 font-semibold" : ""
+              isExploreActive ? "text-blue-600 font-semibold" : "text-slate-600 hover:text-slate-900"
             }`}
           >
             Khám phá
           </Link>
           <Link
             href="/?listing_type=sale"
-            className="transition hover:text-blue-600 text-slate-600 hover:text-slate-900"
+            className={`transition hover:text-blue-600 ${
+              isSaleActive ? "text-blue-600 font-semibold" : "text-slate-600 hover:text-slate-900"
+            }`}
           >
             Mua bán
           </Link>
           <Link
             href="/?listing_type=rent"
-            className="transition hover:text-blue-600 text-slate-600 hover:text-slate-900"
+            className={`transition hover:text-blue-600 ${
+              isRentActive ? "text-blue-600 font-semibold" : "text-slate-600 hover:text-slate-900"
+            }`}
           >
             Cho thuê
           </Link>
@@ -155,8 +168,10 @@ export default function Navbar() {
             Dự án
           </Link>
           <Link
-            href="/#map-view"
-            className="flex items-center gap-1.5 text-slate-600 hover:text-blue-600 transition"
+            href="/?view=map#map-view"
+            className={`flex items-center gap-1.5 transition hover:text-blue-600 ${
+              isMapActive ? "text-blue-600 font-semibold" : "text-slate-600 hover:text-slate-900"
+            }`}
           >
             <MapPin className="h-3.5 w-3.5 text-blue-600" />
             <span>Bản đồ</span>
@@ -425,7 +440,11 @@ export default function Navbar() {
             <Link
               href="/"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-800 hover:bg-slate-50 hover:text-blue-600 transition"
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition ${
+                isExploreActive
+                  ? "bg-blue-50 text-blue-700 font-semibold"
+                  : "font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+              }`}
             >
               <Compass className="h-4 w-4 text-blue-600" />
               <span>Khám phá bất động sản</span>
@@ -433,7 +452,11 @@ export default function Navbar() {
             <Link
               href="/?listing_type=sale"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition"
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition ${
+                isSaleActive
+                  ? "bg-blue-50 text-blue-700 font-semibold"
+                  : "font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+              }`}
             >
               <Building2 className="h-4 w-4 text-slate-400" />
               <span>Nhà đất bán</span>
@@ -441,7 +464,11 @@ export default function Navbar() {
             <Link
               href="/?listing_type=rent"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition"
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition ${
+                isRentActive
+                  ? "bg-blue-50 text-blue-700 font-semibold"
+                  : "font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+              }`}
             >
               <Building2 className="h-4 w-4 text-slate-400" />
               <span>Nhà đất cho thuê</span>
@@ -449,15 +476,23 @@ export default function Navbar() {
             <Link
               href="/projects"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition"
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition ${
+                pathname.startsWith("/projects")
+                  ? "bg-blue-50 text-blue-700 font-semibold"
+                  : "font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+              }`}
             >
               <Building2 className="h-4 w-4 text-slate-400" />
               <span>Dự án nổi bật</span>
             </Link>
             <Link
-              href="/#map-view"
+              href="/?view=map#map-view"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition"
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition ${
+                isMapActive
+                  ? "bg-blue-50 text-blue-700 font-semibold"
+                  : "font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
+              }`}
             >
               <MapPin className="h-4 w-4 text-blue-600" />
               <span>Bản đồ trực quan</span>
@@ -497,5 +532,17 @@ export default function Navbar() {
         </div>
       )}
     </header>
+  );
+}
+
+export default function Navbar() {
+  return (
+    <Suspense
+      fallback={
+        <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 h-16" />
+      }
+    >
+      <NavbarContent />
+    </Suspense>
   );
 }

@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { SearchResultItem, PropertyResponse } from "@shared/types";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { SearchResultItem, PropertyResponse, ListingType } from "@shared/types";
 import { apiClient } from "@/lib/api";
 import SearchSection, { FilterState } from "@/components/SearchSection";
 import PropertyCard from "@/components/PropertyCard";
 import PropertyMap from "@/components/PropertyMap";
 import { Compass, Building, AlertCircle, RefreshCw, LayoutGrid, Map as MapIcon } from "lucide-react";
 
-export default function HomePage() {
+function HomePageContent() {
+  const searchParams = useSearchParams();
+  const listingTypeParam = (searchParams.get("listing_type") as ListingType) || null;
+  const viewParam = searchParams.get("view");
+
   const [results, setResults] = useState<(SearchResultItem | PropertyResponse)[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,28 +22,48 @@ export default function HomePage() {
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
 
-  // Initial load: Fetch latest properties via list endpoint
-  const loadInitialProperties = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await apiClient.listProperties({ limit: 20 });
-      setResults(data);
-      setTotalCount(data.length);
-      setIsSearchActive(false);
-    } catch (err: any) {
-      console.error("Failed to load initial properties:", err);
-      setError(
-        "Không thể kết nối đến máy chủ Space247 API (http://localhost:8080). Hãy đảm bảo backend đang chạy."
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  // Initial load: Fetch latest properties via list endpoint filtered by listing_type if present
+  const loadInitialProperties = useCallback(
+    async (customType?: ListingType | null) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const typeToQuery = customType !== undefined ? customType : listingTypeParam;
+        const data = await apiClient.listProperties({
+          limit: 24,
+          listing_type: typeToQuery || undefined,
+        });
+        setResults(data);
+        setTotalCount(data.length);
+        setIsSearchActive(false);
+      } catch (err: any) {
+        console.error("Failed to load initial properties:", err);
+        setError(
+          "Không thể kết nối đến máy chủ Space247 API (http://localhost:8080). Hãy đảm bảo backend đang chạy."
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [listingTypeParam]
+  );
 
   useEffect(() => {
-    loadInitialProperties();
-  }, [loadInitialProperties]);
+    loadInitialProperties(listingTypeParam);
+  }, [listingTypeParam, loadInitialProperties]);
+
+  // Handle Map view query parameter and hash navigation
+  useEffect(() => {
+    if (viewParam === "map" || (typeof window !== "undefined" && window.location.hash === "#map-view")) {
+      setViewMode("map");
+      const mapEl = document.getElementById("map-view");
+      if (mapEl) {
+        setTimeout(() => {
+          mapEl.scrollIntoView({ behavior: "smooth" });
+        }, 150);
+      }
+    }
+  }, [viewParam]);
 
   // Handle Natural Language / Filter Search
   const handleSearch = async (filters: FilterState) => {
@@ -54,7 +79,7 @@ export default function HomePage() {
       filters.min_price === undefined &&
       filters.max_price === undefined
     ) {
-      return loadInitialProperties();
+      return loadInitialProperties(listingTypeParam);
     }
 
     try {
@@ -82,6 +107,23 @@ export default function HomePage() {
     }
   };
 
+  const getSectionTitle = () => {
+    if (isSearchActive) return "Kết quả tìm kiếm thông minh";
+    if (listingTypeParam === "sale") return "Bất động sản Mua bán";
+    if (listingTypeParam === "rent") return "Bất động sản Cho thuê";
+    return "Bất động sản nổi bật mới nhất";
+  };
+
+  const getSectionSubtitle = () => {
+    if (isSearchActive)
+      return `Tìm thấy ${totalCount} kết quả phù hợp theo mô tả và tiêu chí của bạn`;
+    if (listingTypeParam === "sale")
+      return "Danh sách nhà đất, căn hộ đang mở bán được cập nhật liên tục";
+    if (listingTypeParam === "rent")
+      return "Danh sách nhà đất, căn hộ cho thuê giá tốt được cập nhật liên tục";
+    return "Danh sách bất động sản được cập nhật liên tục trên toàn quốc";
+  };
+
   return (
     <div className="space-y-12">
       {/* Hero & Semantic Search */}
@@ -90,25 +132,22 @@ export default function HomePage() {
           onSearch={handleSearch}
           isLoading={isLoading}
           totalResults={totalCount}
+          initialListingType={listingTypeParam || undefined}
         />
       </section>
 
       {/* Results Header */}
-      <section className="space-y-6">
+      <section id="map-view" className="space-y-6 scroll-mt-24">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
           <div>
             <div className="flex items-center gap-2">
               <Building className="h-5 w-5 text-blue-600" />
               <h2 className="text-xl font-bold text-slate-900">
-                {isSearchActive
-                  ? "Kết quả tìm kiếm thông minh"
-                  : "Bất động sản nổi bật mới nhất"}
+                {getSectionTitle()}
               </h2>
             </div>
             <p className="mt-1 text-xs text-slate-500">
-              {isSearchActive
-                ? `Tìm thấy ${totalCount} kết quả phù hợp theo mô tả và tiêu chí của bạn`
-                : "Danh sách bất động sản được cập nhật liên tục trên toàn quốc"}
+              {getSectionSubtitle()}
             </p>
           </div>
 
@@ -118,7 +157,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => setViewMode("grid")}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition ${
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
                   viewMode === "grid"
                     ? "bg-white text-blue-700 shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
@@ -131,7 +170,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => setViewMode("map")}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition ${
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer ${
                   viewMode === "map"
                     ? "bg-white text-blue-700 shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
@@ -145,8 +184,8 @@ export default function HomePage() {
             {isSearchActive && (
               <button
                 type="button"
-                onClick={loadInitialProperties}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-xs hover:bg-slate-50 transition"
+                onClick={() => loadInitialProperties(listingTypeParam)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-xs hover:bg-slate-50 transition cursor-pointer"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
                 <span>Đặt lại</span>
@@ -203,8 +242,8 @@ export default function HomePage() {
             </p>
             <button
               type="button"
-              onClick={loadInitialProperties}
-              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700"
+              onClick={() => loadInitialProperties(listingTypeParam)}
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 cursor-pointer"
             >
               Xem tất cả bài đăng
             </button>
@@ -239,5 +278,24 @@ export default function HomePage() {
         )}
       </section>
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-12 animate-pulse">
+          <div className="h-64 rounded-3xl bg-slate-200" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-80 rounded-2xl bg-slate-200" />
+            ))}
+          </div>
+        </div>
+      }
+    >
+      <HomePageContent />
+    </Suspense>
   );
 }

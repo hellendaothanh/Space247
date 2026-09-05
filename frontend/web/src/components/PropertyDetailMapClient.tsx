@@ -151,13 +151,18 @@ export default function PropertyDetailMapClient({
       setPois(res.pois);
       poiLayer.clearLayers();
 
-      const getCategoryEmoji = (cat: string) => {
+      const getCategoryIconSvg = (cat: string) => {
         switch (cat) {
-          case "school": return "🏫";
-          case "hospital": return "🏥";
-          case "metro": return "🚇";
-          case "supermarket": return "🛒";
-          default: return "📍";
+          case "school":
+            return `<svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>`;
+          case "hospital":
+            return `<svg class="w-3.5 h-3.5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 6v12M6 12h12"></path></svg>`;
+          case "metro":
+            return `<svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect width="16" height="16" x="4" y="3" rx="2"></rect><path d="M4 11h16M12 3v8m-4 8-2 3m10-3 2 3M8 15h.01M16 15h.01"></path></svg>`;
+          case "supermarket":
+            return `<svg class="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="8" cy="21" r="1"></circle><circle cx="19" cy="21" r="1"></circle><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"></path></svg>`;
+          default:
+            return `<svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>`;
         }
       };
 
@@ -165,8 +170,8 @@ export default function PropertyDetailMapClient({
         const icon = L.divIcon({
           className: "space247-poi-detail-pin",
           html: `
-            <div class="w-6 h-6 rounded-full bg-white shadow-md border border-slate-300 flex items-center justify-center text-xs cursor-pointer hover:scale-125 transition-transform">
-              ${getCategoryEmoji(poi.category)}
+            <div class="w-6 h-6 rounded-full bg-white shadow-md border border-slate-300 flex items-center justify-center cursor-pointer hover:scale-125 transition-transform">
+              ${getCategoryIconSvg(poi.category)}
             </div>
           `,
           iconSize: [24, 24],
@@ -182,7 +187,7 @@ export default function PropertyDetailMapClient({
           <div class="p-2 font-sans text-xs">
             <div class="font-bold text-slate-800">${escapeHtml(poi.name)}</div>
             ${distText ? `<div class="text-blue-600 font-semibold mt-0.5">Khoảng cách: ~${distText}</div>` : ""}
-            ${poi.address ? `<div class="text-slate-500 mt-1">📍 ${escapeHtml(poi.address)}</div>` : ""}
+            ${poi.address ? `<div class="text-slate-500 mt-1">${escapeHtml(poi.address)}</div>` : ""}
           </div>
         `);
         poiLayer.addLayer(marker);
