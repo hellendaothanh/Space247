@@ -320,11 +320,33 @@ export interface ChatAssistantRequest {
   limit?: number;
 }
 
+export interface LivingCostItem {
+  category: string;
+  unit_price: number;
+  quantity: number;
+  unit_label: string;
+  subtotal: number;
+  note?: string | null;
+}
+
+export interface LivingCostBreakdown {
+  room_price: number;
+  occupants: number;
+  electricity_kwh: number;
+  water_usage: number;
+  water_unit: string;
+  items: LivingCostItem[];
+  total_monthly_cost: number;
+  cost_per_person: number;
+  summary: string;
+}
+
 export interface ChatAssistantResponse {
   message: string;
   properties: PropertyResponse[];
   criteria?: ExtractedCriteria | null;
   suggestions: string[];
+  living_cost?: LivingCostBreakdown | null;
 }
 
 export interface ComparePropertiesRequest {
@@ -763,7 +785,7 @@ export interface RentalInquiryCreate {
   message?: string | null;
 }
 
-export interface LandlordDashboardStats {
+export interface HostDashboardStats {
   total_properties: number;
   total_units: number;
   available_units: number;
@@ -772,6 +794,129 @@ export interface LandlordDashboardStats {
   occupancy_rate: number;
   estimated_monthly_revenue: number;
   pending_inquiries_count: number;
+  unpaid_invoices_count: number;
+}
+
+export interface LandlordDashboardStats extends HostDashboardStats {}
+
+export interface RentalContract {
+  id: string;
+  unit_id: string;
+  property_id: string;
+  host_id: string;
+  tenant_id: string;
+  tenant_name: string;
+  tenant_phone: string;
+  start_date: string;
+  end_date?: string | null;
+  rental_price: number;
+  deposit_amount: number;
+  payment_cycle_months: number;
+  electricity_rate: number;
+  water_rate: number;
+  water_billing_type: string;
+  service_fee: number;
+  status: "active" | "expired" | "terminated";
+  created_at: string;
+  updated_at: string;
+  unit?: RentalUnit | null;
+}
+
+export interface RentalContractCreate {
+  unit_id: string;
+  tenant_id: string;
+  tenant_name: string;
+  tenant_phone: string;
+  start_date: string;
+  end_date?: string | null;
+  rental_price: number;
+  deposit_amount?: number;
+  payment_cycle_months?: number;
+  electricity_rate?: number;
+  water_rate?: number;
+  water_billing_type?: string;
+  service_fee?: number;
+}
+
+export interface MeterReadingInput {
+  contract_id: string;
+  electricity_previous: number;
+  electricity_current: number;
+  water_previous?: number | null;
+  water_current?: number | null;
+  notes?: string | null;
+}
+
+export interface GenerateInvoicesRequest {
+  billing_month: string;
+  readings: MeterReadingInput[];
+  due_days?: number;
+}
+
+export interface MonthlyInvoice {
+  id: string;
+  contract_id: string;
+  unit_id: string;
+  host_id: string;
+  tenant_id: string;
+  billing_month: string;
+  room_amount: number;
+  electricity_previous_index: number;
+  electricity_current_index: number;
+  electricity_rate: number;
+  electricity_amount: number;
+  water_previous_index?: number | null;
+  water_current_index?: number | null;
+  water_rate: number;
+  water_amount: number;
+  service_amount: number;
+  other_amount: number;
+  total_amount: number;
+  status: "pending" | "paid" | "overdue" | "cancelled";
+  due_date: string;
+  paid_at?: string | null;
+  notes?: string | null;
+  last_reminded_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  unit?: RentalUnit | null;
+  contract?: RentalContract | null;
+}
+
+export interface DebtReminderResponse {
+  invoice_id: string;
+  tenant_id: string;
+  tenant_name?: string | null;
+  tenant_phone?: string | null;
+  amount_due: number;
+  notification_sent: boolean;
+  message: string;
+}
+
+export interface DepositTransaction {
+  id: string;
+  unit_id: string;
+  inquiry_id?: string | null;
+  tenant_id: string;
+  host_id: string;
+  amount: number;
+  reference_code: string;
+  payment_method: string;
+  vietqr_url: string;
+  status: "pending" | "success" | "expired" | "failed";
+  expires_at: string;
+  paid_at?: string | null;
+  created_at: string;
+}
+
+export interface PaymentWebhookPayload {
+  provider?: string;
+  reference_code: string;
+  amount: number;
+  transaction_id?: string | null;
+  transaction_date?: string | null;
+  status?: string;
+  data?: Record<string, any> | null;
 }
 
 export interface RentalSearchFilterQuery {

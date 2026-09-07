@@ -20,12 +20,14 @@ import {
   Home,
   CheckCircle2,
   Bell,
+  Calculator,
+  Wallet,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { useComparison } from "@/lib/comparison";
 import { formatPrice, formatPropertyType, getPlaceholderImage } from "@/lib/utils";
 import { sanitizeUrl } from "@/utils/security";
-import type { ChatMessage, PropertyResponse, ExtractedCriteria } from "@shared/types";
+import type { ChatMessage, PropertyResponse, ExtractedCriteria, LivingCostBreakdown } from "@shared/types";
 
 interface DisplayMessage {
   id: string;
@@ -33,6 +35,7 @@ interface DisplayMessage {
   content: string;
   properties?: PropertyResponse[];
   criteria?: ExtractedCriteria | null;
+  living_cost?: LivingCostBreakdown | null;
   alertSaved?: boolean;
   suggestions?: string[];
   timestamp: Date;
@@ -205,6 +208,7 @@ export default function ChatAssistantWidget() {
         content: response.message,
         properties: response.properties,
         criteria: response.criteria,
+        living_cost: response.living_cost,
         suggestions: response.suggestions,
         timestamp: new Date(),
       };
@@ -351,6 +355,48 @@ export default function ChatAssistantWidget() {
                     >
                       <FormattedMessageText content={msg.content} isUser={msg.role === "user"} />
                     </div>
+
+                    {/* Living Cost Estimate Card */}
+                    {msg.living_cost && (
+                      <div className={`mt-3 w-full ${isExpanded ? "max-w-full" : "max-w-[96%]"} bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-3.5 shadow-xs`}>
+                        <div className="flex items-center justify-between pb-2 border-b border-blue-100">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
+                              <Calculator className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-bold text-slate-800">
+                                Bảng Ước tính Chi phí Sinh hoạt
+                              </h4>
+                              <span className="text-[11px] text-slate-500">
+                                Quy mô: {msg.living_cost.occupants} người
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs font-bold text-blue-700">
+                              {msg.living_cost.total_monthly_cost.toLocaleString("vi-VN")} đ/tháng
+                            </div>
+                            <div className="text-[10px] text-slate-500">
+                              ~{msg.living_cost.cost_per_person.toLocaleString("vi-VN")} đ/người
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-2.5 space-y-1.5">
+                          {msg.living_cost.items.map((item, idx) => (
+                            <div key={idx} className="flex items-center justify-between text-xs py-0.5">
+                              <span className="text-slate-600">
+                                {item.category} ({item.quantity} {item.unit_label})
+                              </span>
+                              <span className="font-semibold text-slate-900">
+                                {item.subtotal.toLocaleString("vi-VN")} đ
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Attached Mini Property Cards */}
                     {msg.properties && msg.properties.length > 0 && (

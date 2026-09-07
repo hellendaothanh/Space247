@@ -193,6 +193,140 @@ class LandlordDashboardStats(BaseModel):
     occupancy_rate: float = 0.0
     estimated_monthly_revenue: float = 0.0
     pending_inquiries_count: int = 0
+    unpaid_invoices_count: int = 0
+
+
+# Contracts
+class RentalContractCreate(BaseModel):
+    unit_id: uuid.UUID
+    tenant_id: uuid.UUID
+    tenant_name: str = Field(..., min_length=1, max_length=255)
+    tenant_phone: str = Field(..., min_length=1, max_length=50)
+    start_date: datetime
+    end_date: datetime | None = None
+    rental_price: float = Field(..., gt=0)
+    deposit_amount: float = Field(default=0.0, ge=0)
+    payment_cycle_months: int = Field(default=1, ge=1)
+    electricity_rate: float = Field(default=3500.0, ge=0)
+    water_rate: float = Field(default=20000.0, ge=0)
+    water_billing_type: str = Field(default="per_m3", description="'per_m3' or 'per_person'")
+    service_fee: float = Field(default=0.0, ge=0)
+
+
+class RentalContractResponse(BaseModel):
+    id: uuid.UUID
+    unit_id: uuid.UUID
+    property_id: uuid.UUID
+    host_id: uuid.UUID
+    tenant_id: uuid.UUID
+    tenant_name: str
+    tenant_phone: str
+    start_date: datetime
+    end_date: datetime | None = None
+    rental_price: float
+    deposit_amount: float
+    payment_cycle_months: int
+    electricity_rate: float
+    water_rate: float
+    water_billing_type: str
+    service_fee: float
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    unit: RentalUnitResponse | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# Monthly Invoices
+class MeterReadingInput(BaseModel):
+    contract_id: uuid.UUID
+    electricity_previous: float = Field(..., ge=0, description="Chỉ số điện kỳ trước")
+    electricity_current: float = Field(..., ge=0, description="Chỉ số điện kỳ này")
+    water_previous: float | None = Field(default=0.0, ge=0, description="Chỉ số nước kỳ trước")
+    water_current: float | None = Field(default=0.0, ge=0, description="Chỉ số nước kỳ này")
+    notes: str | None = None
+
+
+class GenerateInvoicesRequest(BaseModel):
+    billing_month: str = Field(..., description="Kỳ tính phí, định dạng YYYY-MM (VD: '2026-09')")
+    readings: list[MeterReadingInput] = Field(..., min_length=1, description="Danh sách chỉ số chốt điện nước")
+    due_days: int = Field(default=5, ge=1, le=30, description="Số ngày trước hạn thanh toán")
+
+
+class MonthlyInvoiceResponse(BaseModel):
+    id: uuid.UUID
+    contract_id: uuid.UUID
+    unit_id: uuid.UUID
+    host_id: uuid.UUID
+    tenant_id: uuid.UUID
+    billing_month: str
+    room_amount: float
+    electricity_previous_index: float
+    electricity_current_index: float
+    electricity_rate: float
+    electricity_amount: float
+    water_previous_index: float | None = None
+    water_current_index: float | None = None
+    water_rate: float
+    water_amount: float
+    service_amount: float
+    other_amount: float
+    total_amount: float
+    status: str
+    due_date: datetime
+    paid_at: datetime | None = None
+    notes: str | None = None
+    last_reminded_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+    unit: RentalUnitResponse | None = None
+    contract: RentalContractResponse | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DebtReminderResponse(BaseModel):
+    invoice_id: uuid.UUID
+    tenant_id: uuid.UUID
+    tenant_name: str | None = None
+    tenant_phone: str | None = None
+    amount_due: float
+    notification_sent: bool
+    message: str
+
+
+# Deposits & Payments
+class DepositApproveRequest(BaseModel):
+    deposit_amount: float | None = Field(default=None, gt=0, description="Tùy chọn số tiền đặt cọc tùy chỉnh")
+
+
+class DepositTransactionResponse(BaseModel):
+    id: uuid.UUID
+    unit_id: uuid.UUID
+    inquiry_id: uuid.UUID | None = None
+    tenant_id: uuid.UUID
+    host_id: uuid.UUID
+    amount: float
+    reference_code: str
+    payment_method: str
+    vietqr_url: str
+    status: str
+    expires_at: datetime
+    paid_at: datetime | None = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PaymentWebhookPayload(BaseModel):
+    provider: str = Field(default="vietqr", description="vietqr | momo | bank")
+    reference_code: str = Field(..., description="Mã tham chiếu / nội dung chuyển khoản")
+    amount: float = Field(..., gt=0, description="Số tiền thanh toán")
+    transaction_id: str | None = None
+    transaction_date: str | None = None
+    status: str = Field(default="success")
+    data: dict[str, Any] | None = None
 
 
 # Filter Query for Tenant Search

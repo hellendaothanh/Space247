@@ -66,9 +66,19 @@ async def chat_assistant(
         is_search=is_search,
     )
 
+    living_cost = None
+    try:
+        res_lc = chat_service.detect_and_calculate_living_cost(request.messages, properties)
+        from src.schemas.chat import LivingCostBreakdown
+        if isinstance(res_lc, LivingCostBreakdown):
+            living_cost = res_lc
+    except Exception:
+        living_cost = None
+
     return ChatAssistantResponse(
         message=message,
         properties=properties,
         criteria=criteria if is_search else None,
         suggestions=suggestions,
+        living_cost=living_cost,
     )

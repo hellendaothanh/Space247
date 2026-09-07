@@ -62,6 +62,14 @@ import {
   RentalInquiry,
   RentalInquiryCreate,
   LandlordDashboardStats,
+  HostDashboardStats,
+  RentalContract,
+  RentalContractCreate,
+  MonthlyInvoice,
+  GenerateInvoicesRequest,
+  DebtReminderResponse,
+  DepositTransaction,
+  PaymentWebhookPayload,
   RentalSearchFilterQuery,
 } from "./types";
 
@@ -671,6 +679,66 @@ export class RealEstateApiClient {
     return this.request<RentalInquiry>(`/api/v1/host/inquiries/${encodeURIComponent(inquiryId)}/status`, {
       method: "PATCH",
       body: JSON.stringify({ status }),
+    });
+  }
+
+  async getHostDashboardStats(): Promise<HostDashboardStats> {
+    return this.request<HostDashboardStats>("/api/v1/host/dashboard/stats", { method: "GET" });
+  }
+
+  async getHostContracts(unitId?: string, status?: string): Promise<RentalContract[]> {
+    const searchParams = new URLSearchParams();
+    if (unitId) searchParams.append("unit_id", unitId);
+    if (status) searchParams.append("status_filter", status);
+    const qs = searchParams.toString();
+    return this.request<RentalContract[]>(`/api/v1/host/contracts${qs ? `?${qs}` : ""}`, { method: "GET" });
+  }
+
+  async createRentalContract(data: RentalContractCreate): Promise<RentalContract> {
+    return this.request<RentalContract>("/api/v1/host/contracts", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getHostInvoices(billingMonth?: string, status?: string): Promise<MonthlyInvoice[]> {
+    const searchParams = new URLSearchParams();
+    if (billingMonth) searchParams.append("billing_month", billingMonth);
+    if (status) searchParams.append("status_filter", status);
+    const qs = searchParams.toString();
+    return this.request<MonthlyInvoice[]>(`/api/v1/host/invoices${qs ? `?${qs}` : ""}`, { method: "GET" });
+  }
+
+  async generateMonthlyInvoices(payload: GenerateInvoicesRequest): Promise<MonthlyInvoice[]> {
+    return this.request<MonthlyInvoice[]>("/api/v1/host/invoices/generate-monthly", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async sendInvoiceReminder(invoiceId: string): Promise<DebtReminderResponse> {
+    return this.request<DebtReminderResponse>(`/api/v1/host/invoices/${encodeURIComponent(invoiceId)}/remind`, {
+      method: "POST",
+    });
+  }
+
+  // Reservation Deposits & VietQR
+  async approveInquiryAndDeposit(inquiryId: string): Promise<DepositTransaction> {
+    return this.request<DepositTransaction>(`/api/v1/rentals/inquiries/${encodeURIComponent(inquiryId)}/approve-and-deposit`, {
+      method: "POST",
+    });
+  }
+
+  async getDepositTransactionStatus(referenceCode: string): Promise<DepositTransaction> {
+    return this.request<DepositTransaction>(`/api/v1/payments/deposit-transactions/${encodeURIComponent(referenceCode)}`, {
+      method: "GET",
+    });
+  }
+
+  async triggerPaymentWebhook(provider: string, payload: PaymentWebhookPayload): Promise<any> {
+    return this.request<any>(`/api/v1/payments/webhook/${encodeURIComponent(provider)}`, {
+      method: "POST",
+      body: JSON.stringify(payload),
     });
   }
 }

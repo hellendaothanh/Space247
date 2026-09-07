@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 import logging
 import uuid
 from geoalchemy2 import WKTElement
@@ -8,10 +9,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import get_current_host_user
 from src.core.database import get_db_session
-from src.models.rental_property import RentalInquiry, RentalProperty, RentalUnit
+from src.models.alert import UserNotification
+from src.models.rental_property import (
+    MonthlyInvoice,
+    RentalContract,
+    RentalInquiry,
+    RentalProperty,
+    RentalUnit,
+)
 from src.models.user import User
 from src.schemas.rental_management import (
+    DebtReminderResponse,
+    GenerateInvoicesRequest,
     LandlordDashboardStats,
+    MonthlyInvoiceResponse,
+    RentalContractCreate,
+    RentalContractResponse,
     RentalInquiryResponse,
     RentalInquiryStatusUpdate,
     RentalPropertyCreate,
@@ -79,6 +92,11 @@ def _populate_host_property_response(prop: RentalProperty) -> RentalPropertyResp
     response_model=LandlordDashboardStats,
     summary="Landlord dashboard statistics",
 )
+@router.get(
+    "/dashboard/stats",
+    response_model=LandlordDashboardStats,
+    summary="Landlord dashboard statistics (v2)",
+)
 async def get_landlord_stats(
     current_host: User = Depends(get_current_host_user),
     db: AsyncSession = Depends(get_db_session),
@@ -113,6 +131,13 @@ async def get_landlord_stats(
     )
     pending_inquiries = (await db.execute(inq_stmt)).scalar() or 0
 
+    # 4. Unpaid invoices count
+    unpaid_inv_stmt = (
+        select(func.count(MonthlyInvoice.id))
+        .where(MonthlyInvoice.host_id == current_host.id, MonthlyInvoice.status.in_(["pending", "overdue"]))
+    )
+    unpaid_invoices = (await db.execute(unpaid_inv_stmt)).scalar() or 0
+
     return LandlordDashboardStats(
         total_properties=total_props,
         total_units=total_units,
@@ -122,6 +147,7 @@ async def get_landlord_stats(
         occupancy_rate=occupancy_rate,
         estimated_monthly_revenue=est_revenue,
         pending_inquiries_count=pending_inquiries,
+        unpaid_invoices_count=unpaid_invoices,
     )
 
 
@@ -325,3 +351,309 @@ async def update_inquiry_status(
     await db.commit()
     await db.refresh(inquiry)
     return inquiry
+
+
+# ---------------------------------------------------------------------------
+# Rental Contracts Management
+# ---------------------------------------------------------------------------
+@router.get(
+    "/contracts",
+    response_model=list[RentalContractResponse],
+    summary="List rental contracts managed by current host",
+)
+async def list_host_contracts(
+    unit_id: uuid.UUID | None = Query(None, description="Lọc theo phòng"),
+    status_filter: str | None = Query(None, description="Lọc theo trạng thái hợp đồng (active, expired, terminated)"),
+    current_host: User = Depends(get_current_host_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> list[RentalContract]:
+    stmt = (
+        select(RentalContract)
+        .where(RentalContract.host_id == current_host.id)
+        .options(selectinload(RentalContract.unit))
+        .order_by(RentalContract.created_at.desc())
+    )
+    if unit_id:
+        stmt = stmt.where(RentalContract.unit_id == unit_id)
+    if status_filter:
+        stmt = stmt.where(RentalContract.status == status_filter)
+
+    res = await db.execute(stmt)
+    return list(res.scalars().all())
+
+
+@router.post(
+    "/contracts",
+    response_model=RentalContractResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new rental contract for a unit",
+)
+async def create_rental_contract(
+    contract_in: RentalContractCreate,
+    current_host: User = Depends(get_current_host_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> RentalContract:
+    unit_stmt = (
+        select(RentalUnit)
+        .where(RentalUnit.id == contract_in.unit_id)
+        .options(selectinload(RentalUnit.property))
+    )
+    unit_res = await db.execute(unit_stmt)
+    unit = unit_res.scalar_one_or_none()
+    if not unit:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy phòng")
+
+    if unit.property.host_id != current_host.id and current_host.role not in ("admin", "superadmin"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Bạn không có quyền quản lý phòng này")
+
+    if unit.status != RentalUnitStatus.AVAILABLE.value:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Phòng {unit.unit_number} hiện không ở trạng thái sẵn sàng để tạo hợp đồng mới (trạng thái: {unit.status})",
+        )
+
+    contract = RentalContract(
+        unit_id=unit.id,
+        property_id=unit.property_id,
+        host_id=unit.property.host_id,
+        tenant_id=contract_in.tenant_id,
+        tenant_name=contract_in.tenant_name,
+        tenant_phone=contract_in.tenant_phone,
+        start_date=contract_in.start_date,
+        end_date=contract_in.end_date,
+        rental_price=contract_in.rental_price,
+        deposit_amount=contract_in.deposit_amount,
+        payment_cycle_months=contract_in.payment_cycle_months,
+        electricity_rate=contract_in.electricity_rate,
+        water_rate=contract_in.water_rate,
+        water_billing_type=contract_in.water_billing_type,
+        service_fee=contract_in.service_fee,
+        status="active",
+    )
+    # Automatically mark unit as occupied
+    unit.status = RentalUnitStatus.OCCUPIED.value
+
+    db.add(contract)
+    await db.commit()
+
+    stmt = (
+        select(RentalContract)
+        .where(RentalContract.id == contract.id)
+        .options(selectinload(RentalContract.unit))
+    )
+    res = await db.execute(stmt)
+    return res.scalar_one()
+
+
+# ---------------------------------------------------------------------------
+# Invoices & Meter Readings
+# ---------------------------------------------------------------------------
+@router.get(
+    "/invoices",
+    response_model=list[MonthlyInvoiceResponse],
+    summary="List monthly utility and rental invoices",
+)
+async def list_host_invoices(
+    billing_month: str | None = Query(None, description="Lọc theo tháng (YYYY-MM)"),
+    status_filter: str | None = Query(None, alias="status", description="Lọc theo status: pending, paid, overdue, cancelled"),
+    current_host: User = Depends(get_current_host_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> list[MonthlyInvoice]:
+    stmt = (
+        select(MonthlyInvoice)
+        .where(MonthlyInvoice.host_id == current_host.id)
+        .options(selectinload(MonthlyInvoice.unit), selectinload(MonthlyInvoice.contract))
+        .order_by(MonthlyInvoice.created_at.desc())
+    )
+    if billing_month:
+        stmt = stmt.where(MonthlyInvoice.billing_month == billing_month)
+    if status_filter:
+        stmt = stmt.where(MonthlyInvoice.status == status_filter)
+
+    res = await db.execute(stmt)
+    return list(res.scalars().all())
+
+
+@router.post(
+    "/invoices/generate-monthly",
+    response_model=list[MonthlyInvoiceResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Batch generate monthly utility and rental invoices from meter readings",
+)
+async def generate_monthly_invoices(
+    payload: GenerateInvoicesRequest,
+    current_host: User = Depends(get_current_host_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> list[MonthlyInvoice]:
+    created_invoices: list[MonthlyInvoice] = []
+
+    for reading in payload.readings:
+        # Duplicate check: same contract & billing_month
+        dup_stmt = select(MonthlyInvoice).where(
+            MonthlyInvoice.contract_id == reading.contract_id,
+            MonthlyInvoice.billing_month == payload.billing_month,
+        )
+        dup_res = await db.execute(dup_stmt)
+        if dup_res.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Hóa đơn tháng {payload.billing_month} của hợp đồng này đã tồn tại",
+            )
+
+        stmt = (
+            select(RentalContract)
+            .where(RentalContract.id == reading.contract_id)
+            .options(selectinload(RentalContract.unit))
+        )
+        res = await db.execute(stmt)
+        contract = res.scalar_one_or_none()
+
+        if not contract or (contract.host_id != current_host.id and current_host.role not in ("admin", "superadmin")):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Không tìm thấy hợp đồng {reading.contract_id} hoặc bạn không có quyền thao tác",
+            )
+
+        if contract.status != "active":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Hợp đồng thuê phòng {contract.unit.unit_number if contract.unit else ''} hiện không còn hiệu lực ({contract.status})",
+            )
+
+        # Validation: current index >= previous index
+        if reading.electricity_current < reading.electricity_previous:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Chỉ số điện mới ({reading.electricity_current}) không được nhỏ hơn chỉ số cũ ({reading.electricity_previous}) "
+                    f"của phòng {contract.unit.unit_number if contract.unit else ''}"
+                ),
+            )
+
+        water_prev = reading.water_previous or 0.0
+        water_curr = reading.water_current or 0.0
+        if water_curr < water_prev:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Chỉ số nước mới ({water_curr}) không được nhỏ hơn chỉ số cũ ({water_prev}) "
+                    f"của phòng {contract.unit.unit_number if contract.unit else ''}"
+                ),
+            )
+
+        # Calculations
+        electricity_usage = reading.electricity_current - reading.electricity_previous
+        electricity_amount = electricity_usage * float(contract.electricity_rate)
+
+        if contract.water_billing_type == "per_person":
+            occupants = (contract.unit.max_occupants if contract.unit and contract.unit.max_occupants else 1)
+            water_amount = float(contract.water_rate) * occupants
+        else:
+            water_usage = max(0.0, water_curr - water_prev)
+            water_amount = water_usage * float(contract.water_rate)
+
+        room_amount = float(contract.rental_price)
+        service_amount = float(contract.service_fee or 0.0)
+        other_amount = 0.0
+        total_amount = room_amount + electricity_amount + water_amount + service_amount + other_amount
+
+        due_date = datetime.now(timezone.utc) + timedelta(days=payload.due_days)
+
+        invoice = MonthlyInvoice(
+            contract_id=contract.id,
+            unit_id=contract.unit_id,
+            host_id=contract.host_id,
+            tenant_id=contract.tenant_id,
+            billing_month=payload.billing_month,
+            room_amount=room_amount,
+            electricity_previous_index=reading.electricity_previous,
+            electricity_current_index=reading.electricity_current,
+            electricity_rate=float(contract.electricity_rate),
+            electricity_amount=electricity_amount,
+            water_previous_index=water_prev,
+            water_current_index=water_curr,
+            water_rate=float(contract.water_rate),
+            water_amount=water_amount,
+            service_amount=service_amount,
+            other_amount=other_amount,
+            total_amount=total_amount,
+            status="pending",
+            due_date=due_date,
+            notes=reading.notes,
+        )
+        db.add(invoice)
+        created_invoices.append(invoice)
+
+    await db.commit()
+
+    created_ids = [inv.id for inv in created_invoices]
+    fetch_stmt = (
+        select(MonthlyInvoice)
+        .where(MonthlyInvoice.id.in_(created_ids))
+        .options(selectinload(MonthlyInvoice.unit), selectinload(MonthlyInvoice.contract))
+        .order_by(MonthlyInvoice.created_at.asc())
+    )
+    result = await db.execute(fetch_stmt)
+    return list(result.scalars().all())
+
+
+@router.post(
+    "/invoices/{invoice_id}/remind",
+    response_model=DebtReminderResponse,
+    summary="Send in-app notification reminder for unpaid rent/utilities invoice",
+)
+async def send_invoice_reminder(
+    invoice_id: uuid.UUID,
+    current_host: User = Depends(get_current_host_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> DebtReminderResponse:
+    stmt = (
+        select(MonthlyInvoice)
+        .where(MonthlyInvoice.id == invoice_id)
+        .options(selectinload(MonthlyInvoice.contract), selectinload(MonthlyInvoice.unit))
+    )
+    res = await db.execute(stmt)
+    invoice = res.scalar_one_or_none()
+
+    if not invoice:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy hóa đơn")
+
+    if invoice.host_id != current_host.id and current_host.role not in ("admin", "superadmin"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Bạn không có quyền quản lý hóa đơn này")
+
+    if invoice.status not in ("pending", "overdue"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Chỉ có thể nhắc nợ hóa đơn chưa thanh toán hoặc quá hạn (trạng thái: {invoice.status})",
+        )
+
+    due_str = invoice.due_date.strftime("%d/%m/%Y")
+    unit_str = f"phòng {invoice.unit.unit_number}" if invoice.unit else "phòng của bạn"
+    reminder_title = f"Nhắc nợ tiền phòng tháng {invoice.billing_month}"
+    reminder_msg = (
+        f"Hóa đơn {unit_str} tháng {invoice.billing_month} với tổng số tiền {float(invoice.total_amount):,.0f} VND "
+        f"cần thanh toán trước ngày {due_str}. Vui lòng thanh toán sớm cho chủ nhà."
+    )
+
+    notif = UserNotification(
+        user_id=invoice.tenant_id,
+        title=reminder_title,
+        message=reminder_msg,
+        notification_type="invoice_reminder",
+    )
+    db.add(notif)
+    invoice.last_reminded_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    tenant_name = invoice.contract.tenant_name if invoice.contract else None
+    tenant_phone = invoice.contract.tenant_phone if invoice.contract else None
+
+    return DebtReminderResponse(
+        invoice_id=invoice.id,
+        tenant_id=invoice.tenant_id,
+        tenant_name=tenant_name,
+        tenant_phone=tenant_phone,
+        amount_due=float(invoice.total_amount),
+        notification_sent=True,
+        message=f"Đã gửi nhắc nợ thành công tới khách thuê qua thông báo ứng dụng.",
+    )

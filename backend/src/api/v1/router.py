@@ -10,6 +10,7 @@ from src.api.v1.endpoints import (
     health,
     host,
     notifications,
+    payments,
     projects,
     properties,
     rentals,
@@ -27,6 +28,7 @@ api_router.include_router(admin_users.router, prefix="/admin/users", tags=["admi
 api_router.include_router(properties.router, prefix="/properties", tags=["properties"])
 api_router.include_router(rentals.router, prefix="/rentals", tags=["rentals"])
 api_router.include_router(host.router, prefix="/host", tags=["host"])
+api_router.include_router(payments.router, prefix="/payments", tags=["payments"])
 api_router.include_router(projects.router, prefix="/projects", tags=["projects"])
 api_router.include_router(search.router, prefix="/search", tags=["search"])
 api_router.include_router(chat.router, prefix="/chat", tags=["chat"])

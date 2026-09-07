@@ -15,35 +15,53 @@ import {
   User,
   Phone,
   MessageSquare,
+  QrCode,
 } from "lucide-react";
-import type { RentalInquiry } from "@shared/types";
+import type { RentalInquiry, DepositTransaction } from "@shared/types";
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import DepositPaymentModal from "@/components/DepositPaymentModal";
 
 export default function MyRentalInquiriesPage() {
   const { user, token, isLoading: authLoading } = useAuth();
   const [inquiries, setInquiries] = useState<RentalInquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedDepositTx, setSelectedDepositTx] = useState<DepositTransaction | null>(null);
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [openingDepositId, setOpeningDepositId] = useState<string | null>(null);
+
+  async function fetchInquiries() {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await apiClient.getMyRentalInquiries();
+      setInquiries(res || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Không thể tải danh sách lịch hẹn");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleOpenDeposit = async (inquiryId: string) => {
+    setOpeningDepositId(inquiryId);
+    try {
+      const tx = await apiClient.approveInquiryAndDeposit(inquiryId);
+      setSelectedDepositTx(tx);
+      setIsDepositModalOpen(true);
+    } catch (e: any) {
+      alert(e.message || "Không thể tạo liên kết thanh toán đặt cọc");
+    } finally {
+      setOpeningDepositId(null);
+    }
+  };
 
   useEffect(() => {
-    async function fetchInquiries() {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      setError("");
-      try {
-        const res = await apiClient.getMyRentalInquiries();
-        setInquiries(res || []);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Không thể tải danh sách lịch hẹn");
-      } finally {
-        setLoading(false);
-      }
-    }
-
     if (!authLoading) {
       fetchInquiries();
     }
@@ -225,11 +243,39 @@ export default function MyRentalInquiriesPage() {
                     )}
                   </div>
                 </div>
+
+                {/* VietQR Deposit CTA for confirmed inquiries or booking requests */}
+                {(inq.status === "confirmed" || inq.inquiry_type === "booking_request") && (
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-xs text-slate-500">
+                      Chủ nhà đã duyệt yêu cầu. Bạn có thể tiến hành đặt cọc giữ chỗ qua VietQR.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDeposit(inq.id)}
+                      disabled={openingDepositId === inq.id}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition cursor-pointer disabled:opacity-50"
+                    >
+                      <QrCode className="w-4 h-4" />
+                      {openingDepositId === inq.id ? "Đang tạo mã..." : "Thanh toán cọc VietQR"}
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       )}
+
+      {/* VietQR Real-time Payment Modal */}
+      <DepositPaymentModal
+        isOpen={isDepositModalOpen}
+        onClose={() => setIsDepositModalOpen(false)}
+        transaction={selectedDepositTx}
+        onPaymentSuccess={() => {
+          fetchInquiries();
+        }}
+      />
     </main>
   );
 }

@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any
 import uuid
@@ -6,11 +7,13 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.deps import get_current_active_user, get_optional_current_user
+from src.api.deps import get_current_active_user, get_current_host_user, get_optional_current_user
 from src.core.database import get_db_session
-from src.models.rental_property import RentalInquiry, RentalProperty, RentalUnit
+from src.models.rental_property import DepositTransaction, RentalInquiry, RentalProperty, RentalUnit
 from src.models.user import User
 from src.schemas.rental_management import (
+    DepositApproveRequest,
+    DepositTransactionResponse,
     RentalInquiryCreate,
     RentalInquiryResponse,
     RentalPropertyModel,
@@ -20,6 +23,7 @@ from src.schemas.rental_management import (
     RentalUnitResponse,
     RentalUnitStatus,
 )
+from src.services.payment_service import PaymentService
 
 logger = logging.getLogger("space247_backend.rentals")
 router = APIRouter()
@@ -233,3 +237,69 @@ async def inquire_unit(
     await db.commit()
     await db.refresh(inquiry)
     return inquiry
+
+
+@router.post(
+    "/inquiries/{inquiry_id}/approve-and-deposit",
+    response_model=DepositTransactionResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Approve booking inquiry and generate 15-minute VietQR deposit checkout link",
+)
+async def approve_inquiry_and_deposit(
+    inquiry_id: uuid.UUID,
+    payload: DepositApproveRequest | None = None,
+    current_host: User = Depends(get_current_host_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> DepositTransaction:
+    stmt = (
+        select(RentalInquiry)
+        .where(RentalInquiry.id == inquiry_id)
+        .options(selectinload(RentalInquiry.unit).selectinload(RentalUnit.property))
+    )
+    res = await db.execute(stmt)
+    inquiry = res.scalar_one_or_none()
+
+    if not inquiry:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy yêu cầu thuê phòng")
+
+    unit = inquiry.unit
+    if not unit or not unit.property:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy thông tin phòng liên quan")
+
+    if unit.property.host_id != current_host.id and current_host.role not in ("admin", "superadmin"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Bạn không có quyền quản lý phòng này")
+
+    if unit.status in (RentalUnitStatus.OCCUPIED.value, RentalUnitStatus.RESERVED.value):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Phòng này hiện đã có người thuê hoặc đã được đặt cọc giữ chỗ",
+        )
+
+    if payload and payload.deposit_amount and payload.deposit_amount > 0:
+        deposit_amount = float(payload.deposit_amount)
+    else:
+        deposit_amount = float(
+            unit.deposit if unit.deposit and unit.deposit > 0 else (unit.price if unit.price and unit.price > 0 else 1_000_000)
+        )
+    ref_code = PaymentService.generate_reference_code()
+    vietqr_url = PaymentService.generate_vietqr_url(reference_code=ref_code, amount=deposit_amount)
+
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(minutes=15)
+
+    tx = DepositTransaction(
+        unit_id=unit.id,
+        inquiry_id=inquiry.id,
+        tenant_id=inquiry.tenant_id,
+        host_id=unit.property.host_id,
+        amount=deposit_amount,
+        reference_code=ref_code,
+        payment_method="vietqr",
+        vietqr_url=vietqr_url,
+        status="pending",
+        expires_at=expires_at,
+    )
+    db.add(tx)
+    await db.commit()
+    await db.refresh(tx)
+    return tx

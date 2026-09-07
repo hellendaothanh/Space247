@@ -964,3 +964,159 @@ Quyền truy cập: Yêu cầu tài khoản có vai trò `host`, `agent`, `admin
   }
   ```
 
+---
+
+### 2.8. Module Quản Lý Hợp Đồng & Thu Phí Điện Nước Chủ Nhà (`/host`)
+
+#### 1. Thống kê KPI kênh chủ nhà
+- **Endpoint**: `GET /api/v1/host/dashboard/stats`
+- **Xác thực**: Bắt buộc (Host / Agent / Admin)
+- **Response (`HostDashboardStats` - HTTP 200)**:
+  ```json
+  {
+    "total_properties": 2,
+    "total_units": 10,
+    "occupied_units": 8,
+    "occupancy_rate": 80.0,
+    "estimated_monthly_revenue": 33600000.0,
+    "pending_inquiries_count": 3,
+    "unpaid_invoices_count": 2
+  }
+  ```
+
+#### 2. Danh sách hợp đồng thuê
+- **Endpoint**: `GET /api/v1/host/contracts`
+- **Xác thực**: Bắt buộc
+- **Query Parameters**: `status` ("active" | "expired" | "terminated")
+- **Response**: Mảng `RentalContractResponse`
+
+#### 3. Tạo hợp đồng thuê mới
+- **Endpoint**: `POST /api/v1/host/contracts`
+- **Xác thực**: Bắt buộc
+- **Request Body (`RentalContractCreate`)**:
+  ```json
+  {
+    "unit_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+    "tenant_id": "c1f7a08b-7032-4d29-a78b-0c6778f658ba",
+    "tenant_name": "Trần Thị B",
+    "tenant_phone": "0987654321",
+    "start_date": "2026-09-01",
+    "end_date": "2027-09-01",
+    "rental_price": 4200000,
+    "deposit_amount": 4200000,
+    "payment_cycle_months": 1,
+    "electricity_rate": 3500,
+    "water_rate": 20000,
+    "water_billing_type": "per_m3",
+    "service_fee": 150000
+  }
+  ```
+- **Response**: `RentalContractResponse` (HTTP 201). Cập nhật phòng liên kết sang trạng thái `occupied`.
+
+#### 4. Danh sách hóa đơn điện nước hàng tháng
+- **Endpoint**: `GET /api/v1/host/invoices`
+- **Xác thực**: Bắt buộc
+- **Query Parameters**: `status` ("pending" | "paid" | "overdue"), `billing_month` (YYYY-MM)
+- **Response**: Mảng `MonthlyInvoiceResponse`
+
+#### 5. Nhập chỉ số đồng hồ & phát hành hóa đơn tháng tự động
+- **Endpoint**: `POST /api/v1/host/invoices/generate-monthly`
+- **Xác thực**: Bắt buộc
+- **Request Body (`GenerateInvoicesRequest`)**:
+  ```json
+  {
+    "billing_month": "2026-09",
+    "due_days": 5,
+    "readings": [
+      {
+        "contract_id": "18f45ea3-909f-4310-a29d-ee13662a8436",
+        "electricity_previous": 120,
+        "electricity_current": 210,
+        "water_previous": 15,
+        "water_current": 22,
+        "notes": "Chỉ số chốt ngày 05/09"
+      }
+    ]
+  }
+  ```
+- **Tính toán nghiệp vụ**:
+  - Điện: `(210 - 120) * 3500 = 315,000 đ`
+  - Nước: `(22 - 15) * 20,000 = 140,000 đ`
+  - Tiền phòng: `4,200,000 đ` + Dịch vụ `150,000 đ`
+  - Tổng hóa đơn: `4,805,000 đ`
+- **Response**: Mảng `MonthlyInvoiceResponse` (HTTP 201)
+
+#### 6. Gửi thông báo nhắc nợ hóa đơn
+- **Endpoint**: `POST /api/v1/host/invoices/{invoice_id}/remind`
+- **Xác thực**: Bắt buộc
+- **Response (`DebtReminderResponse`)**:
+  ```json
+  {
+    "invoice_id": "...",
+    "tenant_id": "...",
+    "tenant_name": "Trần Thị B",
+    "tenant_phone": "0987654321",
+    "amount_due": 4805000.0,
+    "notification_sent": true,
+    "message": "Đã gửi thông báo nhắc nợ hóa đơn tháng 2026-09 tới khách thuê Trần Thị B"
+  }
+  ```
+
+---
+
+### 2.9. Module Đặt Cọc & Cổng Thanh Toán VietQR (`/rentals` & `/payments`)
+
+#### 1. Duyệt yêu cầu thuê & sinh link cọc VietQR
+- **Endpoint**: `POST /api/v1/rentals/inquiries/{inquiry_id}/approve-and-deposit`
+- **Xác thực**: Bắt buộc (Host sở hữu phòng)
+- **Request Body**:
+  ```json
+  {
+    "deposit_amount": 2000000
+  }
+  ```
+- **Response (`DepositTransactionResponse`)**:
+  ```json
+  {
+    "id": "...",
+    "unit_id": "...",
+    "inquiry_id": "...",
+    "tenant_id": "...",
+    "host_id": "...",
+    "amount": 2000000.0,
+    "reference_code": "DEPABC123XYZ",
+    "payment_method": "vietqr",
+    "vietqr_url": "https://img.vietqr.io/image/970422-0987654321-compact2.png?amount=2000000&addInfo=DEPABC123XYZ&accountName=SPACE247",
+    "status": "pending",
+    "expires_at": "2026-09-07T15:15:00Z",
+    "created_at": "2026-09-07T15:00:00Z"
+  }
+  ```
+
+#### 2. Kiểm tra trạng thái giao dịch đặt cọc
+- **Endpoint**: `GET /api/v1/payments/deposit-transactions/{reference_code}`
+- **Xác thực**: Không yêu cầu (Hỗ trợ polling thời gian thực từ modal web / màn hình mobile)
+- **Response**: `DepositTransactionResponse` (tự động chuyển trạng thái `expired` nếu quá 15 phút chưa thanh toán).
+
+#### 3. Webhook thanh toán tự động (VietQR / Napas 247)
+- **Endpoint**: `POST /api/v1/payments/webhook/{provider}`
+- **Xác thực**: Webhook Secret / Signature
+- **Request Body (`PaymentWebhookPayload`)**:
+  ```json
+  {
+    "provider": "vietqr",
+    "reference_code": "DEPABC123XYZ",
+    "amount": 2000000,
+    "transaction_id": "MB123456789",
+    "transaction_date": "2026-09-07T15:05:00Z",
+    "status": "PAID"
+  }
+  ```
+- **Xử lý nghiệp vụ**:
+  1. Chuyển `deposit_transaction.status` -> `"success"`
+  2. Cập nhật `rental_unit.status` -> `"reserved"`
+  3. Cập nhật `rental_inquiry.status` -> `"confirmed"`
+  4. Gửi `user_notifications` xác nhận tức thì cho cả khách thuê và chủ nhà
+  5. Đảm bảo Idempotency (gọi lặp lại vẫn trả về HTTP 200 an toàn)
+
+

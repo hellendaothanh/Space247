@@ -335,3 +335,10 @@ criteria. Switching a listing to sale clears its rental-only metadata.
 See [API contract](docs/api-specs.md#rental-and-serviced-apartment-metadata) and
 [database design](docs/database-design.md#rental-and-serviced-apartment-metadata)
 for field units, request examples, and migration 0008 review instructions.
+
+### Host Management, VietQR Reservation Deposits & AI Living Cost Estimator
+
+- **Kênh Quản Lý Chủ Nhà (Host Dashboard)**: Bảng điều khiển trực quan tại `/host/dashboard` (Next.js) và `HostManagementScreen` (Flutter Mobile) hiển thị các chỉ số KPI vận hành trọng yếu (tỷ lệ lấp đầy, doanh thu dự kiến tháng, số hóa đơn chưa thu, yêu cầu thuê chờ duyệt).
+- **Chốt Số Điện Nước & Phát Hành Hóa Đơn Tháng**: Hệ thống ghi nhận chỉ số cũ/mới của đồng hồ điện (kWh) và đồng hồ nước (m³ hoặc khoán), tự động tính toán tổng hóa đơn theo đơn giá hợp đồng và hỗ trợ tính năng 1-Click "Gửi nhắc nợ" qua thông báo in-app tới khách thuê.
+- **Đặt Cọc Giữ Chỗ Tự Động Qua VietQR (Napas 247 QuickLink)**: Khi chủ nhà duyệt yêu cầu thuê, hệ thống tạo giao dịch đặt cọc với mã thanh toán VietQR tự động kèm mã tham chiếu độc nhất và thời hạn hiệu lực 15 phút. Webhook thanh toán tự động cập nhật trạng thái phòng sang `reserved`, xác nhận yêu cầu thuê và thông báo tức thì cho hai bên.
+- **Công Cụ AI Ước Tính Chi Phí Sinh Hoạt Hàng Tháng**: Tích hợp trực tiếp vào Chat Assistant (`ChatAssistantService`), tự động bóc tách quy mô người ở, tiền phòng và đơn giá điện nước để xuất bảng dự toán chi phí sinh hoạt chi tiết theo đầu người và hiển thị thẻ trực quan trong khung chat.

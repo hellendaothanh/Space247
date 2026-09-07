@@ -21,6 +21,12 @@ erDiagram
     users ||--o{ user_notifications : "nhận thông báo (1:N)"
     saved_search_alerts ||--o{ user_notifications : "kích hoạt (1:N)"
     properties ||--o{ user_notifications : "bất động sản khớp (1:N)"
+    users ||--o{ rental_contracts : "chủ nhà tạo (1:N)"
+    users ||--o{ rental_contracts : "khách thuê ký (1:N)"
+    rental_units ||--o{ rental_contracts : "hợp đồng phòng (1:N)"
+    rental_contracts ||--o{ monthly_invoices : "phát sinh hóa đơn (1:N)"
+    users ||--o{ deposit_transactions : "thanh toán cọc (1:N)"
+    rental_units ||--o{ deposit_transactions : "giữ chỗ phòng (1:N)"
 
     projects {
         uuid id PK "Indexed"
@@ -463,4 +469,80 @@ Hệ thống bổ sung cấu trúc quan hệ phân cấp 1-nhiều rõ ràng gi�
 - `scheduled_time`: Thời gian khách mong muốn đến xem phòng hoặc nhận phòng.
 - `message`: Lời nhắn hoặc yêu cầu thêm từ khách thuê.
 - `status`: Quy trình xử lý yêu cầu (`"pending"` -> `"confirmed"` | `"rejected"` -> `"completed"`).
+
+---
+
+## 4. Phân Hệ Quản Lý Hợp Đồng, Hóa Đơn Điện Nước & Đặt Cọc VietQR (Migration 0010)
+
+Hệ thống bổ sung chu trình hoàn chỉnh từ lúc khách đặt cọc giữ chỗ tới khi vào ở, chốt số điện nước và thanh toán định kỳ hàng tháng:
+
+### 4.1. Bảng `rental_contracts` (Hợp đồng Thuê Nhà/Phòng)
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả |
+|---|---|---|---|
+| `id` | `UUID` | Primary Key | Mã định danh hợp đồng |
+| `unit_id` | `UUID` | FK (`rental_units.id`), CASCADE, Indexed | Phòng thuê |
+| `property_id` | `UUID` | FK (`rental_properties.id`), CASCADE, Indexed | Khu trọ / Tòa nhà |
+| `host_id` | `UUID` | FK (`users.id`), CASCADE, Indexed | Chủ nhà / Ban quản lý |
+| `tenant_id` | `UUID` | FK (`users.id`), CASCADE, Indexed | Khách thuê phòng |
+| `tenant_name` | `VARCHAR(255)` | NOT NULL | Họ và tên người thuê |
+| `tenant_phone` | `VARCHAR(50)` | NOT NULL | Số điện thoại liên hệ |
+| `start_date` | `DATE` | NOT NULL | Ngày bắt đầu tính tiền thuê |
+| `end_date` | `DATE` | NULL | Ngày kết thúc hợp đồng dự kiến |
+| `rental_price` | `NUMERIC(15, 2)` | NOT NULL | Tiền thuê phòng hàng tháng (VND) |
+| `deposit_amount` | `NUMERIC(15, 2)` | NOT NULL, Default `0` | Tiền cọc hợp đồng |
+| `payment_cycle_months` | `INTEGER` | NOT NULL, Default `1` | Chu kỳ đóng tiền (1, 3, 6, 12 tháng) |
+| `electricity_rate` | `NUMERIC(15, 2)` | NOT NULL, Default `3500` | Đơn giá điện (đ/kWh) |
+| `water_rate` | `NUMERIC(15, 2)` | NOT NULL, Default `20000` | Đơn giá nước (đ/m³ hoặc đ/người) |
+| `water_billing_type` | `VARCHAR(50)` | NOT NULL, Default `'per_m3'` | Phân loại tính nước (`per_m3`, `fixed_per_person`) |
+| `service_fee` | `NUMERIC(15, 2)` | NOT NULL, Default `0` | Phí dịch vụ cố định hàng tháng |
+| `status` | `VARCHAR(50)` | NOT NULL, Default `'active'` | Trạng thái: `active`, `expired`, `terminated` |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL, Default `NOW()` | Thời gian tạo hợp đồng |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL, Default `NOW()` | Thời gian cập nhật hợp đồng |
+
+### 4.2. Bảng `monthly_invoices` (Hóa Đơn Thu Phí & Tiền Điện Nước Hàng Tháng)
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả |
+|---|---|---|---|
+| `id` | `UUID` | Primary Key | Mã định danh hóa đơn |
+| `contract_id` | `UUID` | FK (`rental_contracts.id`), CASCADE, Indexed | Hợp đồng phát sinh hóa đơn |
+| `unit_id` | `UUID` | FK (`rental_units.id`), CASCADE, Indexed | Phòng trọ |
+| `host_id` | `UUID` | FK (`users.id`), CASCADE, Indexed | Chủ nhà nhận thanh toán |
+| `tenant_id` | `UUID` | FK (`users.id`), CASCADE, Indexed | Khách thuê thanh toán |
+| `billing_month` | `VARCHAR(7)` | NOT NULL, Indexed | Tháng tính phí định dạng `YYYY-MM` |
+| `room_amount` | `NUMERIC(15, 2)` | NOT NULL | Tiền phòng tháng này |
+| `electricity_previous_index` | `NUMERIC(10, 2)` | NOT NULL | Chỉ số điện đồng hồ cũ |
+| `electricity_current_index` | `NUMERIC(10, 2)` | NOT NULL | Chỉ số điện đồng hồ mới |
+| `electricity_rate` | `NUMERIC(15, 2)` | NOT NULL | Đơn giá điện áp dụng |
+| `electricity_amount` | `NUMERIC(15, 2)` | NOT NULL | Thành tiền điện tính được |
+| `water_previous_index` | `NUMERIC(10, 2)` | NULL | Chỉ số nước cũ (nếu có) |
+| `water_current_index` | `NUMERIC(10, 2)` | NULL | Chỉ số nước mới (nếu có) |
+| `water_rate` | `NUMERIC(15, 2)` | NOT NULL | Đơn giá nước |
+| `water_amount` | `NUMERIC(15, 2)` | NOT NULL | Thành tiền nước |
+| `service_amount` | `NUMERIC(15, 2)` | NOT NULL, Default `0` | Tiền dịch vụ chung |
+| `other_amount` | `NUMERIC(15, 2)` | NOT NULL, Default `0` | Phụ thu phát sinh |
+| `total_amount` | `NUMERIC(15, 2)` | NOT NULL | Tổng số tiền phải nộp |
+| `status` | `VARCHAR(50)` | NOT NULL, Default `'pending'` | Trạng thái: `pending`, `paid`, `overdue`, `cancelled` |
+| `due_date` | `DATE` | NOT NULL | Hạn chót đóng tiền |
+| `paid_at` | `TIMESTAMPTZ` | NULL | Thời điểm khách thanh toán |
+| `notes` | `TEXT` | NULL | Ghi chú thêm |
+| `last_reminded_at` | `TIMESTAMPTZ` | NULL | Lần cuối chủ nhà gửi thông báo nhắc nợ |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL, Default `NOW()` | Thời gian tạo hóa đơn |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL, Default `NOW()` | Thời gian cập nhật |
+
+### 4.3. Bảng `deposit_transactions` (Giao Dịch Đặt Cọc Giữ Chỗ VietQR)
+| Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả |
+|---|---|---|---|
+| `id` | `UUID` | Primary Key | Mã định danh giao dịch |
+| `unit_id` | `UUID` | FK (`rental_units.id`), CASCADE, Indexed | Phòng đặt cọc |
+| `inquiry_id` | `UUID` | FK (`rental_inquiries.id`), SET NULL, Indexed | Yêu cầu thuê liên kết |
+| `tenant_id` | `UUID` | FK (`users.id`), CASCADE, Indexed | Khách thuê nộp cọc |
+| `host_id` | `UUID` | FK (`users.id`), CASCADE, Indexed | Chủ nhà thụ hưởng |
+| `amount` | `NUMERIC(15, 2)` | NOT NULL | Số tiền đặt cọc |
+| `reference_code` | `VARCHAR(50)` | NOT NULL, UNIQUE, Indexed | Mã tham chiếu duy nhất (VD: `DEP...`) |
+| `payment_method` | `VARCHAR(50)` | NOT NULL, Default `'vietqr'` | Phương thức thanh toán |
+| `vietqr_url` | `TEXT` | NOT NULL | Link ảnh VietQR Napas 247 QuickLink |
+| `status` | `VARCHAR(50)` | NOT NULL, Default `'pending'`, Indexed | Trạng thái: `pending`, `success`, `expired`, `failed` |
+| `expires_at` | `TIMESTAMPTZ` | NOT NULL, Indexed | Thời điểm hết hạn hiệu lực giao dịch (15 phút) |
+| `paid_at` | `TIMESTAMPTZ` | NULL | Thời điểm thanh toán thành công |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL, Default `NOW()` | Thời gian tạo giao dịch |
+
 

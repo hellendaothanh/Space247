@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/property_service.dart';
+import '../services/host_service.dart';
 import '../models/user.dart';
 import '../models/property.dart';
 import '../models/search_result.dart';
@@ -20,6 +21,11 @@ final authServiceProvider = Provider<AuthService>((ref) {
 final propertyServiceProvider = Provider<PropertyService>((ref) {
   final apiClient = ref.watch(apiClientProvider);
   return PropertyService(apiClient);
+});
+
+final hostServiceProvider = Provider<HostService>((ref) {
+  final apiClient = ref.watch(apiClientProvider);
+  return HostService(apiClient);
 });
 
 // Auth State Provider using Notifier

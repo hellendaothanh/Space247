@@ -8,7 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.models.property import Property
-from src.schemas.chat import ChatMessage, ChatRole, ExtractedCriteria
+from src.schemas.chat import (
+    ChatMessage,
+    ChatRole,
+    ExtractedCriteria,
+    LivingCostBreakdown,
+    LivingCostItem,
+)
 from src.schemas.property import (
     ListingType,
     PropertyResponse,
@@ -67,6 +73,8 @@ class ChatAssistantService:
             "nội thất", "hà nội", "hồ chí minh", "đà nẵng", "quận 1", "bình thạnh",
             "vay", "lãi suất", "trả góp", "mỗi tháng trả", "ngân hàng",
             "dự án", "chủ đầu tư", "master plan", "khu đô thị", "tiện ích dự án",
+            "chi phí", "sinh hoạt", "tiền điện", "tiền nước", "mỗi tháng hết", "mỗi tháng tốn",
+            "tổng chi phí", "người ở", "kwh", "bao nhiêu tiền",
         ]
         has_search_keywords = any(kw in lower_text for kw in re_keywords)
 
@@ -455,6 +463,189 @@ class ChatAssistantService:
         fused.sort(key=lambda x: x[0], reverse=True)
         return [PropertyResponse.model_validate(p) for _, p in fused[:limit]]
 
+    @classmethod
+    def calculate_total_living_cost(
+        cls,
+        occupants: int = 2,
+        room_price: float = 3_500_000.0,
+        electricity_kwh: float = 150.0,
+        water_usage: float = 2.0,
+        property_costs: dict | None = None,
+    ) -> LivingCostBreakdown:
+        """
+        Calculate complete monthly living expense breakdown for prospective tenants.
+        Incorporates property specific shared_costs or falls back to standard city rates.
+        """
+        costs = property_costs or {}
+
+        # 1. Room fee
+        room_item = LivingCostItem(
+            category="Tiền phòng",
+            unit_price=room_price,
+            quantity=1.0,
+            unit_label="tháng",
+            subtotal=room_price,
+            note="Giá thuê cơ sở",
+        )
+
+        # 2. Electricity
+        elec_rate = float(costs.get("electricity_per_kwh") or 3500.0)
+        elec_subtotal = electricity_kwh * elec_rate
+        elec_item = LivingCostItem(
+            category="Tiền điện",
+            unit_price=elec_rate,
+            quantity=electricity_kwh,
+            unit_label="kWh",
+            subtotal=elec_subtotal,
+            note=f"Định mức ước tính {electricity_kwh:.0f} kWh/tháng",
+        )
+
+        # 3. Water
+        water_unit = str(costs.get("water_unit") or "m3")
+        water_cost_rate = float(costs.get("water_cost") or (25000.0 if water_unit == "m3" else 100000.0))
+        if water_unit == "per_person":
+            water_qty = float(occupants)
+            water_subtotal = water_qty * water_cost_rate
+            water_label = "người"
+        else:
+            water_qty = water_usage
+            water_subtotal = water_qty * water_cost_rate
+            water_label = "m³"
+
+        water_item = LivingCostItem(
+            category="Tiền nước",
+            unit_price=water_cost_rate,
+            quantity=water_qty,
+            unit_label=water_label,
+            subtotal=water_subtotal,
+            note=f"Tính theo {water_label}",
+        )
+
+        # 4. Service / Internet / Sanitation
+        service_fee = float(costs.get("service_fee_monthly") or costs.get("wifi_fee") or 150000.0)
+        service_item = LivingCostItem(
+            category="Phí dịch vụ & Internet",
+            unit_price=service_fee,
+            quantity=1.0,
+            unit_label="tháng",
+            subtotal=service_fee,
+            note="Wifi, vệ sinh, bảo trì chung",
+        )
+
+        # 5. Parking (optional estimate)
+        parking_per_bike = float(costs.get("parking_fee_monthly") or 120000.0)
+        parking_bikes = float(occupants)
+        parking_subtotal = parking_bikes * parking_per_bike
+        parking_item = LivingCostItem(
+            category="Gửi xe",
+            unit_price=parking_per_bike,
+            quantity=parking_bikes,
+            unit_label="xe",
+            subtotal=parking_subtotal,
+            note=f"{occupants} xe máy",
+        )
+
+        items = [room_item, elec_item, water_item, service_item, parking_item]
+        total_monthly_cost = sum(it.subtotal for it in items)
+        cost_per_person = total_monthly_cost / occupants if occupants > 0 else total_monthly_cost
+
+        summary_lines = [
+            f"| Khoản mục | Đơn giá | Số lượng | Thành tiền |",
+            f"| :--- | :--- | :--- | :--- |",
+            f"| 🏠 Tiền phòng | {room_price:,.0f} đ/tháng | 1 tháng | **{room_price:,.0f} đ** |",
+            f"| ⚡ Tiền điện | {elec_rate:,.0f} đ/kWh | {electricity_kwh:.0f} kWh | **{elec_subtotal:,.0f} đ** |",
+            f"| 💧 Tiền nước | {water_cost_rate:,.0f} đ/{water_label} | {water_qty:.1f} {water_label} | **{water_subtotal:,.0f} đ** |",
+            f"| 📶 Dịch vụ & Wifi | {service_fee:,.0f} đ/tháng | 1 gói | **{service_fee:,.0f} đ** |",
+            f"| 🛵 Gửi xe | {parking_per_bike:,.0f} đ/xe | {parking_bikes:.0f} xe | **{parking_subtotal:,.0f} đ** |",
+            f"| **TỔNG CỘNG** | | | **{total_monthly_cost:,.0f} đ/tháng** |",
+            f"| **BÌNH QUÂN** | Cho {occupants} người | | **{cost_per_person:,.0f} đ/người/tháng** |",
+        ]
+
+        return LivingCostBreakdown(
+            room_price=room_price,
+            occupants=occupants,
+            electricity_kwh=electricity_kwh,
+            water_usage=water_qty,
+            water_unit=water_unit,
+            items=items,
+            total_monthly_cost=total_monthly_cost,
+            cost_per_person=cost_per_person,
+            summary="\n".join(summary_lines),
+        )
+
+    @classmethod
+    def detect_and_calculate_living_cost(
+        cls,
+        messages: list[ChatMessage],
+        properties: list[PropertyResponse] | None = None,
+    ) -> LivingCostBreakdown | None:
+        """
+        Scan messages for living cost queries and extract parameters (occupants, kWh, price).
+        """
+        if not messages:
+            return None
+
+        combined_text = " ".join([m.content for m in messages if m.role in ("user", ChatRole.USER.value)]).lower()
+        living_indicators = ["chi phí", "sinh hoạt", "mỗi tháng hết", "mỗi tháng tốn", "tổng chi phí", "tiền điện", "tiền nước", "người ở", "hết bao nhiêu tiền", "hết bao nhiêu"]
+        if not any(ind in combined_text for ind in living_indicators):
+            return None
+
+        # 1. Extract occupants
+        occupants = 2
+        occ_match = re.search(r"(\d+)\s*(?:người|bạn|thành viên|khách|ng)", combined_text)
+        if occ_match:
+            try:
+                val = int(occ_match.group(1))
+                if 1 <= val <= 20:
+                    occupants = val
+            except (ValueError, TypeError):
+                pass
+
+        # 2. Extract electricity usage
+        electricity_kwh = 150.0
+        elec_match = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:kwh|kw|số điện|ký điện)", combined_text)
+        if elec_match:
+            try:
+                electricity_kwh = float(elec_match.group(1).replace(",", "."))
+            except (ValueError, TypeError):
+                pass
+
+        # 3. Extract water usage
+        water_usage = 2.0 * occupants
+        water_match = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:m3|khối|khối nước)", combined_text)
+        if water_match:
+            try:
+                water_usage = float(water_match.group(1).replace(",", "."))
+            except (ValueError, TypeError):
+                pass
+
+        # 4. Extract room price
+        room_price = 3_500_000.0
+        if properties and len(properties) > 0:
+            room_price = float(properties[0].price)
+        else:
+            # Check price in query e.g. "phòng 4 triệu", "giá 3.5 tr"
+            price_match = re.search(r"(?:phòng|giá|thuê)\s*(\d+(?:[.,]\d+)?)\s*(?:triệu|tr)", combined_text)
+            if price_match:
+                try:
+                    room_price = float(price_match.group(1).replace(",", ".")) * 1_000_000
+                except (ValueError, TypeError):
+                    pass
+
+        prop_costs = None
+        if properties and len(properties) > 0:
+            top_prop = properties[0]
+            if top_prop.rental_costs:
+                prop_costs = top_prop.rental_costs.model_dump()
+
+        return cls.calculate_total_living_cost(
+            occupants=occupants,
+            room_price=room_price,
+            electricity_kwh=electricity_kwh,
+            water_usage=water_usage,
+            property_costs=prop_costs,
+        )
+
     def generate_natural_response(
         self,
         criteria: ExtractedCriteria,
@@ -516,8 +707,29 @@ class ChatAssistantService:
 
         criteria_desc = ", ".join(criteria_tags) if criteria_tags else "yêu cầu của bạn"
 
-        # Check for financial / mortgage advice intent
+        # Check for living cost calculation intent
         query_text = (criteria.raw_query or "").lower()
+        living_indicators = ["chi phí", "sinh hoạt", "mỗi tháng hết", "mỗi tháng tốn", "tổng chi phí", "tiền điện", "tiền nước", "người ở", "hết bao nhiêu tiền", "hết bao nhiêu"]
+        if any(ind in query_text for ind in living_indicators) and any(w in query_text for w in ["bao nhiêu", "chi phí", "mỗi tháng", "tính", "hết"]):
+            breakdown = self.detect_and_calculate_living_cost([ChatMessage(role="user", content=criteria.raw_query)], properties)
+            if breakdown:
+                cost_lines = [
+                    f"📊 **Bảng dự toán chi phí sinh hoạt hàng tháng ({breakdown.occupants} người ở):**",
+                    "",
+                    breakdown.summary,
+                    "",
+                    f"💡 **Tổng chi phí ước tính:** **{breakdown.total_monthly_cost:,.0f} VND/tháng** (bình quân **{breakdown.cost_per_person:,.0f} VND/người/tháng**).",
+                    "Chi phí thực tế sẽ phụ thuộc vào số ký điện và khối nước sử dụng thực tế của bạn trong tháng.",
+                ]
+                cost_suggestions = [
+                    "Tính chi phí cho 1 người ở",
+                    "Tính chi phí cho 3 người ở",
+                    "Xem chi tiết nội quy và giờ giấc khu trọ",
+                    "Đặt lịch hẹn xem phòng trực tiếp",
+                ]
+                return "\n".join(cost_lines), cost_suggestions
+
+        # Check for financial / mortgage advice intent
         financial_indicators = ["vay", "lãi suất", "trả góp", "mỗi tháng trả", "trả bao nhiêu"]
         if any(ind in query_text for ind in financial_indicators):
             loan_percent_match = re.search(r"(\d+(?:\.\d+)?)\s*%", query_text)

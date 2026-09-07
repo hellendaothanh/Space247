@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/app_providers.dart';
+import 'host_management_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -352,6 +353,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
               child: Column(
                 children: [
+                  ListTile(
+                    leading: const Icon(Icons.apartment, color: Color(0xFF2563EB)),
+                    title: const Text('Kênh Quản Lý Chủ Nhà', style: TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: const Text('Quản lý phòng trọ, chốt điện nước & hóa đơn'),
+                    trailing: const Icon(Icons.chevron_right, size: 20),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const HostManagementScreen()),
+                      );
+                    },
+                  ),
+                  const Divider(height: 1),
                   ListTile(
                     leading: const Icon(Icons.lock_reset, color: Color(0xFF2563EB)),
                     title: const Text('Đổi mật khẩu', style: TextStyle(fontWeight: FontWeight.w600)),
