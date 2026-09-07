@@ -154,7 +154,7 @@ export default function MyPropertiesPage() {
     <div className="min-h-screen bg-slate-50/60 pb-16">
       {toastMessage && (
         <div
-          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl px-4 py-3 shadow-lg transition-all ${
+          className={`fixed top-20 right-4 sm:top-24 sm:right-8 z-50 flex items-center gap-3 rounded-xl px-4 py-3 shadow-lg transition-all ${
             toastMessage.type === "success"
               ? "bg-emerald-600 text-white"
               : "bg-rose-600 text-white"
