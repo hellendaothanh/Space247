@@ -260,7 +260,7 @@ export default function RentalPropertyDetailPage({
       <section className="space-y-4">
         <div>
           <h2 className="text-xl font-extrabold text-slate-900">
-            Danh sách phòng & căn hộ ({property.units.length} phòng)
+            Danh sách phòng & căn hộ ({(property.units || []).length} phòng)
           </h2>
           <p className="text-slate-500 text-xs">
             Xem thực tế trạng thái phòng còn trống để đặt lịch hẹn hoặc giữ chỗ
@@ -268,7 +268,7 @@ export default function RentalPropertyDetailPage({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {property.units.map((unit) => {
+          {(property.units || []).map((unit) => {
             const isAvailable = unit.status === "available";
 
             return (

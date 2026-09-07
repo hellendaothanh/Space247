@@ -233,11 +233,11 @@ export default function LandlordDashboardPage() {
                 {/* Units List with 1-Click Status Toggle */}
                 <div className="pt-3 border-t border-slate-100 space-y-2">
                   <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Các phòng ({prop.units.length} phòng)
+                    Các phòng ({(prop.units || []).length} phòng)
                   </h4>
 
                   <div className="grid gap-2 sm:grid-cols-2">
-                    {prop.units.map((unit) => {
+                    {(prop.units || []).map((unit) => {
                       const isAvailable = unit.status === "available";
                       const isToggling = togglingUnitId === unit.id;
 

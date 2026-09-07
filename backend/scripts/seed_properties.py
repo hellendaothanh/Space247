@@ -1308,6 +1308,116 @@ async def main():
                     stats["created"],
                     stats["skipped"],
                 )
+
+                # 4. Seed sample rental properties (Boarding house, Serviced Apartment, Homestay)
+                logger.info("--- Step 4: Seeding Sample Two-Sided Rental Properties & Units ---")
+                from src.models.rental_property import RentalProperty, RentalUnit
+                sample_rentals = [
+                    {
+                        "name": "Nhà Trọ Xanh Sinh Viên Bách - Kinh - Xây",
+                        "property_model": "boarding_house",
+                        "address": "Số 42 Ngõ 10 Tạ Quang Bửu, Phường Bách Khoa",
+                        "ward": "Phường Bách Khoa",
+                        "district": "Quận Hai Bà Trưng",
+                        "city": "Hà Nội",
+                        "latitude": 21.0055,
+                        "longitude": 105.8450,
+                        "description": "Khu nhà trọ 5 tầng mới xây, camera an ninh, khóa vân tay 24/7, gần trường ĐH Bách Khoa, Kinh Tế Quốc Dân.",
+                        "shared_costs": {
+                            "electricity_per_kwh": 3800,
+                            "water_cost": 100000,
+                            "water_unit": "per_person",
+                            "wifi_fee": 100000,
+                            "parking_fee_monthly": 100000,
+                        },
+                        "shared_rules": {
+                            "curfew": False,
+                            "allow_pets": False,
+                            "fingerprint_lock": True,
+                            "live_with_owner": False,
+                        },
+                        "images": [
+                            "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
+                            "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
+                        ],
+                        "units": [
+                            {"unit_number": "P.101", "floor": 1, "area_sqm": 22.0, "price": 3800000, "deposit": 3800000, "status": "available", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True},
+                            {"unit_number": "P.202", "floor": 2, "area_sqm": 25.0, "price": 4200000, "deposit": 4200000, "status": "available", "furnishing": "full", "has_mezzanine": True, "has_private_bathroom": True},
+                            {"unit_number": "P.301", "floor": 3, "area_sqm": 20.0, "price": 3500000, "deposit": 3500000, "status": "occupied", "furnishing": "basic", "has_mezzanine": False, "has_private_bathroom": True},
+                        ],
+                    },
+                    {
+                        "name": "Căn Hộ Dịch Vụ Cao Cấp Thảo Điền Riverview",
+                        "property_model": "serviced_apartment",
+                        "address": "Số 18 Đường số 41, Phường Thảo Điền",
+                        "ward": "Phường Thảo Điền",
+                        "district": "Thành phố Thủ Đức",
+                        "city": "Thành phố Hồ Chí Minh",
+                        "latitude": 10.8038,
+                        "longitude": 106.7321,
+                        "description": "Căn hộ dịch vụ phong cách Indochine sang trọng, có thang máy, dọn phòng 2 lần/tuần, hồ bơi sân thượng.",
+                        "shared_costs": {
+                            "electricity_billing": "state_rate",
+                            "water_cost": 0,
+                            "wifi_fee": 0,
+                            "parking_fee_monthly": 150000,
+                        },
+                        "shared_rules": {
+                            "curfew": False,
+                            "allow_pets": True,
+                            "fingerprint_lock": True,
+                            "live_with_owner": False,
+                        },
+                        "images": [
+                            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+                            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+                        ],
+                        "units": [
+                            {"unit_number": "Studio 2A", "floor": 2, "area_sqm": 35.0, "price": 9500000, "deposit": 9500000, "status": "available", "furnishing": "full", "has_mezzanine": False, "has_private_bathroom": True},
+                            {"unit_number": "Suite 4B", "floor": 4, "area_sqm": 50.0, "price": 14000000, "deposit": 14000000, "status": "occupied", "furnishing": "full", "has_mezzanine": False, "has_private_bathroom": True},
+                        ],
+                    },
+                ]
+
+                for item in sample_rentals:
+                    stmt = select(RentalProperty).where(RentalProperty.name == item["name"])
+                    existing_r = (await session.execute(stmt)).scalar_one_or_none()
+                    if existing_r:
+                        continue
+                    r_prop = RentalProperty(
+                        host_id=agent_id,
+                        name=item["name"],
+                        property_model=item["property_model"],
+                        address=item["address"],
+                        ward=item["ward"],
+                        district=item["district"],
+                        city=item["city"],
+                        latitude=item["latitude"],
+                        longitude=item["longitude"],
+                        description=item["description"],
+                        shared_costs=item["shared_costs"],
+                        shared_rules=item["shared_rules"],
+                        images=item["images"],
+                        is_active=True,
+                    )
+                    session.add(r_prop)
+                    await session.flush()
+                    for u in item["units"]:
+                        unit = RentalUnit(
+                            property_id=r_prop.id,
+                            unit_number=u["unit_number"],
+                            floor=u["floor"],
+                            area_sqm=u["area_sqm"],
+                            price=u["price"],
+                            deposit=u["deposit"],
+                            status=u["status"],
+                            furnishing=u["furnishing"],
+                            has_mezzanine=u["has_mezzanine"],
+                            has_private_bathroom=u["has_private_bathroom"],
+                        )
+                        session.add(unit)
+                await session.commit()
+                logger.info("[Space247 Rental Seed] Sample rental properties & units seeded successfully.")
             except Exception as exc:
                 await session.rollback()
                 logger.exception("Error during database operation: %s", exc)
