@@ -1,16 +1,23 @@
 """
-Seed script for Space247 Real Estate Platform.
-Populates realistic properties across Hanoi and Ho Chi Minh City with generated 768-dim embeddings.
+Comprehensive Seed script for Space247 Real Estate Platform.
+Populates realistic properties, major projects, boarding houses, serviced apartments,
+sample contracts, monthly invoices, and booking inquiries across Vietnam
+(Hà Nội, Quảng Ninh, Hải Phòng, Đà Nẵng, Nha Trang, TP.HCM, Bình Dương, Cần Thơ, Phú Quốc)
+with 768-dimensional dense vector embeddings and PostGIS geometries.
+
 Can be executed via:
     uv run python -m scripts.seed_properties
+    uv run python -m scripts.seed_properties --reindex-vectors
 """
 
 import asyncio
+from datetime import datetime, timezone, timedelta
 import logging
 import sys
 from typing import Any
 from uuid import uuid4
 
+from geoalchemy2 import WKTElement
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +25,14 @@ from src.core.database import AsyncSessionLocal, engine
 from src.core.security import hash_password
 from src.models.project import Project
 from src.models.property import Property
+from src.models.rental_property import (
+    DepositTransaction,
+    MonthlyInvoice,
+    RentalContract,
+    RentalInquiry,
+    RentalProperty,
+    RentalUnit,
+)
 from src.models.user import User, UserRole
 from src.services.embedding import get_embedding_service
 
@@ -35,6 +50,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("scripts.seed_properties")
 
+# ==============================================================================
+# 1. SAMPLE REAL ESTATE PROJECTS ACROSS VIETNAM (10 MAJOR DEVELOPMENTS)
+# ==============================================================================
 SAMPLE_PROJECTS: list[dict[str, Any]] = [
     {
         "name": "Vinhomes Central Park",
@@ -184,6 +202,43 @@ SAMPLE_PROJECTS: list[dict[str, Any]] = [
         ],
     },
     {
+        "name": "Phú Mỹ Hưng The Peak - Midtown",
+        "slug": "phu-my-hung-midtown-the-peak",
+        "developer": "Công ty TNHH Phát triển Phú Mỹ Hưng & Liên doanh Nhật Bản",
+        "description": (
+            "Tuyệt tác kiến trúc đỉnh cao tại khu đô thị kiểu mẫu Nam Sài Gòn. "
+            "Dự án tọa lạc dọc sông Cả Cấm với công viên hoa anh đào Sakura Park duy nhất tại Việt Nam. "
+            "Chuỗi tiện ích nghỉ dưỡng khép kín với thác nước nhân tạo, hồ bơi chân mây và không gian xanh sinh thái ven sông."
+        ),
+        "status": "completed",
+        "total_units": 2400,
+        "launch_year": 2017,
+        "handover_year": 2022,
+        "address": "Đường Nguyễn Lương Bằng, Phường Tân Phú",
+        "ward": "Phường Tân Phú",
+        "district": "Quận 7",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.7185,
+        "longitude": 106.7192,
+        "images": [
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "master_plan_url": "https://images.unsplash.com/photo-1574958269340-fa927503f3dd?auto=format&fit=crop&w=1600&q=80",
+        "legal_status": "Sổ hồng sở hữu lâu dài",
+        "price_range_min": 5800000000.0,
+        "price_range_max": 25000000000.0,
+        "amenities": [
+            "Công viên hoa anh đào Sakura Park dọc sông Cả Cấm",
+            "Hồ bơi chân mây vô cực tầng mái",
+            "Phòng tập Golf giả lập 3D thượng lưu",
+            "Khu vui chơi trẻ em Kid Club trong nhà và ngoài trời",
+            "Hồ ngâm jacuzzi và phòng xông hơi sauna thư giãn",
+            "Hệ thống trường quốc tế SSIS, Đài Bắc, Hàn Quốc bao quanh",
+        ],
+    },
+    {
         "name": "Vinhomes Smart City",
         "slug": "vinhomes-smart-city",
         "developer": "Vinhomes (Tập đoàn Vingroup)",
@@ -239,37 +294,220 @@ SAMPLE_PROJECTS: list[dict[str, Any]] = [
         "latitude": 20.9926,
         "longitude": 105.9429,
         "images": [
-            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
             "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
         ],
         "master_plan_url": "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1600&q=80",
-        "legal_status": "Sổ đỏ/Sổ hồng lâu dài",
+        "legal_status": "Sổ hồng sở hữu lâu dài",
         "price_range_min": 1850000000.0,
-        "price_range_max": 52000000000.0,
+        "price_range_max": 28000000000.0,
         "amenities": [
-            "Biển hồ nước mặn 6.1ha cát trắng tự nhiên",
-            "Hồ lớn trung tâm Ngọc Trai 24.5ha",
-            "Tòa tháp văn phòng thông minh TechnoPark Tower",
-            "Trường Đại học Quốc tế VinUni",
-            "Bệnh viện Vinmec & Trường liên cấp Vinschool",
-            "TTTM Vincom Mega Mall Ocean Park",
+            "Biển hồ nước mặn nhân tạo Crystal Lagoons 6.1ha",
+            "Hồ Ngọc Trai nước ngọt 24.5ha bờ cát trắng",
+            "Tòa tháp văn phòng thông minh TechnoPark Tower Top 10 thế giới",
+            "Đại học tinh hoa quốc tế VinUni",
+            "Bệnh viện Vinmec & Trường Vinschool",
+            "Hệ thống công viên BBQ bãi biển ngoài trời",
+        ],
+    },
+    {
+        "name": "Khu Đô Thị Starlake Tây Hồ Tây",
+        "slug": "starlake-tay-ho-tay",
+        "developer": "Daewoo E&C (Hàn Quốc)",
+        "description": (
+            "Khu đô thị sinh thái cao cấp quy mô 186.3 ha tại trung tâm hành chính mới Tây Hồ Tây Hà Nội. "
+            "Nơi đặt trụ sở của các Bộ ngành trung ương, đại sứ quán quốc tế và các tập đoàn toàn cầu như Samsung R&D, CJ, Emart. "
+            "Mật độ xây dựng chỉ 16%, sở hữu công viên hồ điều hòa 4.5ha và hệ thống giáo dục quốc tế hàng đầu."
+        ),
+        "status": "completed",
+        "total_units": 3200,
+        "launch_year": 2016,
+        "handover_year": 2023,
+        "address": "Khu đô thị Starlake Tây Hồ Tây, Phường Xuân Tảo",
+        "ward": "Phường Xuân Tảo",
+        "district": "Quận Bắc Từ Liêm",
+        "city": "Thành phố Hà Nội",
+        "latitude": 21.0562,
+        "longitude": 105.7984,
+        "images": [
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "master_plan_url": "https://images.unsplash.com/photo-1574958269340-fa927503f3dd?auto=format&fit=crop&w=1600&q=80",
+        "legal_status": "Sổ hồng sở hữu lâu dài",
+        "price_range_min": 7500000000.0,
+        "price_range_max": 75000000000.0,
+        "amenities": [
+            "Trung tâm R&D lớn nhất Đông Nam Á của Tập đoàn Samsung",
+            "Đại siêu thị Emart và trung tâm thương mại Takashimaya",
+            "Hồ điều hòa trung tâm 4.5ha cùng công viên nội khu rợp bóng cây",
+            "Trường liên cấp quốc tế Gateway & Dewey School",
+            "Hồ bơi 4 mùa nước ấm trong nhà",
+            "Hệ thống an ninh khép kín đa tầng chuẩn ngoại giao đoàn",
+        ],
+    },
+    {
+        "name": "Sun Cosmo Residence Đà Nẵng",
+        "slug": "sun-cosmo-residence-da-nang",
+        "developer": "Tập đoàn Sun Group",
+        "description": (
+            "Tổ hợp bất động sản năng động ven sông Hàn ngay chân cầu Trần Thị Lý, thành phố Đà Nẵng. "
+            "Dự án quy tụ 2 tòa tháp căn hộ The Panoma hướng trọn tầm nhìn 3 trong 1: Sông Hàn thơ mộng, "
+            "biển Mỹ Khê cát trắng và trung tâm thành phố rực rỡ pháo hoa quốc tế DIFF."
+        ),
+        "status": "under_construction",
+        "total_units": 650,
+        "launch_year": 2023,
+        "handover_year": 2025,
+        "address": "Đường Trần Hưng Đạo, Phường Mỹ An",
+        "ward": "Phường Mỹ An",
+        "district": "Quận Ngũ Hành Sơn",
+        "city": "Thành phố Đà Nẵng",
+        "latitude": 16.0538,
+        "longitude": 108.2325,
+        "images": [
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "master_plan_url": "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1600&q=80",
+        "legal_status": "Sổ hồng sở hữu lâu dài",
+        "price_range_min": 3500000000.0,
+        "price_range_max": 18000000000.0,
+        "amenities": [
+            "Bể bơi vô cực ngắm trọn lễ hội pháo hoa quốc tế DIFF sông Hàn",
+            "Tuyến phố thương mại The Cosmo nhộn nhịp ngày đêm",
+            "Sân tập golf mini mô phỏng",
+            "Vườn thiền Sky Garden trên tầng mái",
+            "Khu thể thao đa năng và phòng gym hướng sông",
+            "Bến du thuyền sông Hàn cách dự án 300m",
+        ],
+    },
+    {
+        "name": "Sun Grand City Hillside & Grand World Phú Quốc",
+        "slug": "sun-grand-city-hillside-phu-quoc",
+        "developer": "Tập đoàn Sun Group",
+        "description": (
+            "Quần thể đô thị nghỉ dưỡng và giải trí biểu tượng tại bờ Tây Nam đảo ngọc Phú Quốc. "
+            "Nằm tại tâm điểm thị trấn Hoàng Hôn Sunset Town, ôm trọn Cầu Hôn Kiss Bridge và ga đi cáp treo Hòn Thơm vượt biển. "
+            "Căn hộ cao tầng đầu tiên sở hữu lâu dài tại đảo ngọc với kiến trúc Địa Trung Hải rực rỡ sắc màu."
+        ),
+        "status": "completed",
+        "total_units": 1251,
+        "launch_year": 2021,
+        "handover_year": 2023,
+        "address": "Thị trấn Hoàng Hôn Sunset Town, Phường An Thới",
+        "ward": "Phường An Thới",
+        "district": "Thành phố Phú Quốc",
+        "city": "Tỉnh Kiên Giang",
+        "latitude": 10.0245,
+        "longitude": 104.0152,
+        "images": [
+            "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "master_plan_url": "https://images.unsplash.com/photo-1574958269340-fa927503f3dd?auto=format&fit=crop&w=1600&q=80",
+        "legal_status": "Sổ hồng sở hữu lâu dài",
+        "price_range_min": 3200000000.0,
+        "price_range_max": 16500000000.0,
+        "amenities": [
+            "Cầu Hôn Kiss Bridge kiệt tác kiến trúc Ý",
+            "Ga cáp treo Hòn Thơm 3 dây vượt biển dài nhất thế giới",
+            "Hồ bơi vô cực ngắm hoàng hôn biển Địa Trung Hải",
+            "Quảng trường con sò La Festa sầm uất",
+            "Show diễn đa phương tiện Kiss of the Sea trên mặt biển",
+            "Chợ đêm Vui Phết Bazaar ven biển độc nhất vô nhị",
         ],
     },
 ]
 
+# ==============================================================================
+# 2. SAMPLE PROPERTIES (SALE, RENT, HOMESTAY - 40 NATIONWIDE LISTINGS)
+# ==============================================================================
 SAMPLE_PROPERTIES: list[dict[str, Any]] = [
-    # --- TP. HỒ CHÍ MINH - BÁN (SALE) ---
+    # --------------------------------------------------------------------------
+    # CATEGORY B: MUA BÁN (SALE) - CHUNG CƯ DỰ ÁN & CĂN HỘ CAO CẤP
+    # --------------------------------------------------------------------------
     {
-        "title": "Căn hộ Vinhomes Central Park 2PN view trực diện sông Sài Gòn",
-        "description": "Bán gấp căn hộ cao cấp 2 phòng ngủ tòa Landmark 4, full nội thất hiện đại nhập khẩu Châu Âu, view công viên và sông Sài Gòn thoáng mát. Tiện ích hồ bơi vô cực, gym, TTTM Vincom.",
+        "title": "Căn hộ 3PN Sapphire view Biển Hồ Vinhomes Ocean Park",
+        "description": "Cần bán căn hộ 3 phòng ngủ tầng trung tháp S2.16 Vinhomes Ocean Park Gia Lâm. Ban công view trọn vẹn biển hồ nước mặn 6.1ha và hồ cát trắng Ngọc Trai. Đầy đủ nội thất cao cấp, sẵn sổ hồng sang tên ngay.",
         "property_type": "apartment",
         "listing_type": "sale",
-        "price": 6800000000.0,
+        "price": 4650000000.0,
         "currency": "VND",
-        "area_sqm": 82.5,
+        "area_sqm": 88.5,
+        "num_bedrooms": 3,
+        "num_bathrooms": 2,
+        "address": "Tòa S2.16 Vinhomes Ocean Park, Xã Đa Tốn",
+        "ward": "Xã Đa Tốn",
+        "district": "Huyện Gia Lâm",
+        "city": "Thành phố Hà Nội",
+        "latitude": 20.9932,
+        "longitude": 105.9421,
+        "status": "active",
+        "project_slug": "vinhomes-ocean-park",
+        "images": [
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Penthouse Duplex Starlake Tây Hồ Tây Đẳng Cấp Thượng Lưu",
+        "description": "Căn hộ thông tầng Penthouse Duplex tháp H9 Starlake Tây Hồ Tây. Diện tích thông thủy 235m2 với trần cao 6.5m thoáng đạt, tầm nhìn panorama ngắm trọn Hồ Tây và cầu Nhật Tân. Tiện ích chuẩn ngoại giao đoàn, bàn giao thô dễ thiết kế.",
+        "property_type": "apartment",
+        "listing_type": "sale",
+        "price": 28500000000.0,
+        "currency": "VND",
+        "area_sqm": 235.0,
+        "num_bedrooms": 4,
+        "num_bathrooms": 4,
+        "address": "Khu đô thị Starlake Tây Hồ Tây, Phường Xuân Tảo",
+        "ward": "Phường Xuân Tảo",
+        "district": "Quận Bắc Từ Liêm",
+        "city": "Thành phố Hà Nội",
+        "latitude": 21.0562,
+        "longitude": 105.7984,
+        "status": "active",
+        "project_slug": "starlake-tay-ho-tay",
+        "images": [
+            "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Căn hộ The Panoma 2PN Sun Cosmo Residence View Trọn Sông Hàn",
+        "description": "Bán căn hộ 2 phòng ngủ tầng cao tháp The Panoma dự án Sun Cosmo Residence Đà Nẵng ngay sát cầu Trần Thị Lý. View trực diện sông Hàn, ngắm trọn pháo hoa DIFF và biển Mỹ Khê. Hưởng trọn tiện ích hồ bơi vô cực, sky garden tầng thượng.",
+        "property_type": "apartment",
+        "listing_type": "sale",
+        "price": 5200000000.0,
+        "currency": "VND",
+        "area_sqm": 75.0,
         "num_bedrooms": 2,
         "num_bathrooms": 2,
-        "address": "208 Nguyễn Hữu Cảnh",
+        "address": "Đường Trần Hưng Đạo, Phường Mỹ An",
+        "ward": "Phường Mỹ An",
+        "district": "Quận Ngũ Hành Sơn",
+        "city": "Thành phố Đà Nẵng",
+        "latitude": 16.0538,
+        "longitude": 108.2325,
+        "status": "active",
+        "project_slug": "sun-cosmo-residence-da-nang",
+        "images": [
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Căn hộ Landmark 81 Luxury View Panorama Sông Sài Gòn",
+        "description": "Bán căn hộ 3PN cao cấp tháp biểu tượng Landmark 81 Vinhomes Central Park. Tầng cao view trực diện sông Sài Gòn và bán đảo Thanh Đa. Nội thất xa xỉ nhập khẩu từ Ý, sảnh lễ tân riêng biệt, hồ bơi chân mây và TTTM Vincom sầm uất ngay dưới chân.",
+        "property_type": "apartment",
+        "listing_type": "sale",
+        "price": 12800000000.0,
+        "currency": "VND",
+        "area_sqm": 108.5,
+        "num_bedrooms": 3,
+        "num_bathrooms": 2,
+        "address": "Tòa Landmark 81, 208 Nguyễn Hữu Cảnh, Phường 22",
         "ward": "Phường 22",
         "district": "Quận Bình Thạnh",
         "city": "Thành phố Hồ Chí Minh",
@@ -277,6 +515,56 @@ SAMPLE_PROPERTIES: list[dict[str, Any]] = [
         "longitude": 106.7218,
         "status": "active",
         "project_slug": "vinhomes-central-park",
+        "images": [
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Căn hộ The Peak Midtown Phú Mỹ Hưng View Công Viên Hoa Anh Đào",
+        "description": "Chính chủ chuyển nhượng căn hộ 2 phòng ngủ tòa The Peak M8B Phú Mỹ Hưng Midtown. Thiết kế hiện đại mở rộng ban công đón gió sông Cả Cấm và công viên Sakura Park hoa anh đào. Đầy đủ tiện ích hồ bơi vô cực, phòng golf 3D và trường quốc tế.",
+        "property_type": "apartment",
+        "listing_type": "sale",
+        "price": 8900000000.0,
+        "currency": "VND",
+        "area_sqm": 90.0,
+        "num_bedrooms": 2,
+        "num_bathrooms": 2,
+        "address": "Khu phức hợp Midtown, Phường Tân Phú",
+        "ward": "Phường Tân Phú",
+        "district": "Quận 7",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.7185,
+        "longitude": 106.7192,
+        "status": "active",
+        "project_slug": "phu-my-hung-midtown-the-peak",
+        "images": [
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Căn hộ Hillside Địa Trung Hải Phú Quốc Trực Diện Cầu Hôn",
+        "description": "Bán căn hộ nghỉ dưỡng 2PN tòa The Hill Sun Grand City Hillside Residence thị trấn Hoàng Hôn Sunset Town Phú Quốc. Sở hữu lâu dài, ban công view thẳng Cầu Hôn Kiss Bridge và sân khấu nhạc nước biểu diễn Vortex. Tiềm năng kinh doanh homestay cực cao.",
+        "property_type": "apartment",
+        "listing_type": "sale",
+        "price": 4800000000.0,
+        "currency": "VND",
+        "area_sqm": 68.0,
+        "num_bedrooms": 2,
+        "num_bathrooms": 2,
+        "address": "Thị trấn Hoàng Hôn Sunset Town, Phường An Thới",
+        "ward": "Phường An Thới",
+        "district": "Thành phố Phú Quốc",
+        "city": "Tỉnh Kiên Giang",
+        "latitude": 10.0245,
+        "longitude": 104.0152,
+        "status": "active",
+        "project_slug": "sun-grand-city-hillside-phu-quoc",
+        "images": [
+            "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+        ],
     },
     {
         "title": "Penthouse The Metropole Thủ Thiêm 4PN đẳng cấp giới thượng lưu",
@@ -288,7 +576,7 @@ SAMPLE_PROPERTIES: list[dict[str, Any]] = [
         "area_sqm": 320.0,
         "num_bedrooms": 4,
         "num_bathrooms": 5,
-        "address": "Khu đô thị mới Thủ Thiêm",
+        "address": "Khu đô thị mới Thủ Thiêm, Phường An Khánh",
         "ward": "Phường An Khánh",
         "district": "Thành phố Thủ Đức",
         "city": "Thành phố Hồ Chí Minh",
@@ -296,6 +584,10 @@ SAMPLE_PROPERTIES: list[dict[str, Any]] = [
         "longitude": 106.7112,
         "status": "active",
         "project_slug": "the-metropole-thu-thiem",
+        "images": [
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80",
+        ],
     },
     {
         "title": "Căn hộ Masteri Centre Point 2PN view trực diện đại công viên 36ha",
@@ -315,656 +607,1218 @@ SAMPLE_PROPERTIES: list[dict[str, Any]] = [
         "longitude": 106.8395,
         "status": "active",
         "project_slug": "masteri-centre-point",
+        "images": [
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+        ],
     },
     {
-        "title": "Căn hộ Vinhomes Grand Park 2PN The Origami vườn Nhật độc đáo",
-        "description": "Bán nhanh căn 2 phòng ngủ tòa S7 phân khu The Origami. Thiết kế cảnh quan chuẩn phong cách Nhật Bản với hồ cá Koi, vườn tùng La Hán. Đầy đủ nội thất chỉ việc xách vali vào ở.",
+        "title": "Căn hộ Vinhomes Smart City 2PN view vườn Nhật Zen Park",
+        "description": "Chính chủ cần bán căn hộ 2 phòng ngủ 2 vệ sinh tại phân khu The Tonkin Vinhomes Smart City Tây Mỗ. Căn góc thoáng sáng, nội thất bàn giao gắn tường sang trọng, liền kề nhà để xe nổi và hồ điều hòa trung tâm.",
         "property_type": "apartment",
         "listing_type": "sale",
-        "price": 2850000000.0,
+        "price": 3200000000.0,
         "currency": "VND",
-        "area_sqm": 69.5,
+        "area_sqm": 65.0,
         "num_bedrooms": 2,
         "num_bathrooms": 2,
-        "address": "Phân khu The Origami, Đường Nguyễn Xiển, Phường Long Bình",
-        "ward": "Phường Long Bình",
-        "district": "Thành phố Thủ Đức",
-        "city": "Thành phố Hồ Chí Minh",
-        "latitude": 10.8415,
-        "longitude": 106.8428,
+        "address": "Đại lộ Thăng Long, Phường Tây Mỗ",
+        "ward": "Phường Tây Mỗ",
+        "district": "Quận Nam Từ Liêm",
+        "city": "Thành phố Hà Nội",
+        "latitude": 20.9998,
+        "longitude": 105.7483,
         "status": "active",
-        "project_slug": "vinhomes-grand-park",
+        "project_slug": "vinhomes-smart-city",
+        "images": [
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+        ],
     },
+
+    # --------------------------------------------------------------------------
+    # CATEGORY B: MUA BÁN (SALE) - NHÀ PHỐ MẶT TIỀN & HẺM XE HƠI
+    # --------------------------------------------------------------------------
     {
-        "title": "Nhà phố mặt tiền đường Phan Xích Long Phú Nhuận tiện kinh doanh",
-        "description": "Nhà phố 1 trệt 4 lầu sân thượng mặt tiền phố ẩm thực Phan Xích Long sầm uất. Đang cho thuê kinh doanh chuỗi nhà hàng cao cấp với dòng tiền 90 triệu/tháng. Sổ hồng vuông vắn hoàn công đủ.",
+        "title": "Nhà phố mặt tiền kinh doanh phố Duy Tân - Cầu Giấy",
+        "description": "Bán tòa nhà văn phòng mặt tiền phố công nghệ Duy Tân Cầu Giấy. Diện tích 110m2, xây 7 tầng thang máy nhập khẩu, mặt tiền 6.5m vỉa hè rộng rãi. Hiện đang cho thuê nguyên căn 120 triệu/tháng ổn định lâu dài.",
         "property_type": "house",
         "listing_type": "sale",
-        "price": 32500000000.0,
+        "price": 26500000000.0,
         "currency": "VND",
         "area_sqm": 110.0,
-        "num_bedrooms": 5,
-        "num_bathrooms": 6,
-        "address": "152 Phan Xích Long",
-        "ward": "Phường 2",
-        "district": "Quận Phú Nhuận",
-        "city": "Thành phố Hồ Chí Minh",
-        "latitude": 10.7981,
-        "longitude": 106.6892,
+        "num_bedrooms": 6,
+        "num_bathrooms": 7,
+        "address": "Phố Duy Tân, Phường Dịch Vọng Hậu",
+        "ward": "Phường Dịch Vọng Hậu",
+        "district": "Quận Cầu Giấy",
+        "city": "Thành phố Hà Nội",
+        "latitude": 21.0315,
+        "longitude": 105.7832,
         "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+        ],
     },
     {
-        "title": "Biệt thự đơn lập Chateau Phú Mỹ Hưng ven sông yên tĩnh",
-        "description": "Biệt thự lâu đài đơn lập khu Chateau đẳng cấp bậc nhất Nam Sài Gòn. Kiến trúc cổ điển bán cổ điển châu Âu, hồ bơi sân vườn cảnh quan riêng biệt, an ninh 3 lớp tuyệt đối 24/7.",
-        "property_type": "villa",
+        "title": "Nhà cổ kinh doanh phố đi bộ Hàng Buồm - Hoàn Kiếm",
+        "description": "Bán nhà mặt phố cổ Hàng Buồm vị trí kim cương trung tâm phố cổ Hoàn Kiếm Hà Nội. Mặt tiền kinh doanh vàng, vỉa hè rộng, phù hợp làm khách sạn boutique, nhà hàng ẩm thực hoặc quán bar phục vụ du khách quốc tế.",
+        "property_type": "house",
         "listing_type": "sale",
-        "price": 115000000000.0,
+        "price": 48000000000.0,
         "currency": "VND",
-        "area_sqm": 580.0,
-        "num_bedrooms": 5,
-        "num_bathrooms": 6,
-        "address": "Khu biệt thự lâu đài Chateau, Nguyễn Lương Bằng",
-        "ward": "Phường Tân Phú",
-        "district": "Quận 7",
-        "city": "Thành phố Hồ Chí Minh",
-        "latitude": 10.7186,
-        "longitude": 106.7259,
+        "area_sqm": 75.0,
+        "num_bedrooms": 4,
+        "num_bathrooms": 4,
+        "address": "Phố Hàng Buồm, Phường Hàng Buồm",
+        "ward": "Phường Hàng Buồm",
+        "district": "Quận Hoàn Kiếm",
+        "city": "Thành phố Hà Nội",
+        "latitude": 21.0368,
+        "longitude": 105.8524,
         "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+        ],
     },
     {
-        "title": "Căn hộ Masteri Thảo Điền 3PN view hồ bơi và xa lộ Hà Nội",
-        "description": "Bán căn góc 3 phòng ngủ Masteri Thảo Điền lầu cao thoáng mát, liền kề ga Metro số 1 Bến Thành - Suối Tiên, siêu thị Mega Market, trường quốc tế BIS. Pháp lý rõ ràng, sẵn sàng công chứng.",
-        "property_type": "apartment",
+        "title": "Nhà phố thương mại mặt tiền đường Lê Thị Riêng - Bến Thành",
+        "description": "Cần bán gấp căn nhà phố mặt tiền đường Lê Thị Riêng phường Bến Thành Quận 1. Khu vực kinh doanh sầm uất đa ngành nghề, cách chợ Bến Thành và ga Metro số 1 chỉ 400m. Diện tích đất 95m2 nở hậu phong thủy tốt.",
+        "property_type": "house",
         "listing_type": "sale",
-        "price": 7200000000.0,
+        "price": 39000000000.0,
         "currency": "VND",
-        "area_sqm": 94.0,
-        "num_bedrooms": 3,
-        "num_bathrooms": 2,
-        "address": "159 Xa lộ Hà Nội",
-        "ward": "Phường Thảo Điền",
-        "district": "Thành phố Thủ Đức",
+        "area_sqm": 95.0,
+        "num_bedrooms": 5,
+        "num_bathrooms": 5,
+        "address": "Đường Lê Thị Riêng, Phường Bến Thành",
+        "ward": "Phường Bến Thành",
+        "district": "Quận 1",
         "city": "Thành phố Hồ Chí Minh",
-        "latitude": 10.8032,
-        "longitude": 106.7412,
+        "latitude": 10.7712,
+        "longitude": 106.6924,
         "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+        ],
     },
     {
-        "title": "Nhà phố liền kề Lakeview City Nam Rạch Chiếc Thủ Đức",
-        "description": "Nhà phố thương mại 1 trệt 3 lầu hoàn thiện cao cấp tại KĐT sinh thái Lakeview City. Hồ cảnh quan rộng 3.6ha, không gian sống xanh trong lành, bảo vệ nghiêm ngặt 24/7.",
+        "title": "Nhà phố sân vườn hẻm xe hơi tránh nhau đường Võ Thị Sáu",
+        "description": "Bán nhà phố phong cách hiện đại hẻm xe tải 8m đường Võ Thị Sáu Quận 3. Nhà 1 trệt 3 lầu có gara ô tô, sân thượng ngắm cảnh lộng gió. Khu cán bộ an ninh dân trí cao, gần công viên Lê Văn Tám.",
+        "property_type": "house",
+        "listing_type": "sale",
+        "price": 18500000000.0,
+        "currency": "VND",
+        "area_sqm": 120.0,
+        "num_bedrooms": 4,
+        "num_bathrooms": 5,
+        "address": "Đường Võ Thị Sáu, Phường Võ Thị Sáu",
+        "ward": "Phường Võ Thị Sáu",
+        "district": "Quận 3",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.7876,
+        "longitude": 106.6905,
+        "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Nhà phố mặt tiền đường Bạch Đằng hướng thẳng sông Hàn",
+        "description": "Vị trí độc tôn trên tuyến đường du lịch đẹp nhất Đà Nẵng. Nhà phố 4 tầng mặt tiền đường Bạch Đằng nhìn thẳng cầu Rồng và cầu Sông Hàn. Vỉa hè thênh thang, tuyến phố đi bộ tập trung khách du lịch trong và ngoài nước.",
+        "property_type": "house",
+        "listing_type": "sale",
+        "price": 29000000000.0,
+        "currency": "VND",
+        "area_sqm": 140.0,
+        "num_bedrooms": 5,
+        "num_bathrooms": 5,
+        "address": "Đường Bạch Đằng, Phường Hải Châu 1",
+        "ward": "Phường Hải Châu 1",
+        "district": "Quận Hải Châu",
+        "city": "Thành phố Đà Nẵng",
+        "latitude": 16.0682,
+        "longitude": 108.2238,
+        "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Shophouse phố đi bộ phong cách châu Âu Bãi Cháy Hạ Long",
+        "description": "Bán căn Shophouse 5 tầng mặt đường phố đi bộ Sun Plaza Bãi Cháy Quảng Ninh. Kiến trúc châu Âu sang trọng, kế cận công viên giải trí Sun World và bãi tắm Hạ Long. Đang khai thác kinh doanh cafe và lưu trú khách sạn mini rất tốt.",
         "property_type": "house",
         "listing_type": "sale",
         "price": 16800000000.0,
         "currency": "VND",
-        "area_sqm": 125.0,
+        "area_sqm": 130.0,
+        "num_bedrooms": 8,
+        "num_bathrooms": 8,
+        "address": "Đường Hạ Long, Phường Bãi Cháy",
+        "ward": "Phường Bãi Cháy",
+        "district": "Thành phố Hạ Long",
+        "city": "Tỉnh Quảng Ninh",
+        "latitude": 20.9575,
+        "longitude": 107.0348,
+        "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Nhà phố thương mại Shophouse Lê Hồng Phong Hải Phòng",
+        "description": "Bán căn Shophouse mặt tiền trục đại lộ Lê Hồng Phong Hải Phòng. Nằm trong quần thể khu đô thị kiểu mới, kết nối sân bay Cát Bi và cảng Đình Vũ chỉ 10 phút. Nhà xây 4 tầng hoàn thiện mặt ngoài, tiện làm showroom văn phòng công ty.",
+        "property_type": "house",
+        "listing_type": "sale",
+        "price": 14500000000.0,
+        "currency": "VND",
+        "area_sqm": 115.0,
         "num_bedrooms": 4,
         "num_bathrooms": 5,
-        "address": "Khu đô thị Lakeview City, Song Hành Cao Tốc",
-        "ward": "Phường An Phú",
-        "district": "Thành phố Thủ Đức",
-        "city": "Thành phố Hồ Chí Minh",
-        "latitude": 10.7923,
-        "longitude": 106.7721,
+        "address": "Đại lộ Lê Hồng Phong, Phường Đông Khê",
+        "ward": "Phường Đông Khê",
+        "district": "Quận Ngô Quyền",
+        "city": "Thành phố Hải Phòng",
+        "latitude": 20.8524,
+        "longitude": 106.7018,
         "status": "active",
-    },
-    {
-        "title": "Tòa nhà mặt tiền văn phòng đường Pasteur Quận 3 vị trí đắc địa",
-        "description": "Bán tòa nhà văn phòng 1 hầm 8 tầng thang máy mặt tiền Pasteur trung tâm Quận 3. Diện tích sàn sử dụng 850m2, đầy đủ PCCC chuẩn nghiệm thu mới nhất, giấy phép xây dựng hoàn chỉnh.",
-        "property_type": "commercial",
-        "listing_type": "sale",
-        "price": 88000000000.0,
-        "currency": "VND",
-        "area_sqm": 180.0,
-        "num_bedrooms": None,
-        "num_bathrooms": 8,
-        "address": "214 Pasteur",
-        "ward": "Phường Võ Thị Sáu",
-        "district": "Quận 3",
-        "city": "Thành phố Hồ Chí Minh",
-        "latitude": 10.7845,
-        "longitude": 106.6914,
-        "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+        ],
     },
 
-    # --- TP. HỒ CHÍ MINH - CHO THUÊ (RENT) ---
+    # --------------------------------------------------------------------------
+    # CATEGORY B: MUA BÁN (SALE) - BIỆT THỰ SÂN VƯỜN & BIỆT THỰ NGHỈ DƯỠNG
+    # --------------------------------------------------------------------------
     {
-        "title": "Căn hộ Vinhomes Central Park 1PN Landmark Plus đầy đủ tiện nghi",
-        "description": "Cho thuê căn hộ dịch vụ 1 phòng ngủ tháp Landmark Plus Vinhomes Central Park. Trang bị đầy đủ máy giặt, sấy, lò vi sóng, dịch vụ dọn phòng theo tiêu chuẩn khách sạn 5 sao. Miễn phí gym và hồ bơi.",
-        "property_type": "apartment",
-        "listing_type": "rent",
-        "price": 18500000.0,
+        "title": "Biệt thự đơn lập ven hồ Harmony Vinhomes Riverside",
+        "description": "Bán căn biệt thự đơn lập phân khu Hướng Dương Vinhomes Riverside The Harmony Long Biên. Diện tích đất 350m2, sân vườn xanh mát ôm quanh hồ điều hòa. Không gian sống đẳng cấp giới tinh hoa Hà Nội với trường BIS và Vincom Plaza.",
+        "property_type": "villa",
+        "listing_type": "sale",
+        "price": 58000000000.0,
         "currency": "VND",
-        "area_sqm": 54.0,
-        "num_bedrooms": 1,
-        "num_bathrooms": 1,
-        "address": "Tòa Landmark Plus, 208 Nguyễn Hữu Cảnh",
-        "ward": "Phường 22",
-        "district": "Quận Bình Thạnh",
-        "city": "Thành phố Hồ Chí Minh",
-        "latitude": 10.7954,
-        "longitude": 106.7218,
+        "area_sqm": 350.0,
+        "num_bedrooms": 5,
+        "num_bathrooms": 6,
+        "address": "Khu đô thị Vinhomes Riverside, Phường Phúc Đồng",
+        "ward": "Phường Phúc Đồng",
+        "district": "Quận Long Biên",
+        "city": "Thành phố Hà Nội",
+        "latitude": 21.0375,
+        "longitude": 105.9082,
         "status": "active",
-        "project_slug": "vinhomes-central-park",
+        "images": [
+            "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=80",
+        ],
     },
     {
-        "title": "Căn hộ The Metropole Thủ Thiêm 2PN The Galleria view sông Sài Gòn",
-        "description": "Cho thuê căn hộ cao cấp 2 phòng ngủ phân khu The Galleria Residence. Ban công rộng view trực diện cầu Ba Son và sông Sài Gòn. Nội thất bàn giao chuẩn Châu Âu sang trọng.",
+        "title": "Biệt thự ven sông Thảo Điền Compound hồ bơi riêng biệt",
+        "description": "Bán siêu biệt thự ven sông Sài Gòn đường Nguyễn Văn Hưởng Thảo Điền TP. Thủ Đức. Diện tích khuôn viên 450m2 có hồ bơi tràn bờ, sân vườn nhiệt đới và bến đỗ ca nô riêng. Khu compound an ninh 24/7 tuyệt đối yên tĩnh cho gia đình chuyên gia.",
+        "property_type": "villa",
+        "listing_type": "sale",
+        "price": 72000000000.0,
+        "currency": "VND",
+        "area_sqm": 450.0,
+        "num_bedrooms": 5,
+        "num_bathrooms": 6,
+        "address": "Đường Nguyễn Văn Hưởng, Phường Thảo Điền",
+        "ward": "Phường Thảo Điền",
+        "district": "Thành phố Thủ Đức",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.8062,
+        "longitude": 106.7354,
+        "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Biệt thự đồi view toàn cảnh vịnh kỳ quan Hạ Long",
+        "description": "Biệt thự nghỉ dưỡng đồi Monaco Bãi Cháy Hạ Long. Tọa lạc tại độ cao lý tưởng phóng tầm mắt ngắm toàn cảnh Vịnh Hạ Long kỳ quan thiên nhiên thế giới. Thiết kế phong cách Địa Trung Hải có hồ bơi vô cực và hầm rượu vang quý.",
+        "property_type": "villa",
+        "listing_type": "sale",
+        "price": 32000000000.0,
+        "currency": "VND",
+        "area_sqm": 380.0,
+        "num_bedrooms": 4,
+        "num_bathrooms": 5,
+        "address": "Đồi Monaco, Phường Bãi Cháy",
+        "ward": "Phường Bãi Cháy",
+        "district": "Thành phố Hạ Long",
+        "city": "Tỉnh Quảng Ninh",
+        "latitude": 20.9634,
+        "longitude": 107.0289,
+        "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Biệt thự biển Ocean Villa An Viên Nha Trang",
+        "description": "Chuyển nhượng biệt thự đơn lập khu đô thị sinh thái biển An Viên phía Nam thành phố Nha Trang. Cách bãi tắm biển chỉ vài bước chân, kề cận bến cáp treo Vinpearl Nha Trang. Sổ đỏ lâu dài trao tay, nội thất gỗ tự nhiên cao cấp.",
+        "property_type": "villa",
+        "listing_type": "sale",
+        "price": 24500000000.0,
+        "currency": "VND",
+        "area_sqm": 280.0,
+        "num_bedrooms": 4,
+        "num_bathrooms": 4,
+        "address": "Khu đô thị An Viên, Phường Vĩnh Trường",
+        "ward": "Phường Vĩnh Trường",
+        "district": "Thành phố Nha Trang",
+        "city": "Tỉnh Khánh Hòa",
+        "latitude": 12.2085,
+        "longitude": 109.2142,
+        "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+
+    # --------------------------------------------------------------------------
+    # CATEGORY B: MUA BÁN (SALE) - ĐẤT NỀN THỔ CƯ & ĐẤT VEN ĐÔ
+    # --------------------------------------------------------------------------
+    {
+        "title": "Đất nền đấu giá quy hoạch lên quận Đông Anh",
+        "description": "Bán lô đất đấu giá Vĩnh Ngọc Đông Anh Hà Nội ngay chân cầu Nhật Tân. Diện tích 100m2 vuông vắn, đường trước nhà 13m rải nhựa có vỉa hè cây xanh, hạ tầng điện nước ngầm đồng bộ. Đón đầu quy hoạch Đông Anh lên quận và dự án thành phố thông minh.",
+        "property_type": "land",
+        "listing_type": "sale",
+        "price": 7200000000.0,
+        "currency": "VND",
+        "area_sqm": 100.0,
+        "num_bedrooms": 0,
+        "num_bathrooms": 0,
+        "address": "Khu đấu giá X4, Xã Vĩnh Ngọc",
+        "ward": "Xã Vĩnh Ngọc",
+        "district": "Huyện Đông Anh",
+        "city": "Thành phố Hà Nội",
+        "latitude": 21.0945,
+        "longitude": 105.8276,
+        "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1574958269340-fa927503f3dd?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Đất thổ cư sổ hồng riêng gần sân bay quốc tế Long Thành",
+        "description": "Bán đất thổ cư mặt tiền đường liên xã Long Phước huyện Long Thành tỉnh Đồng Nai. Cách cổng chính sân bay quốc tế Long Thành 3.5km, kết nối trực tiếp cao tốc TP.HCM - Long Thành - Dầu Giây. Sổ hồng riêng thổ cư 100%, xây dựng tự do.",
+        "property_type": "land",
+        "listing_type": "sale",
+        "price": 3800000000.0,
+        "currency": "VND",
+        "area_sqm": 160.0,
+        "num_bedrooms": 0,
+        "num_bathrooms": 0,
+        "address": "Đường Bàu Cạn, Xã Long Phước",
+        "ward": "Xã Long Phước",
+        "district": "Huyện Long Thành",
+        "city": "Tỉnh Đồng Nai",
+        "latitude": 10.7432,
+        "longitude": 107.0128,
+        "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Đất nền biệt thự vườn sinh thái Hòa Khương Hòa Vang",
+        "description": "Bán lô đất biệt thự nhà vườn tại xã Hòa Khương huyện Hòa Vang thành phố Đà Nẵng. Không gian đồi thoai thoải nhìn về dãy Bà Nà Hills, suối nước mát quanh năm, thích hợp làm homestay nông nghiệp hoặc biệt phủ nghỉ dưỡng cuối tuần.",
+        "property_type": "land",
+        "listing_type": "sale",
+        "price": 4200000000.0,
+        "currency": "VND",
+        "area_sqm": 300.0,
+        "num_bedrooms": 0,
+        "num_bathrooms": 0,
+        "address": "Thôn Phú Sơn Nam, Xã Hòa Khương",
+        "ward": "Xã Hòa Khương",
+        "district": "Huyện Hòa Vang",
+        "city": "Thành phố Đà Nẵng",
+        "latitude": 15.9842,
+        "longitude": 108.1189,
+        "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Đất nền đô thị mới ven sông Cần Thơ",
+        "description": "Bán đất nền khu đô thị Nam Cần Thơ phường Hưng Thạnh quận Cái Răng TP Cần Thơ. Mặt tiền đường 20m có dải phân cách cây xanh, gần cầu Hưng Lợi và siêu thị Go Cần Thơ. Đất sạch sổ đỏ hạ tầng hoàn thiện 100%.",
+        "property_type": "land",
+        "listing_type": "sale",
+        "price": 3600000000.0,
+        "currency": "VND",
+        "area_sqm": 125.0,
+        "num_bedrooms": 0,
+        "num_bathrooms": 0,
+        "address": "Đường số 10 Khu đô thị Nam Cần Thơ, Phường Hưng Thạnh",
+        "ward": "Phường Hưng Thạnh",
+        "district": "Quận Cái Răng",
+        "city": "Thành phố Cần Thơ",
+        "latitude": 10.0152,
+        "longitude": 105.7824,
+        "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1574958269340-fa927503f3dd?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+
+    # --------------------------------------------------------------------------
+    # CATEGORY C: PHÂN HỆ CHO THUÊ DÀI HẠN & MẶT BẰNG (RENT LISTINGS)
+    # --------------------------------------------------------------------------
+    {
+        "title": "Cho thuê căn hộ 2PN Full nội thất Times City Park Hill",
+        "description": "Cho thuê căn hộ 2 phòng ngủ tòa Park 9 Times City Park Hill Hai Bà Trưng Hà Nội. Nội thất trang bị cao cấp chuẩn gia đình gồm smart TV 65 inch, máy rửa bát Bosch, sofa nỉ Italia. Miễn phí phí dịch vụ quản lý, hồ bơi và thể thao.",
         "property_type": "apartment",
         "listing_type": "rent",
-        "price": 42000000.0,
+        "rental_type": "serviced_apartment",
+        "rental_costs": {"electricity_billing": "state_rate", "deposit_months": 1, "service_fee_monthly": 0},
+        "rental_rules": {"curfew": False, "allow_pets": False, "private_bathroom": True, "has_elevator": True},
+        "price": 16500000.0,
         "currency": "VND",
-        "area_sqm": 85.0,
+        "area_sqm": 74.0,
         "num_bedrooms": 2,
         "num_bathrooms": 2,
-        "address": "The Galleria, Khu đô thị mới Thủ Thiêm",
-        "ward": "Phường An Khánh",
-        "district": "Thành phố Thủ Đức",
-        "city": "Thành phố Hồ Chí Minh",
-        "latitude": 10.7725,
-        "longitude": 106.7112,
+        "address": "458 Minh Khai, Phường Vĩnh Tuy",
+        "ward": "Phường Vĩnh Tuy",
+        "district": "Quận Hai Bà Trưng",
+        "city": "Thành phố Hà Nội",
+        "latitude": 20.9954,
+        "longitude": 105.8682,
         "status": "active",
-        "project_slug": "the-metropole-thu-thiem",
+        "images": [
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+        ],
     },
     {
-        "title": "Căn hộ Studio Vinhomes Grand Park The Rainbow đầy đủ tiện nghi",
-        "description": "Cho thuê căn hộ Studio phân khu The Rainbow Vinhomes Grand Park. Nội thất decor trẻ trung hiện đại, máy lạnh Inverter, tủ lạnh, máy giặt. Tiện ích công viên cầu vồng, hồ bơi ngoài trời.",
+        "title": "Cho thuê căn hộ cao cấp 3PN Discovery Complex Cầu Giấy",
+        "description": "Căn hộ 3PN tháp đôi Discovery Complex 302 Cầu Giấy. Kết nối trực tiếp ga đường sắt trên cao Nhổn - Ga Hà Nội qua cầu nối riêng. Tầng cao view hồ Nghĩa Đô thoáng đãng, TTTM Lotte Mart và rạp chiếu phim BHD ngay khối đế.",
         "property_type": "apartment",
         "listing_type": "rent",
-        "price": 6500000.0,
+        "rental_type": "serviced_apartment",
+        "rental_costs": {"electricity_billing": "state_rate", "deposit_months": 2, "service_fee_monthly": 200000},
+        "rental_rules": {"curfew": False, "allow_pets": False, "private_bathroom": True, "has_elevator": True},
+        "price": 24000000.0,
         "currency": "VND",
-        "area_sqm": 33.0,
+        "area_sqm": 148.0,
+        "num_bedrooms": 3,
+        "num_bathrooms": 2,
+        "address": "302 Cầu Giấy, Phường Dịch Vọng",
+        "ward": "Phường Dịch Vọng",
+        "district": "Quận Cầu Giấy",
+        "city": "Thành phố Hà Nội",
+        "latitude": 21.0345,
+        "longitude": 105.7924,
+        "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Cho thuê căn hộ Sunrise City South Towers liền kề Quận 1",
+        "description": "Cho thuê căn hộ 2 phòng ngủ tháp V5 Sunrise City đường Nguyễn Hữu Thọ Quận 7. Đối diện đại siêu thị Lotte Mart, sang chợ Bến Thành Quận 1 chỉ 7 phút. Hồ bơi chân mây 2000m2 view pháo hoa, hầm để xe rộng rãi 2 tầng.",
+        "property_type": "apartment",
+        "listing_type": "rent",
+        "rental_type": "serviced_apartment",
+        "rental_costs": {"electricity_billing": "state_rate", "deposit_months": 2, "service_fee_monthly": 250000},
+        "rental_rules": {"curfew": False, "allow_pets": True, "private_bathroom": True, "has_elevator": True},
+        "price": 18000000.0,
+        "currency": "VND",
+        "area_sqm": 76.0,
+        "num_bedrooms": 2,
+        "num_bathrooms": 2,
+        "address": "23 Nguyễn Hữu Thọ, Phường Tân Hưng",
+        "ward": "Phường Tân Hưng",
+        "district": "Quận 7",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.7425,
+        "longitude": 106.7018,
+        "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Cho thuê căn hộ Hiyori Garden Tower tiêu chuẩn Nhật Bản",
+        "description": "Căn hộ 2 phòng ngủ chuẩn sống Nhật Bản Hiyori Garden Tower gần cầu Rồng Sơn Trà Đà Nẵng. Nội thất trang nhã tối giản, có bồn tắm nằm cao cấp Toto, bể bơi có mái che 4 mùa, nhà trẻ tiêu chuẩn Nhật và phòng sinh hoạt cộng đồng.",
+        "property_type": "apartment",
+        "listing_type": "rent",
+        "rental_type": "serviced_apartment",
+        "rental_costs": {"electricity_billing": "state_rate", "deposit_months": 2, "service_fee_monthly": 150000},
+        "rental_rules": {"curfew": False, "allow_pets": False, "private_bathroom": True, "has_elevator": True},
+        "price": 15000000.0,
+        "currency": "VND",
+        "area_sqm": 69.0,
+        "num_bedrooms": 2,
+        "num_bathrooms": 2,
+        "address": "Đường Võ Văn Kiệt, Phường An Hải Đông",
+        "ward": "Phường An Hải Đông",
+        "district": "Quận Sơn Trà",
+        "city": "Thành phố Đà Nẵng",
+        "latitude": 16.0612,
+        "longitude": 108.2375,
+        "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Cho thuê căn hộ Sora Gardens trung tâm TP Mới Bình Dương",
+        "description": "Cho thuê căn hộ 2PN Sora Gardens Tokyu trung tâm Thành phố Mới Bình Dương. Không gian sống đẳng cấp phong cách Nhật Bản dành cho chuyên gia nước ngoài và gia đình trẻ làm việc tại VSIP 2 và KCN Đồng An. Có hồ bơi tầng 4, vườn treo và siêu thị AEON.",
+        "property_type": "apartment",
+        "listing_type": "rent",
+        "rental_type": "serviced_apartment",
+        "rental_costs": {"electricity_billing": "state_rate", "deposit_months": 2, "service_fee_monthly": 180000},
+        "rental_rules": {"curfew": False, "allow_pets": True, "private_bathroom": True, "has_elevator": True},
+        "price": 12000000.0,
+        "currency": "VND",
+        "area_sqm": 71.5,
+        "num_bedrooms": 2,
+        "num_bathrooms": 2,
+        "address": "Đại lộ Hùng Vương, Phường Hòa Phú",
+        "ward": "Phường Hòa Phú",
+        "district": "Thành phố Thủ Dầu Một",
+        "city": "Tỉnh Bình Dương",
+        "latitude": 11.0542,
+        "longitude": 106.6718,
+        "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Mặt bằng kinh doanh thời trang phố Bà Triệu",
+        "description": "Cho thuê mặt bằng tầng 1 mặt tiền phố thời trang thương hiệu cao cấp Bà Triệu quận Hai Bà Trưng Hà Nội. Mặt tiền 6.5m kính cường lực suốt, vỉa hè rộng 4m gửi xe tiện lợi. Phù hợp làm boutique thời trang, mỹ phẩm quốc tế hoặc trang sức cao cấp.",
+        "property_type": "commercial",
+        "listing_type": "rent",
+        "rental_type": "entire_house",
+        "rental_costs": {"electricity_billing": "state_rate", "deposit_months": 3},
+        "rental_rules": {"curfew": False, "fingerprint_lock": True},
+        "price": 65000000.0,
+        "currency": "VND",
+        "area_sqm": 95.0,
         "num_bedrooms": 1,
         "num_bathrooms": 1,
-        "address": "Phân khu The Rainbow, Vinhomes Grand Park",
-        "ward": "Phường Long Bình",
-        "district": "Thành phố Thủ Đức",
-        "city": "Thành phố Hồ Chí Minh",
-        "latitude": 10.8415,
-        "longitude": 106.8428,
+        "address": "Phố Bà Triệu, Phường Lê Đại Hành",
+        "ward": "Phường Lê Đại Hành",
+        "district": "Quận Hai Bà Trưng",
+        "city": "Thành phố Hà Nội",
+        "latitude": 21.0118,
+        "longitude": 105.8495,
         "status": "active",
-        "project_slug": "vinhomes-grand-park",
+        "images": [
+            "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+        ],
     },
     {
-        "title": "Cho thuê căn hộ dịch vụ 1PN đường Lê Thánh Tôn Quận 1 khu phố Nhật",
-        "description": "Studio/căn hộ dịch vụ 1 phòng ngủ đầy đủ nội thất cao cấp ngay trung tâm phố Nhật Little Tokyo Lê Thánh Tôn. Đã bao gồm dịch vụ dọn phòng, giặt ủi, internet tốc độ cao.",
+        "title": "Shophouse ẩm thực F&B phố Phan Xích Long Phú Nhuận",
+        "description": "Cho thuê nhà nguyên căn mặt tiền phố ẩm thực đêm Phan Xích Long Phú Nhuận TP.HCM. Diện tích 6x20m, 1 trệt 3 lầu thang máy, hệ thống PCCC đạt chuẩn nghiệm thu mới nhất. Phù hợp mở nhà hàng lẩu nướng, quán cafe thương hiệu lớn.",
+        "property_type": "commercial",
+        "listing_type": "rent",
+        "rental_type": "entire_house",
+        "rental_costs": {"electricity_billing": "state_rate", "deposit_months": 3},
+        "rental_rules": {"curfew": False, "fingerprint_lock": True, "has_elevator": True},
+        "price": 55000000.0,
+        "currency": "VND",
+        "area_sqm": 120.0,
+        "num_bedrooms": 4,
+        "num_bathrooms": 4,
+        "address": "Đường Phan Xích Long, Phường 2",
+        "ward": "Phường 2",
+        "district": "Quận Phú Nhuận",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.7985,
+        "longitude": 106.6912,
+        "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Mặt bằng kinh doanh showroom đại lộ Nguyễn Văn Cừ Cần Thơ",
+        "description": "Cho thuê mặt bằng kinh doanh vị trí góc 2 mặt tiền đại lộ Nguyễn Văn Cừ quận Ninh Kiều TP. Cần Thơ. Diện tích sàn 150m2 thông suốt, vỉa hè rộng đỗ được nhiều xe ô tô. Thích hợp mở phòng khám nha khoa, showroom nội thất, ngân hàng hoặc siêu thị tiện lợi.",
+        "property_type": "commercial",
+        "listing_type": "rent",
+        "rental_type": "entire_house",
+        "rental_costs": {"electricity_billing": "state_rate", "deposit_months": 3},
+        "rental_rules": {"curfew": False, "fingerprint_lock": True},
+        "price": 35000000.0,
+        "currency": "VND",
+        "area_sqm": 150.0,
+        "num_bedrooms": 1,
+        "num_bathrooms": 2,
+        "address": "Đại lộ Nguyễn Văn Cừ, Phường An Khánh",
+        "ward": "Phường An Khánh",
+        "district": "Quận Ninh Kiều",
+        "city": "Thành phố Cần Thơ",
+        "latitude": 10.0384,
+        "longitude": 105.7612,
+        "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Văn phòng hạng A Keangnam Landmark 72",
+        "description": "Cho thuê sàn văn phòng hạng A diện tích linh hoạt tại tòa tháp Keangnam Landmark 72 Nam Từ Liêm Hà Nội. Hệ thống điều hòa trung tâm Chiller tiết kiệm năng lượng, 8 thang máy tốc độ cao, máy phát điện dự phòng 100%, an ninh kiểm soát thẻ từ thông minh.",
+        "property_type": "commercial",
+        "listing_type": "rent",
+        "rental_type": "serviced_apartment",
+        "rental_costs": {"electricity_billing": "state_rate", "deposit_months": 3, "service_fee_monthly": 500000},
+        "rental_rules": {"curfew": False, "has_elevator": True, "fingerprint_lock": True},
+        "price": 85000000.0,
+        "currency": "VND",
+        "area_sqm": 180.0,
+        "num_bedrooms": 0,
+        "num_bathrooms": 2,
+        "address": "Đường Phạm Hùng, Phường Mễ Trì",
+        "ward": "Phường Mễ Trì",
+        "district": "Quận Nam Từ Liêm",
+        "city": "Thành phố Hà Nội",
+        "latitude": 21.0168,
+        "longitude": 105.7834,
+        "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Sàn văn phòng tài chính Bitexco Financial Tower",
+        "description": "Cho thuê không gian làm việc đẳng cấp tại biểu tượng tài chính Bitexco Financial Tower Quận 1 TP.HCM. Tầm nhìn 360 độ ngắm trọn vẹn trung tâm kinh tế thành phố. Phù hợp làm trụ sở các quỹ đầu tư, công ty công nghệ và tập đoàn đa quốc gia.",
+        "property_type": "commercial",
+        "listing_type": "rent",
+        "rental_type": "serviced_apartment",
+        "rental_costs": {"electricity_billing": "state_rate", "deposit_months": 3, "service_fee_monthly": 800000},
+        "rental_rules": {"curfew": False, "has_elevator": True, "fingerprint_lock": True},
+        "price": 120000000.0,
+        "currency": "VND",
+        "area_sqm": 210.0,
+        "num_bedrooms": 0,
+        "num_bathrooms": 3,
+        "address": "Số 2 Hải Triều, Phường Bến Nghé",
+        "ward": "Phường Bến Nghé",
+        "district": "Quận 1",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.7718,
+        "longitude": 106.7042,
+        "status": "active",
+        "images": [
+            "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+
+    # --------------------------------------------------------------------------
+    # CATEGORY E: HOMESTAY & CĂN HỘ DU LỊCH (DAILY/VACATION LISTINGS)
+    # --------------------------------------------------------------------------
+    {
+        "title": "Old Quarter Heritage Homestay Phố Cổ Hà Nội",
+        "description": "Homestay mang đậm chất kiến trúc Pháp cổ truyền thống giữa lòng phố đi bộ Hàng Buồm Hoàn Kiếm. Cửa sổ vòm lãng mạn ngắm phố cổ về đêm, máy pha cafe espresso, bồn tắm gỗ sồi và ban công hoa giấy check-in thơ mộng.",
         "property_type": "apartment",
         "listing_type": "rent",
-        "price": 18000000.0,
+        "rental_type": "serviced_apartment",
+        "price": 750000.0,
         "currency": "VND",
         "area_sqm": 45.0,
         "num_bedrooms": 1,
         "num_bathrooms": 1,
-        "address": "15B Lê Thánh Tôn",
+        "address": "36 Hàng Buồm, Phường Hàng Buồm",
+        "ward": "Phường Hàng Buồm",
+        "district": "Quận Hoàn Kiếm",
+        "city": "Thành phố Hà Nội",
+        "latitude": 21.0365,
+        "longitude": 105.8521,
+        "status": "active",
+        "rental_costs": {"electricity_billing": "fixed", "electricity_per_kwh": 0, "water_cost": 0, "deposit_months": 0},
+        "rental_rules": {
+            "curfew": False,
+            "allow_pets": False,
+            "private_bathroom": True,
+            "fingerprint_lock": True,
+            "live_with_owner": False,
+            "max_occupants": 2,
+        },
+        "images": [
+            "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Westlake Panorama Studio & Ban Công Trực Diện Hồ Tây",
+        "description": "Căn hộ homestay studio view trực diện 100% mặt nước Hồ Tây đường Quảng An quận Tây Hồ. Ban công kính lộng gió đón hoàng hôn tím tuyệt đẹp, máy chiếu phim 4K Netflix, giường King size đệm cao su thiên nhiên êm ái.",
+        "property_type": "apartment",
+        "listing_type": "rent",
+        "rental_type": "serviced_apartment",
+        "price": 950000.0,
+        "currency": "VND",
+        "area_sqm": 52.0,
+        "num_bedrooms": 1,
+        "num_bathrooms": 1,
+        "address": "Số 28 Đường Quảng An, Phường Quảng An",
+        "ward": "Phường Quảng An",
+        "district": "Quận Tây Hồ",
+        "city": "Thành phố Hà Nội",
+        "latitude": 21.0628,
+        "longitude": 105.8245,
+        "status": "active",
+        "rental_costs": {"electricity_billing": "fixed", "electricity_per_kwh": 0, "water_cost": 0, "deposit_months": 0},
+        "rental_rules": {
+            "curfew": False,
+            "allow_pets": True,
+            "private_bathroom": True,
+            "fingerprint_lock": True,
+            "live_with_owner": False,
+            "max_occupants": 2,
+        },
+        "images": [
+            "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Sơn Trà Ocean View Beach Studio gần bãi tắm Mỹ Khê",
+        "description": "Homestay căn hộ biển đường Võ Nguyên Giáp quận Sơn Trà Đà Nẵng. Cách bãi cát trắng biển Mỹ Khê chỉ 80m, ban công đón bình minh trên đại dương. Đầy đủ bếp từ nấu hải sản, máy giặt sấy riêng và hồ bơi tầng thượng miễn phí.",
+        "property_type": "apartment",
+        "listing_type": "rent",
+        "rental_type": "serviced_apartment",
+        "price": 800000.0,
+        "currency": "VND",
+        "area_sqm": 48.0,
+        "num_bedrooms": 1,
+        "num_bathrooms": 1,
+        "address": "Đường Võ Nguyên Giáp, Phường Phước Mỹ",
+        "ward": "Phường Phước Mỹ",
+        "district": "Quận Sơn Trà",
+        "city": "Thành phố Đà Nẵng",
+        "latitude": 16.0645,
+        "longitude": 108.2468,
+        "status": "active",
+        "rental_costs": {"electricity_billing": "fixed", "electricity_per_kwh": 0, "water_cost": 0, "deposit_months": 0},
+        "rental_rules": {
+            "curfew": False,
+            "allow_pets": False,
+            "private_bathroom": True,
+            "has_elevator": True,
+            "live_with_owner": False,
+            "max_occupants": 2,
+        },
+        "images": [
+            "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Hạ Long Bay Coastal Retreat Villa view biển Bãi Cháy",
+        "description": "Villa nghỉ dưỡng 3 phòng ngủ nhìn thẳng ra vịnh di sản Bãi Cháy Hạ Long Quảng Ninh. Sân vườn nướng BBQ hải sản tươi sống ngoài trời, hồ bơi mini gia đình riêng tư, không gian lý tưởng cho nhóm bạn bè hoặc gia đình 6-8 người kỳ nghỉ cuối tuần.",
+        "property_type": "villa",
+        "listing_type": "rent",
+        "rental_type": "entire_house",
+        "price": 2800000.0,
+        "currency": "VND",
+        "area_sqm": 160.0,
+        "num_bedrooms": 3,
+        "num_bathrooms": 3,
+        "address": "Đường Hoàng Quốc Việt, Phường Bãi Cháy",
+        "ward": "Phường Bãi Cháy",
+        "district": "Thành phố Hạ Long",
+        "city": "Tỉnh Quảng Ninh",
+        "latitude": 20.9592,
+        "longitude": 107.0215,
+        "status": "active",
+        "rental_costs": {"electricity_billing": "fixed", "electricity_per_kwh": 0, "water_cost": 0, "deposit_months": 0},
+        "rental_rules": {
+            "curfew": False,
+            "allow_pets": True,
+            "private_bathroom": True,
+            "fingerprint_lock": True,
+            "live_with_owner": False,
+            "max_occupants": 8,
+        },
+        "images": [
+            "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Sunset Hillside Villa hồ bơi vô cực Nam Phú Quốc",
+        "description": "Biệt thự nghỉ dưỡng triền đồi Địa Trung Hải thị trấn Hoàng Hôn Sunset Town Phú Quốc. Hồ bơi vô cực trực diện biển ngắm trọn khoảnh khắc mặt trời lặn ngoạn mục, xem bắn pháo hoa Kiss Bridge hằng đêm ngay từ ban công villa.",
+        "property_type": "villa",
+        "listing_type": "rent",
+        "rental_type": "entire_house",
+        "price": 3500000.0,
+        "currency": "VND",
+        "area_sqm": 220.0,
+        "num_bedrooms": 4,
+        "num_bathrooms": 4,
+        "address": "Khu đô thị Hillside, Phường An Thới",
+        "ward": "Phường An Thới",
+        "district": "Thành phố Phú Quốc",
+        "city": "Tỉnh Kiên Giang",
+        "latitude": 10.0268,
+        "longitude": 104.0135,
+        "status": "active",
+        "rental_costs": {"electricity_billing": "fixed", "electricity_per_kwh": 0, "water_cost": 0, "deposit_months": 0},
+        "rental_rules": {
+            "curfew": False,
+            "allow_pets": False,
+            "private_bathroom": True,
+            "fingerprint_lock": True,
+            "live_with_owner": False,
+            "max_occupants": 8,
+        },
+        "images": [
+            "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+    {
+        "title": "Nha Trang Seaside Studio Hòn Chồng đón bình minh",
+        "description": "Studio du lịch view biển Hòn Chồng đường Phạm Văn Đồng Nha Trang Khánh Hòa. Cửa kính lớn view trọn vẹn vịnh biển trong xanh, ban công ngắm nhìn đảo Hòn Đỏ. Trang bị bếp từ tiện nghi và cách chợ hải sản đêm Vĩnh Hải chỉ 500m.",
+        "property_type": "apartment",
+        "listing_type": "rent",
+        "rental_type": "serviced_apartment",
+        "price": 650000.0,
+        "currency": "VND",
+        "area_sqm": 40.0,
+        "num_bedrooms": 1,
+        "num_bathrooms": 1,
+        "address": "Đường Phạm Văn Đồng, Phường Vĩnh Phước",
+        "ward": "Phường Vĩnh Phước",
+        "district": "Thành phố Nha Trang",
+        "city": "Tỉnh Khánh Hòa",
+        "latitude": 12.2745,
+        "longitude": 109.2018,
+        "status": "active",
+        "rental_costs": {"electricity_billing": "fixed", "electricity_per_kwh": 0, "water_cost": 0, "deposit_months": 0},
+        "rental_rules": {
+            "curfew": False,
+            "allow_pets": False,
+            "private_bathroom": True,
+            "has_elevator": True,
+            "live_with_owner": False,
+            "max_occupants": 2,
+        },
+        "images": [
+            "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
+        ],
+    },
+]
+
+# ==============================================================================
+# 3. SAMPLE RENTAL PROPERTIES & UNITS (BOARDING HOUSES & SERVICED APARTMENTS)
+# ==============================================================================
+SAMPLE_RENTALS: list[dict[str, Any]] = [
+    {
+        "name": "Nhà Trọ Xanh Sinh Viên Bách - Kinh - Xây",
+        "property_model": "boarding_house",
+        "address": "Số 42 Ngõ 10 Tạ Quang Bửu, Phường Bách Khoa",
+        "ward": "Phường Bách Khoa",
+        "district": "Quận Hai Bà Trưng",
+        "city": "Thành phố Hà Nội",
+        "latitude": 21.0055,
+        "longitude": 105.8450,
+        "description": "Khu nhà trọ 5 tầng mới xây sạch sẽ, camera an ninh 24/7, khóa vân tay thẻ từ, gần trường ĐH Bách Khoa, Kinh Tế Quốc Dân, Xây Dựng.",
+        "shared_costs": {
+            "electricity_per_kwh": 3800,
+            "electricity_billing": "fixed",
+            "water_cost": 100000,
+            "water_unit": "per_person",
+            "wifi_fee": 100000,
+            "parking_fee_monthly": 100000,
+        },
+        "shared_rules": {
+            "curfew": False,
+            "allow_pets": False,
+            "fingerprint_lock": True,
+            "live_with_owner": False,
+        },
+        "images": [
+            "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "units": [
+            {"unit_number": "P.101", "floor": 1, "area_sqm": 22.0, "price": 3800000, "deposit": 3800000, "status": "occupied", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 2},
+            {"unit_number": "P.202", "floor": 2, "area_sqm": 25.0, "price": 4200000, "deposit": 4200000, "status": "available", "furnishing": "full", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 3},
+            {"unit_number": "P.301", "floor": 3, "area_sqm": 20.0, "price": 3500000, "deposit": 3500000, "status": "available", "furnishing": "basic", "has_mezzanine": False, "has_private_bathroom": True, "max_occupants": 2},
+            {"unit_number": "P.401", "floor": 4, "area_sqm": 18.0, "price": 3200000, "deposit": 3200000, "status": "available", "furnishing": "basic", "has_mezzanine": False, "has_private_bathroom": True, "max_occupants": 2},
+        ],
+    },
+    {
+        "name": "Ký Túc Xá Cao Cấp Sinh Viên ĐHQG Cầu Giấy",
+        "property_model": "boarding_house",
+        "address": "Số 144 Xuân Thủy, Phường Dịch Vọng Hậu",
+        "ward": "Phường Dịch Vọng Hậu",
+        "district": "Quận Cầu Giấy",
+        "city": "Thành phố Hà Nội",
+        "latitude": 21.0368,
+        "longitude": 105.7815,
+        "description": "KTX máy lạnh đầy đủ giường tầng nệm êm, tủ khóa cá nhân, phòng tự học yên tĩnh, chỉ 3 phút đi bộ sang ĐH Quốc Gia và ĐH Sư Phạm Hà Nội.",
+        "shared_costs": {
+            "electricity_per_kwh": 3500,
+            "electricity_billing": "fixed",
+            "water_cost": 80000,
+            "water_unit": "per_person",
+            "wifi_fee": 50000,
+            "parking_fee_monthly": 80000,
+        },
+        "shared_rules": {
+            "curfew": True,
+            "curfew_time": "23:00",
+            "allow_pets": False,
+            "fingerprint_lock": True,
+            "live_with_owner": False,
+        },
+        "images": [
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "units": [
+            {"unit_number": "P.201", "floor": 2, "area_sqm": 24.0, "price": 2200000, "deposit": 2200000, "status": "available", "furnishing": "full", "has_mezzanine": False, "has_private_bathroom": True, "max_occupants": 4},
+            {"unit_number": "P.202", "floor": 2, "area_sqm": 24.0, "price": 2200000, "deposit": 2200000, "status": "available", "furnishing": "full", "has_mezzanine": False, "has_private_bathroom": True, "max_occupants": 4},
+            {"unit_number": "P.303", "floor": 3, "area_sqm": 28.0, "price": 2500000, "deposit": 2500000, "status": "occupied", "furnishing": "full", "has_mezzanine": False, "has_private_bathroom": True, "max_occupants": 4},
+        ],
+    },
+    {
+        "name": "Căn Hộ Dịch Vụ Indochine Ba Đình",
+        "property_model": "serviced_apartment",
+        "address": "Số 56 Ngõ 285 Đội Cấn, Phường Liễu Giai",
+        "ward": "Phường Liễu Giai",
+        "district": "Quận Ba Đình",
+        "city": "Thành phố Hà Nội",
+        "latitude": 21.0372,
+        "longitude": 105.8142,
+        "description": "Căn hộ dịch vụ phong cách hoài cổ Indochine trung tâm Ba Đình. Thang máy tốc độ cao, dọn phòng tuần 2 lần, máy giặt sấy trong phòng, cho phép nuôi thú cưng nhỏ.",
+        "shared_costs": {
+            "electricity_billing": "state_rate",
+            "water_cost": 0,
+            "wifi_fee": 0,
+            "parking_fee_monthly": 120000,
+        },
+        "shared_rules": {
+            "curfew": False,
+            "allow_pets": True,
+            "fingerprint_lock": True,
+            "live_with_owner": False,
+        },
+        "images": [
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "units": [
+            {"unit_number": "Studio 1A", "floor": 1, "area_sqm": 32.0, "price": 8500000, "deposit": 8500000, "status": "available", "furnishing": "full", "has_mezzanine": False, "has_private_bathroom": True, "max_occupants": 2},
+            {"unit_number": "Suite 2B", "floor": 2, "area_sqm": 45.0, "price": 11000000, "deposit": 11000000, "status": "occupied", "furnishing": "full", "has_mezzanine": False, "has_private_bathroom": True, "max_occupants": 2},
+        ],
+    },
+    {
+        "name": "Căn Hộ Dịch Vụ Tây Hồ View Hồ Trúc Bạch",
+        "property_model": "serviced_apartment",
+        "address": "Số 15 Phố Trấn Vũ, Phường Trúc Bạch",
+        "ward": "Phường Trúc Bạch",
+        "district": "Quận Ba Đình",
+        "city": "Thành phố Hà Nội",
+        "latitude": 21.0452,
+        "longitude": 105.8398,
+        "description": "Căn hộ Studio cao cấp view thẳng hồ Trúc Bạch lộng gió. Không gian yên tĩnh phù hợp cho chuyên gia quốc tế, đại sứ quán và nhân viên văn phòng cao cấp.",
+        "shared_costs": {
+            "electricity_per_kwh": 4000,
+            "electricity_billing": "fixed",
+            "water_cost": 150000,
+            "water_unit": "per_person",
+            "wifi_fee": 0,
+            "parking_fee_monthly": 150000,
+        },
+        "shared_rules": {
+            "curfew": False,
+            "allow_pets": True,
+            "fingerprint_lock": True,
+            "live_with_owner": False,
+        },
+        "images": [
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "units": [
+            {"unit_number": "Studio 201", "floor": 2, "area_sqm": 35.0, "price": 9000000, "deposit": 9000000, "status": "available", "furnishing": "full", "has_mezzanine": False, "has_private_bathroom": True, "max_occupants": 2},
+            {"unit_number": "Studio 301", "floor": 3, "area_sqm": 38.0, "price": 9500000, "deposit": 9500000, "status": "available", "furnishing": "full", "has_mezzanine": False, "has_private_bathroom": True, "max_occupants": 2},
+        ],
+    },
+    {
+        "name": "Khu Nhà Trọ Sinh Viên Làng Đại Học Thủ Đức",
+        "property_model": "boarding_house",
+        "address": "Đường số 6, Khu phố 6, Phường Linh Trung",
+        "ward": "Phường Linh Trung",
+        "district": "Thành phố Thủ Đức",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.8698,
+        "longitude": 106.7794,
+        "description": "Nhà trọ sinh viên giá rẻ gần ĐH Nông Lâm, ĐH KHTN và KTX Khu B ĐHQG TP.HCM. Có gác lửng đúc bê tông chắc chắn, wifi cáp quang riêng từng lầu, cổng vân tay an toàn.",
+        "shared_costs": {
+            "electricity_per_kwh": 3500,
+            "electricity_billing": "fixed",
+            "water_cost": 70000,
+            "water_unit": "per_person",
+            "wifi_fee": 50000,
+            "parking_fee_monthly": 80000,
+        },
+        "shared_rules": {
+            "curfew": False,
+            "allow_pets": False,
+            "fingerprint_lock": True,
+            "live_with_owner": False,
+        },
+        "images": [
+            "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "units": [
+            {"unit_number": "Unit A1", "floor": 1, "area_sqm": 18.0, "price": 2800000, "deposit": 2800000, "status": "available", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 2},
+            {"unit_number": "Unit A2", "floor": 1, "area_sqm": 18.0, "price": 2800000, "deposit": 2800000, "status": "available", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 2},
+            {"unit_number": "Unit B1", "floor": 2, "area_sqm": 22.0, "price": 3200000, "deposit": 3200000, "status": "occupied", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 3},
+            {"unit_number": "Unit B2", "floor": 2, "area_sqm": 22.0, "price": 3200000, "deposit": 3200000, "status": "available", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 3},
+        ],
+    },
+    {
+        "name": "Căn Hộ Dịch Vụ Cao Cấp Thảo Điền Riverview",
+        "property_model": "serviced_apartment",
+        "address": "Số 18 Đường số 41, Phường Thảo Điền",
+        "ward": "Phường Thảo Điền",
+        "district": "Thành phố Thủ Đức",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.8038,
+        "longitude": 106.7321,
+        "description": "Căn hộ dịch vụ phong cách Indochine sang trọng, có thang máy, dọn phòng 2 lần/tuần, hồ bơi sân thượng ngắm sông Sài Gòn.",
+        "shared_costs": {
+            "electricity_billing": "state_rate",
+            "water_cost": 0,
+            "wifi_fee": 0,
+            "parking_fee_monthly": 150000,
+        },
+        "shared_rules": {
+            "curfew": False,
+            "allow_pets": True,
+            "fingerprint_lock": True,
+            "live_with_owner": False,
+        },
+        "images": [
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "units": [
+            {"unit_number": "Studio 2A", "floor": 2, "area_sqm": 35.0, "price": 9500000, "deposit": 9500000, "status": "occupied", "furnishing": "full", "has_mezzanine": False, "has_private_bathroom": True, "max_occupants": 2},
+            {"unit_number": "Suite 4B", "floor": 4, "area_sqm": 50.0, "price": 14000000, "deposit": 14000000, "status": "available", "furnishing": "full", "has_mezzanine": False, "has_private_bathroom": True, "max_occupants": 2},
+            {"unit_number": "Suite 5A", "floor": 5, "area_sqm": 55.0, "price": 16000000, "deposit": 16000000, "status": "available", "furnishing": "full", "has_mezzanine": False, "has_private_bathroom": True, "max_occupants": 2},
+        ],
+    },
+    {
+        "name": "Nhà Trọ Tiện Nghi Sinh Viên Quận 10",
+        "property_model": "boarding_house",
+        "address": "Số 268 Lý Thường Kiệt, Phường 14",
+        "ward": "Phường 14",
+        "district": "Quận 10",
+        "city": "Thành phố Hồ Chí Minh",
+        "latitude": 10.7728,
+        "longitude": 106.6578,
+        "description": "Nhà trọ sinh viên tiện nghi nằm ngay đối diện cổng trường ĐH Bách Khoa TP.HCM. Có máy giặt chung sân phơi đồ lộng gió, giờ giấc tự do không chung chủ.",
+        "shared_costs": {
+            "electricity_per_kwh": 3800,
+            "electricity_billing": "fixed",
+            "water_cost": 100000,
+            "water_unit": "per_person",
+            "wifi_fee": 80000,
+            "parking_fee_monthly": 100000,
+        },
+        "shared_rules": {
+            "curfew": False,
+            "allow_pets": False,
+            "fingerprint_lock": True,
+            "live_with_owner": False,
+        },
+        "images": [
+            "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "units": [
+            {"unit_number": "P.101", "floor": 1, "area_sqm": 20.0, "price": 3600000, "deposit": 3600000, "status": "available", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 2},
+            {"unit_number": "P.102", "floor": 1, "area_sqm": 20.0, "price": 3600000, "deposit": 3600000, "status": "available", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 2},
+            {"unit_number": "P.201", "floor": 2, "area_sqm": 24.0, "price": 4000000, "deposit": 4000000, "status": "occupied", "furnishing": "full", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 3},
+        ],
+    },
+    {
+        "name": "Căn Hộ Dịch Vụ Studio Quận 1 Boutique",
+        "property_model": "serviced_apartment",
+        "address": "Số 15B Lê Thánh Tôn, Phường Bến Nghé",
         "ward": "Phường Bến Nghé",
         "district": "Quận 1",
         "city": "Thành phố Hồ Chí Minh",
         "latitude": 10.7812,
         "longitude": 106.7045,
-        "status": "active",
+        "description": "Khu phố Nhật Little Tokyo Quận 1, vị trí đắc địa đi bộ sang Vincom Đồng Khởi và nhà hát Thành phố. Căn hộ studio full nội thất gỗ ấm cúng, dịch vụ giặt ủi và dọn phòng chu đáo.",
+        "shared_costs": {
+            "electricity_per_kwh": 4200,
+            "electricity_billing": "fixed",
+            "water_cost": 150000,
+            "water_unit": "per_person",
+            "wifi_fee": 0,
+            "parking_fee_monthly": 200000,
+        },
+        "shared_rules": {
+            "curfew": False,
+            "allow_pets": True,
+            "fingerprint_lock": True,
+            "live_with_owner": False,
+        },
+        "images": [
+            "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "units": [
+            {"unit_number": "Deluxe 101", "floor": 1, "area_sqm": 30.0, "price": 10500000, "deposit": 10500000, "status": "available", "furnishing": "full", "has_mezzanine": False, "has_private_bathroom": True, "max_occupants": 2},
+            {"unit_number": "Premium 202", "floor": 2, "area_sqm": 40.0, "price": 13500000, "deposit": 13500000, "status": "available", "furnishing": "full", "has_mezzanine": False, "has_private_bathroom": True, "max_occupants": 2},
+        ],
     },
     {
-        "title": "Căn hộ The Sun Avenue 2PN Mai Chí Thọ nội thất đẹp giá tốt",
-        "description": "Cho thuê chung cư The Sun Avenue 2 phòng ngủ 2WC đầy đủ sofa, giường tủ, máy lạnh, tủ lạnh, bếp từ. Tiện ích hồ bơi tràn bờ, siêu thị, trường học, di chuyển sang quận 1 chỉ 10 phút.",
-        "property_type": "apartment",
-        "listing_type": "rent",
-        "price": 15000000.0,
-        "currency": "VND",
-        "area_sqm": 76.0,
-        "num_bedrooms": 2,
-        "num_bathrooms": 2,
-        "address": "28 Mai Chí Thọ",
+        "name": "Khu Phòng Trọ Sinh Viên ĐH Bách Khoa Đà Nẵng",
+        "property_model": "boarding_house",
+        "address": "Số 54 Ngô Thì Nhậm, Phường Hòa Khánh Nam",
+        "ward": "Phường Hòa Khánh Nam",
+        "district": "Quận Liên Chiểu",
+        "city": "Thành phố Đà Nẵng",
+        "latitude": 16.0745,
+        "longitude": 108.1512,
+        "description": "Nhà trọ sinh viên khép kín gần ĐH Bách Khoa và ĐH Sư Phạm Đà Nẵng. Khu dân cư an ninh, có sân để xe rộng rãi có mái che và camera giám sát, giá điện nước chuẩn nhà nước.",
+        "shared_costs": {
+            "electricity_per_kwh": 3000,
+            "electricity_billing": "fixed",
+            "water_cost": 50000,
+            "water_unit": "per_person",
+            "wifi_fee": 40000,
+            "parking_fee_monthly": 50000,
+        },
+        "shared_rules": {
+            "curfew": False,
+            "allow_pets": False,
+            "fingerprint_lock": True,
+            "live_with_owner": False,
+        },
+        "images": [
+            "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "units": [
+            {"unit_number": "P.101", "floor": 1, "area_sqm": 18.0, "price": 2200000, "deposit": 2200000, "status": "available", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 2},
+            {"unit_number": "P.102", "floor": 1, "area_sqm": 18.0, "price": 2200000, "deposit": 2200000, "status": "available", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 2},
+            {"unit_number": "P.203", "floor": 2, "area_sqm": 22.0, "price": 2600000, "deposit": 2600000, "status": "occupied", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 3},
+        ],
+    },
+    {
+        "name": "Nhà Trọ Sinh Viên Đại Học Cần Thơ",
+        "property_model": "boarding_house",
+        "address": "Hẻm 51 Đường 3/2, Phường Xuân Khánh",
+        "ward": "Phường Xuân Khánh",
+        "district": "Quận Ninh Kiều",
+        "city": "Thành phố Cần Thơ",
+        "latitude": 10.0285,
+        "longitude": 105.7694,
+        "description": "Khu nhà trọ sinh viên sạch đẹp nằm trong hẻm ẩm thực sinh viên 51 đường 3/2 quận Ninh Kiều. Đi bộ sang Khu 2 Đại học Cần Thơ chỉ 5 phút, khu trọ yên tĩnh học tập.",
+        "shared_costs": {
+            "electricity_per_kwh": 3000,
+            "electricity_billing": "fixed",
+            "water_cost": 40000,
+            "water_unit": "per_person",
+            "wifi_fee": 30000,
+            "parking_fee_monthly": 50000,
+        },
+        "shared_rules": {
+            "curfew": False,
+            "allow_pets": False,
+            "fingerprint_lock": True,
+            "live_with_owner": False,
+        },
+        "images": [
+            "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "units": [
+            {"unit_number": "P.01", "floor": 1, "area_sqm": 16.0, "price": 1800000, "deposit": 1800000, "status": "available", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 2},
+            {"unit_number": "P.02", "floor": 1, "area_sqm": 16.0, "price": 1800000, "deposit": 1800000, "status": "available", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 2},
+            {"unit_number": "P.03", "floor": 2, "area_sqm": 20.0, "price": 2000000, "deposit": 2000000, "status": "occupied", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 2},
+        ],
+    },
+    {
+        "name": "Căn Hộ Dịch Vụ Chuyên Gia VSIP 1 Thuận An",
+        "property_model": "serviced_apartment",
+        "address": "Đường D1, Khu Dân Cư Vietsing, Phường An Phú",
         "ward": "Phường An Phú",
-        "district": "Thành phố Thủ Đức",
-        "city": "Thành phố Hồ Chí Minh",
-        "latitude": 10.7863,
-        "longitude": 106.7554,
-        "status": "active",
-    },
-    {
-        "title": "Biệt thự sân vườn Thảo Điền Quận 2 có hồ bơi riêng biệt lập",
-        "description": "Cho thuê biệt thự nghỉ dưỡng cao cấp tại Thảo Điền diện tích khuôn viên 450m2. Thiết kế hiện đại mở, 4 phòng ngủ ensuite, sân vườn rộng nhiều cây xanh, gara ô tô rộng rãi.",
-        "property_type": "villa",
-        "listing_type": "rent",
-        "price": 95000000.0,
-        "currency": "VND",
-        "area_sqm": 450.0,
-        "num_bedrooms": 4,
-        "num_bathrooms": 5,
-        "address": "42 Nguyễn Văn Hưởng",
-        "ward": "Phường Thảo Điền",
-        "district": "Thành phố Thủ Đức",
-        "city": "Thành phố Hồ Chí Minh",
-        "latitude": 10.8124,
-        "longitude": 106.7328,
-        "status": "active",
-    },
-    {
-        "title": "Mặt bằng kinh doanh tầng trệt mặt tiền đường Nguyễn Huệ Quận 1",
-        "description": "Cho thuê mặt bằng thương mại phố đi bộ Nguyễn Huệ, vị trí vàng lưu lượng khách du lịch đông đúc. Thích hợp mở showroom thương hiệu thời trang, cà phê hoặc nhà hàng cao cấp.",
-        "property_type": "commercial",
-        "listing_type": "rent",
-        "price": 180000000.0,
-        "currency": "VND",
-        "area_sqm": 160.0,
-        "num_bedrooms": None,
-        "num_bathrooms": 2,
-        "address": "68 Nguyễn Huệ",
-        "ward": "Phường Bến Nghé",
-        "district": "Quận 1",
-        "city": "Thành phố Hồ Chí Minh",
-        "latitude": 10.7742,
-        "longitude": 106.7031,
-        "status": "active",
-    },
-    {
-        "title": "Căn hộ Sunrise City 3PN Quận 7 view Nguyễn Hữu Thọ",
-        "description": "Cho thuê dài hạn căn hộ Sunrise City South Towers 3 phòng ngủ đầy đủ nội thất sang trọng. Đối diện Lotte Mart Quận 7, liền kề trường RMIT, Tôn Đức Thắng.",
-        "property_type": "apartment",
-        "listing_type": "rent",
-        "price": 26000000.0,
-        "currency": "VND",
-        "area_sqm": 120.0,
-        "num_bedrooms": 3,
-        "num_bathrooms": 2,
-        "address": "23 Nguyễn Hữu Thọ",
-        "ward": "Phường Tân Hưng",
-        "district": "Quận 7",
-        "city": "Thành phố Hồ Chí Minh",
-        "latitude": 10.7431,
-        "longitude": 106.7011,
-        "status": "active",
-    },
-    {
-        "title": "Nhà nguyên căn hẻm xe hơi đường Cách Mạng Tháng 8 Quận 10",
-        "description": "Cho thuê nhà 1 trệt 2 lầu đúc kiên cố hẻm xe hơi thông thoáng gần ngã sáu Dân Chủ. Phù hợp làm văn phòng công ty nhỏ, kinh doanh online kết hợp ở gia đình.",
-        "property_type": "house",
-        "listing_type": "rent",
-        "price": 28000000.0,
-        "currency": "VND",
-        "area_sqm": 85.0,
-        "num_bedrooms": 3,
-        "num_bathrooms": 3,
-        "address": "382 Cách Mạng Tháng 8",
-        "ward": "Phường 11",
-        "district": "Quận 10",
-        "city": "Thành phố Hồ Chí Minh",
-        "latitude": 10.7788,
-        "longitude": 106.6781,
-        "status": "active",
-    },
-
-    # --- HÀ NỘI - BÁN (SALE) ---
-    {
-        "title": "Căn hộ Vinhomes Metropolis Liễu Giai 2PN view hồ Tây tuyệt đẹp",
-        "description": "Bán căn hộ cao cấp Vinhomes Metropolis 29 Liễu Giai, tầng trung thoáng mát, tầm nhìn trực diện Hồ Tây lộng gió. Nội thất ngoại nhập cao cấp, cạnh đại sứ quán Nhật và TTTM Lotte.",
-        "property_type": "apartment",
-        "listing_type": "sale",
-        "price": 9800000000.0,
-        "currency": "VND",
-        "area_sqm": 78.5,
-        "num_bedrooms": 2,
-        "num_bathrooms": 2,
-        "address": "29 Liễu Giai",
-        "ward": "Phường Ngọc Khánh",
-        "district": "Quận Ba Đình",
-        "city": "Thành phố Hà Nội",
-        "latitude": 21.0331,
-        "longitude": 105.8152,
-        "status": "active",
-    },
-    {
-        "title": "Nhà phố cổ Hàng Bông Hoàn Kiếm mặt tiền kinh doanh du lịch",
-        "description": "Bán nhà mặt phố Hàng Bông vị trí kim cương phố cổ Hà Nội. Diện tích 75m2 xây 5 tầng có thang máy, đang kinh doanh khách sạn boutique mini và đồ lưu niệm lưu lượng khách Tây sầm uất.",
-        "property_type": "house",
-        "listing_type": "sale",
-        "price": 62000000000.0,
-        "currency": "VND",
-        "area_sqm": 75.0,
-        "num_bedrooms": 6,
-        "num_bathrooms": 6,
-        "address": "118 Hàng Bông",
-        "ward": "Phường Hàng Bông",
-        "district": "Quận Hoàn Kiếm",
-        "city": "Thành phố Hà Nội",
-        "latitude": 21.0308,
-        "longitude": 105.8457,
-        "status": "active",
-    },
-    {
-        "title": "Biệt thự Vinhomes Riverside Long Biên hoa hồng phong cách Venice",
-        "description": "Biệt thự đơn lập khu Hoa Hồng Vinhomes Riverside, sông đào nhân tạo bao quanh nhà, sân vườn tiểu cảnh cá Koi tuyệt đẹp. Hệ sinh thái tiện ích chuẩn 5 sao quốc tế.",
-        "property_type": "villa",
-        "listing_type": "sale",
-        "price": 78000000000.0,
-        "currency": "VND",
-        "area_sqm": 410.0,
-        "num_bedrooms": 5,
-        "num_bathrooms": 6,
-        "address": "Khu đô thị Vinhomes Riverside, Chu Huy Mân",
-        "ward": "Phường Phúc Đồng",
-        "district": "Quận Long Biên",
-        "city": "Thành phố Hà Nội",
-        "latitude": 21.0452,
-        "longitude": 105.9084,
-        "status": "active",
-    },
-    {
-        "title": "Căn hộ chung cư D'Capitale Trần Duy Hưng 3PN nội thất tân cổ điển",
-        "description": "Bán căn góc 3 ngủ D'Capitale ngã tư Trần Duy Hưng - Khuất Duy Tiến. Tầm nhìn thoáng ra công viên hồ điều hòa Nhân Chính, giao thông kết nối thuận tiện và đầy đủ tiện ích.",
-        "property_type": "apartment",
-        "listing_type": "sale",
-        "price": 6500000000.0,
-        "currency": "VND",
-        "area_sqm": 95.0,
-        "num_bedrooms": 3,
-        "num_bathrooms": 2,
-        "address": "119 Trần Duy Hưng",
-        "ward": "Phường Trung Hòa",
-        "district": "Quận Cầu Giấy",
-        "city": "Thành phố Hà Nội",
-        "latitude": 21.0063,
-        "longitude": 105.7951,
-        "status": "active",
-    },
-    {
-        "title": "Nhà liền kề KĐT Starlake Tây Hồ Tây đẳng cấp kiểu Hàn Quốc",
-        "description": "Bán nhà liền kề phân khu H7 KĐT Starlake Tây Hồ Tây. Xây dựng 4 tầng kiến trúc sang trọng hiện đại, gần hồ Tây và các đại sứ quán, cộng đồng cư dân quốc tế trí thức cao.",
-        "property_type": "house",
-        "listing_type": "sale",
-        "price": 46000000000.0,
-        "currency": "VND",
-        "area_sqm": 132.0,
-        "num_bedrooms": 4,
-        "num_bathrooms": 5,
-        "address": "Khu đô thị Starlake Tây Hồ Tây",
-        "ward": "Phường Xuân Tảo",
-        "district": "Quận Bắc Từ Liêm",
-        "city": "Thành phố Hà Nội",
-        "latitude": 21.0612,
-        "longitude": 105.7983,
-        "status": "active",
-    },
-    {
-        "title": "Căn hộ Vinhomes Smart City Tây Mỗ 1PN+ giá hợp lý",
-        "description": "Căn hộ 1PN+1 tòa Tonkin Vinhomes Smart City phân khu cao cấp nhất dự án. Thiết kế thông minh tối ưu diện tích, vườn phong cách Nhật, hồ bơi bốn mùa trong nhà.",
-        "property_type": "apartment",
-        "listing_type": "sale",
-        "price": 2650000000.0,
-        "currency": "VND",
-        "area_sqm": 48.0,
-        "num_bedrooms": 1,
-        "num_bathrooms": 1,
-        "address": "Khu đô thị Vinhomes Smart City, Đại lộ Thăng Long",
-        "ward": "Phường Tây Mỗ",
-        "district": "Quận Nam Từ Liêm",
-        "city": "Thành phố Hà Nội",
-        "latitude": 20.9998,
-        "longitude": 105.7483,
-        "status": "active",
-        "project_slug": "vinhomes-smart-city",
-    },
-    {
-        "title": "Căn hộ Vinhomes Ocean Park 2PN góc view hồ nước ngọt Ngọc Trai 24.5ha",
-        "description": "Bán căn góc 2 phòng ngủ tòa S2.05 phân khu Sapphire Vinhomes Ocean Park Gia Lâm. Tầng trung ban công đón gió view trực diện biển hồ nước mặn và hồ lớn Ngọc Trai. Đã có sổ đỏ lâu dài.",
-        "property_type": "apartment",
-        "listing_type": "sale",
-        "price": 3150000000.0,
-        "currency": "VND",
-        "area_sqm": 66.0,
-        "num_bedrooms": 2,
-        "num_bathrooms": 2,
-        "address": "Phân khu Sapphire, Khu đô thị Vinhomes Ocean Park",
-        "ward": "Xã Đa Tốn",
-        "district": "Huyện Gia Lâm",
-        "city": "Thành phố Hà Nội",
-        "latitude": 20.9926,
-        "longitude": 105.9429,
-        "status": "active",
-        "project_slug": "vinhomes-ocean-park",
-    },
-    {
-        "title": "Tòa nhà căn hộ dịch vụ phố Đội Cấn Ba Đình 8 tầng dòng tiền khủng",
-        "description": "Bán tòa nhà 8 tầng thang máy phố Đội Cấn gồm 16 phòng studio cho khách Nhật Bản và chuyên gia nước ngoài thuê full phòng, doanh thu đạt 120 triệu/tháng. Sổ đỏ vuông vắn.",
-        "property_type": "commercial",
-        "listing_type": "sale",
-        "price": 29500000000.0,
-        "currency": "VND",
-        "area_sqm": 90.0,
-        "num_bedrooms": 16,
-        "num_bathrooms": 16,
-        "address": "285 Đội Cấn",
-        "ward": "Phường Liễu Giai",
-        "district": "Quận Ba Đình",
-        "city": "Thành phố Hà Nội",
-        "latitude": 21.0365,
-        "longitude": 105.8198,
-        "status": "active",
-    },
-
-    # --- HÀ NỘI - CHO THUÊ (RENT) ---
-    {
-        "title": "Căn hộ Vinhomes Smart City 2PN Sapphire 2 đầy đủ nội thất",
-        "description": "Cho thuê chung cư 2 phòng ngủ 2WC phân khu Sapphire 2 Vinhomes Smart City. Nhà mới tinh full nội thất cao cấp xách vali vào ở ngay. Hưởng trọn tiện ích công viên thể thao Sportia Park và vườn Nhật.",
-        "property_type": "apartment",
-        "listing_type": "rent",
-        "price": 11500000.0,
-        "currency": "VND",
-        "area_sqm": 64.0,
-        "num_bedrooms": 2,
-        "num_bathrooms": 2,
-        "address": "Phân khu Sapphire 2, KĐT Vinhomes Smart City",
-        "ward": "Phường Tây Mỗ",
-        "district": "Quận Nam Từ Liêm",
-        "city": "Thành phố Hà Nội",
-        "latitude": 20.9998,
-        "longitude": 105.7483,
-        "status": "active",
-        "project_slug": "vinhomes-smart-city",
-    },
-    {
-        "title": "Căn hộ Vinhomes Ocean Park 1PN tòa Zenpark tiện nghi chuẩn Nhật",
-        "description": "Cho thuê căn hộ 1 phòng ngủ cao cấp phân khu The Zenpark Ruby Vinhomes Ocean Park. Tiêu chuẩn bàn giao thông minh, điều hòa âm trần Daikin, sàn gỗ, sảnh đón lễ tân sang trọng, view vườn Nhật nội khu.",
-        "property_type": "apartment",
-        "listing_type": "rent",
-        "price": 8500000.0,
-        "currency": "VND",
-        "area_sqm": 45.0,
-        "num_bedrooms": 1,
-        "num_bathrooms": 1,
-        "address": "Tòa R1.02 The Zenpark, Vinhomes Ocean Park",
-        "ward": "Xã Đa Tốn",
-        "district": "Huyện Gia Lâm",
-        "city": "Thành phố Hà Nội",
-        "latitude": 20.9926,
-        "longitude": 105.9429,
-        "status": "active",
-        "project_slug": "vinhomes-ocean-park",
-    },
-    {
-        "title": "Căn hộ cao cấp Ciputra Tây Hồ 3PN view sân golf thoáng đãng",
-        "description": "Cho thuê căn hộ khu đô thị Ciputra Nam Thăng Long, 3 phòng ngủ đầy đủ tiện nghi Châu Âu sang trọng. Không gian yên tĩnh trong lành, nhiều trường quốc tế UNIS, SIS, Hanoi Academy.",
-        "property_type": "apartment",
-        "listing_type": "rent",
-        "price": 35000000.0,
-        "currency": "VND",
-        "area_sqm": 145.0,
-        "num_bedrooms": 3,
-        "num_bathrooms": 2,
-        "address": "Khu đô thị Ciputra, Lạc Long Quân",
-        "ward": "Phường Xuân La",
-        "district": "Quận Tây Hồ",
-        "city": "Thành phố Hà Nội",
-        "latitude": 21.0768,
-        "longitude": 105.8052,
-        "status": "active",
-    },
-    {
-        "title": "Cho thuê biệt thự khu đô thị Ngoại Giao Đoàn Bắc Từ Liêm",
-        "description": "Biệt thự đơn lập 350m2 đất KĐT Ngoại Giao Đoàn, hoàn thiện cơ bản có thang máy và điều hòa trung tâm. Rất phù hợp làm văn phòng đại diện ngoại giao hoặc trụ sở công ty công nghệ.",
-        "property_type": "villa",
-        "listing_type": "rent",
-        "price": 75000000.0,
-        "currency": "VND",
-        "area_sqm": 350.0,
-        "num_bedrooms": 5,
-        "num_bathrooms": 5,
-        "address": "Khu Ngoại Giao Đoàn, Xuân Tảo",
-        "ward": "Phường Xuân Tảo",
-        "district": "Quận Bắc Từ Liêm",
-        "city": "Thành phố Hà Nội",
-        "latitude": 21.0658,
-        "longitude": 105.7994,
-        "status": "active",
-    },
-    {
-        "title": "Studio view trọn vẹn Hồ Tây phố Quảng An Tây Hồ cho người nước ngoài",
-        "description": "Cho thuê căn hộ studio dịch vụ khép kín phố Quảng An, ban công lớn ngắm hoàng hôn Hồ Tây thơ mộng. Khu vực tập trung nhiều chuyên gia nước ngoài, nhiều quán cafe ven hồ chill.",
-        "property_type": "apartment",
-        "listing_type": "rent",
-        "price": 14000000.0,
-        "currency": "VND",
-        "area_sqm": 42.0,
-        "num_bedrooms": 1,
-        "num_bathrooms": 1,
-        "address": "36 Quảng An",
-        "ward": "Phường Quảng An",
-        "district": "Quận Tây Hồ",
-        "city": "Thành phố Hà Nội",
-        "latitude": 21.0621,
-        "longitude": 105.8284,
-        "status": "active",
-    },
-    {
-        "title": "Căn hộ Vinhomes Times City 2PN Minh Khai Hai Bà Trưng",
-        "description": "Cho thuê căn hộ 2 phòng ngủ Park Hill Times City đầy đủ đồ đạc hiện đại, chỉ việc xách vali vào ở. Miễn phí sử dụng bể bơi, sân tennis, gần bệnh viện Vinmec và trường học Vinschool.",
-        "property_type": "apartment",
-        "listing_type": "rent",
-        "price": 16500000.0,
-        "currency": "VND",
-        "area_sqm": 75.0,
-        "num_bedrooms": 2,
-        "num_bathrooms": 2,
-        "address": "458 Minh Khai",
-        "ward": "Phường Vĩnh Tuy",
-        "district": "Quận Hai Bà Trưng",
-        "city": "Thành phố Hà Nội",
-        "latitude": 20.9945,
-        "longitude": 105.8687,
-        "status": "active",
-    },
-    {
-        "title": "Mặt bằng kinh doanh thời trang phố Bà Triệu Hoàn Kiếm",
-        "description": "Cho thuê mặt bằng tầng 1 phố mua sắm thời trang Bà Triệu, vỉa hè rộng rãi có chỗ đỗ ô tô và xe máy. Diện tích vuông vức, mặt tiền 6m cực đẹp, hệ thống chiếu sáng có sẵn.",
-        "property_type": "commercial",
-        "listing_type": "rent",
-        "price": 65000000.0,
-        "currency": "VND",
-        "area_sqm": 80.0,
-        "num_bedrooms": None,
-        "num_bathrooms": 1,
-        "address": "126 Bà Triệu",
-        "ward": "Phường Nguyễn Du",
-        "district": "Quận Hai Bà Trưng",
-        "city": "Thành phố Hà Nội",
-        "latitude": 21.0189,
-        "longitude": 105.8498,
-        "status": "active",
-    },
-    {
-        "title": "Nhà riêng 4 tầng ngõ ô tô đường Hoàng Quốc Việt Cầu Giấy",
-        "description": "Cho thuê nhà riêng 4 tầng ngõ rộng ô tô tránh nhau đường Hoàng Quốc Việt. Khu dân trí cao, an ninh tốt, thích hợp vừa ở gia đình vừa làm trung tâm đào tạo hoặc văn phòng đại diện.",
-        "property_type": "house",
-        "listing_type": "rent",
-        "price": 22000000.0,
-        "currency": "VND",
-        "area_sqm": 68.0,
-        "num_bedrooms": 4,
-        "num_bathrooms": 4,
-        "address": "106 Hoàng Quốc Việt",
-        "ward": "Phường Nghĩa Đô",
-        "district": "Quận Cầu Giấy",
-        "city": "Thành phố Hà Nội",
-        "latitude": 21.0471,
-        "longitude": 105.7998,
-        "status": "active",
-    },
-    {
-        "title": "Căn hộ Discovery Complex Cầu Giấy 3PN rộng rãi kết nối Metro",
-        "description": "Cho thuê căn hộ cao cấp Discovery Complex 302 Cầu Giấy, 3 phòng ngủ 2 vệ sinh view toàn cảnh quận Cầu Giấy. Tòa nhà có TTTM Lotte Cinema, phòng tập California Fitness & Yoga.",
-        "property_type": "apartment",
-        "listing_type": "rent",
-        "price": 25000000.0,
-        "currency": "VND",
-        "area_sqm": 148.0,
-        "num_bedrooms": 3,
-        "num_bathrooms": 2,
-        "address": "302 Cầu Giấy",
-        "ward": "Phường Dịch Vọng",
-        "district": "Quận Cầu Giấy",
-        "city": "Thành phố Hà Nội",
-        "latitude": 21.0345,
-        "longitude": 105.7925,
-        "status": "active",
-    },
-    {
-        "title": "Văn phòng trọn gói tầng cao tòa nhà Keangnam Landmark 72 Phạm Hùng",
-        "description": "Cho thuê diện tích văn phòng chuyên nghiệp tầng 32 Keangnam Landmark 72 biểu tượng của Hà Nội. Đầy đủ sàn thảm, trần thạch cao, điều hòa trung tâm thông minh, view toàn cảnh thủ đô.",
-        "property_type": "commercial",
-        "listing_type": "rent",
-        "price": 120000000.0,
-        "currency": "VND",
-        "area_sqm": 220.0,
-        "num_bedrooms": None,
-        "num_bathrooms": 4,
-        "address": "Tòa nhà Keangnam Landmark 72, Phạm Hùng",
-        "ward": "Phường Mễ Trì",
-        "district": "Quận Nam Từ Liêm",
-        "city": "Thành phố Hà Nội",
-        "latitude": 21.0169,
-        "longitude": 105.7839,
-        "status": "active",
-    },
-    # --- ĐẤT NỀN (LAND) ---
-    {
-        "title": "Đất nền thổ cư ven sông Quận 9 TP Thủ Đức view thoáng mát",
-        "description": "Bán lô đất nền thổ cư 100% sổ hồng riêng, vị trí đắc địa gần khu công nghệ cao và cao tốc Long Thành Dầu Giây. Hạ tầng đồng bộ đường nhựa 12m, điện nước âm hoàn thiện.",
-        "property_type": "land",
-        "listing_type": "sale",
-        "price": 4200000000.0,
-        "currency": "VND",
-        "area_sqm": 120.0,
-        "num_bedrooms": None,
-        "num_bathrooms": None,
-        "address": "Đường Lã Xuân Oai",
-        "ward": "Phường Tăng Nhơn Phú A",
-        "district": "Thành phố Thủ Đức",
-        "city": "Thành phố Hồ Chí Minh",
-        "latitude": 10.8415,
-        "longitude": 106.7992,
-        "status": "active",
-    },
-    {
-        "title": "Đất đấu giá phân lô khu đô thị mới Đông Anh Hà Nội",
-        "description": "Chính chủ cần bán mảnh đất đấu giá vuông vắn, mặt tiền 6m đường rộng 2 ô tô tránh nhau. Vị trí gần chân cầu Nhật Tân, tiềm năng tăng giá vượt trội khi lên quận.",
-        "property_type": "land",
-        "listing_type": "sale",
-        "price": 5600000000.0,
-        "currency": "VND",
-        "area_sqm": 90.0,
-        "num_bedrooms": None,
-        "num_bathrooms": None,
-        "address": "Xã Vĩnh Ngọc",
-        "ward": "Xã Vĩnh Ngọc",
-        "district": "Huyện Đông Anh",
-        "city": "Thành phố Hà Nội",
-        "latitude": 21.0924,
-        "longitude": 105.8198,
-        "status": "active",
+        "district": "Thành phố Thuận An",
+        "city": "Tỉnh Bình Dương",
+        "latitude": 10.9325,
+        "longitude": 106.7118,
+        "description": "Căn hộ dịch vụ phong cách Nhật Bản & Hàn Quốc phục vụ chuyên gia làm việc tại KCN VSIP 1 và Việt Hương. Trang bị đầy đủ bếp từ, máy giặt, bồn tắm, dịch vụ dọn phòng chuyên nghiệp.",
+        "shared_costs": {
+            "electricity_per_kwh": 3800,
+            "electricity_billing": "fixed",
+            "water_cost": 100000,
+            "water_unit": "per_person",
+            "wifi_fee": 0,
+            "parking_fee_monthly": 100000,
+        },
+        "shared_rules": {
+            "curfew": False,
+            "allow_pets": True,
+            "fingerprint_lock": True,
+            "live_with_owner": False,
+        },
+        "images": [
+            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
+        ],
+        "units": [
+            {"unit_number": "Studio S1", "floor": 2, "area_sqm": 35.0, "price": 7500000, "deposit": 7500000, "status": "available", "furnishing": "full", "has_mezzanine": False, "has_private_bathroom": True, "max_occupants": 2},
+            {"unit_number": "Suite S2", "floor": 3, "area_sqm": 48.0, "price": 9500000, "deposit": 9500000, "status": "available", "furnishing": "full", "has_mezzanine": False, "has_private_bathroom": True, "max_occupants": 2},
+        ],
     },
 ]
 
+# Alias for backward/test compatibility
+SAMPLE_RENTAL_PROPERTIES = SAMPLE_RENTALS
 
-DEFAULT_SEED_USERS = [
+# ==============================================================================
+# 4. DEFAULT SEED USERS
+# ==============================================================================
+DEFAULT_SEED_USERS: list[dict[str, Any]] = [
+    {
+        "email": "host@space247.vn",
+        "full_name": "Chủ Nhà Quản Trị Space247",
+        "phone": "0933334444",
+        "password": "Password123@",
+        "role": UserRole.HOST.value,
+        "phone_verified": True,
+    },
     {
         "email": "superadmin@space247.vn",
         "full_name": "Superadmin Space247",
@@ -1051,18 +1905,6 @@ async def seed_projects(
     project_map: dict[str, Project] = {}
     stats = {"total": len(items_to_seed), "created": 0, "skipped": 0}
 
-    # Ensure projects.geom exists if database was created prior to spatial column addition
-    try:
-        await session.execute(
-            text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS geom geometry(Point, 4326);")
-        )
-        await session.execute(
-            text("CREATE INDEX IF NOT EXISTS ix_projects_geom ON projects USING gist (geom);")
-        )
-        await session.commit()
-    except Exception as exc:
-        await session.rollback()
-        logger.debug("Schema verification for projects.geom finished: %s", exc)
 
     logger.info("Starting project seeding: %d projects to process...", len(items_to_seed))
 
@@ -1093,7 +1935,7 @@ async def seed_projects(
         p_data["embedding"] = embedding_svc.generate_embedding(text_content, is_query=False)
 
         if item.get("latitude") is not None and item.get("longitude") is not None:
-            p_data["geom"] = f"SRID=4326;POINT({item['longitude']} {item['latitude']})"
+            p_data["geom"] = WKTElement(f"POINT({item['longitude']} {item['latitude']})", srid=4326)
 
         proj = Project(**p_data)
         session.add(proj)
@@ -1191,6 +2033,9 @@ async def seed_properties(
             district=item.get("district", ""),
             city=item.get("city", ""),
             description=item.get("description", ""),
+            rental_type=item.get("rental_type"),
+            rental_costs=item.get("rental_costs"),
+            rental_rules=item.get("rental_rules"),
         )
 
         vector_embedding = embedding_svc.generate_embedding(text_to_embed, is_query=False)
@@ -1206,6 +2051,9 @@ async def seed_properties(
         prop_data["embedding"] = vector_embedding
         if owner_user_id and "user_id" not in prop_data:
             prop_data["user_id"] = owner_user_id
+
+        if item.get("latitude") is not None and item.get("longitude") is not None:
+            prop_data["geom"] = WKTElement(f"POINT({item['longitude']} {item['latitude']})", srid=4326)
 
         prop = Property(**prop_data)
         session.add(prop)
@@ -1231,9 +2079,336 @@ async def seed_properties(
     return stats
 
 
+async def seed_rental_properties(
+    session: AsyncSession,
+    host_id=None,
+    rentals_data: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """
+    Seed two-sided RentalProperty and RentalUnit records idempotently.
+    Checks existing rental properties by name and units by (property_id, unit_number).
+    """
+    items_to_seed = rentals_data if rentals_data is not None else SAMPLE_RENTALS
+    created_props = 0
+    created_units = 0
+    skipped_props = 0
+
+    logger.info("Starting rental properties seeding: %d complexes to process...", len(items_to_seed))
+
+    for idx, item in enumerate(items_to_seed, start=1):
+        stmt = select(RentalProperty).where(RentalProperty.name == item["name"])
+        existing_r = (await session.execute(stmt)).scalar_one_or_none()
+
+        if existing_r:
+            r_prop = existing_r
+            skipped_props += 1
+            logger.info("[%d/%d] Existing rental complex: '%s'", idx, len(items_to_seed), item["name"])
+        else:
+            geom = None
+            if item.get("latitude") is not None and item.get("longitude") is not None:
+                geom = WKTElement(f"POINT({item['longitude']} {item['latitude']})", srid=4326)
+
+            r_prop = RentalProperty(
+                host_id=host_id,
+                name=item["name"],
+                property_model=item["property_model"],
+                address=item["address"],
+                ward=item["ward"],
+                district=item["district"],
+                city=item["city"],
+                latitude=item["latitude"],
+                longitude=item["longitude"],
+                geom=geom,
+                description=item["description"],
+                shared_costs=item["shared_costs"],
+                shared_rules=item["shared_rules"],
+                images=item["images"],
+                is_active=True,
+            )
+            session.add(r_prop)
+            await session.flush()
+            created_props += 1
+            logger.info("[%d/%d] Created rental complex: '%s' (%s - %s)", idx, len(items_to_seed), item["name"], item["property_model"], item["city"])
+
+        # Seed units idempotently
+        for u in item.get("units", []):
+            stmt_u = select(RentalUnit).where(
+                RentalUnit.property_id == r_prop.id,
+                RentalUnit.unit_number == u["unit_number"],
+            )
+            existing_u = (await session.execute(stmt_u)).scalar_one_or_none()
+            if existing_u:
+                continue
+
+            unit = RentalUnit(
+                property_id=r_prop.id,
+                unit_number=u["unit_number"],
+                floor=u.get("floor"),
+                area_sqm=u["area_sqm"],
+                price=u["price"],
+                deposit=u.get("deposit", u["price"]),
+                status=u.get("status", "available"),
+                furnishing=u.get("furnishing", "basic"),
+                has_mezzanine=u.get("has_mezzanine", False),
+                has_private_bathroom=u.get("has_private_bathroom", True),
+                max_occupants=u.get("max_occupants", 2),
+                images=u.get("images") or (item.get("images") or [])[:2],
+            )
+            session.add(unit)
+            created_units += 1
+
+    await session.commit()
+    logger.info("Rental seeding finished: %d complexes created, %d skipped, %d units created.", created_props, skipped_props, created_units)
+    return {
+        "created_properties": created_props,
+        "skipped_properties": skipped_props,
+        "created_units": created_units,
+    }
+
+
+async def seed_contracts_invoices_and_inquiries(
+    session: AsyncSession,
+    agent_user: User,
+    normal_user: User,
+) -> dict[str, int]:
+    """
+    Seed sample rental contracts, monthly invoices, and rental inquiries idempotently
+    for testing the Host Management Dashboard, reminder notifications, and VietQR checkout.
+    """
+    logger.info("--- Step 5: Seeding Sample Contracts, Invoices & Inquiries ---")
+    stats = {"contracts": 0, "invoices": 0, "inquiries": 0}
+
+    # 1. Look up units to attach contracts to
+    stmt_unit1 = (
+        select(RentalUnit)
+        .join(RentalProperty)
+        .where(RentalProperty.name == "Nhà Trọ Xanh Sinh Viên Bách - Kinh - Xây", RentalUnit.unit_number == "P.101")
+    )
+    unit1 = (await session.execute(stmt_unit1)).scalar_one_or_none()
+
+    stmt_unit2 = (
+        select(RentalUnit)
+        .join(RentalProperty)
+        .where(RentalProperty.name == "Căn Hộ Dịch Vụ Cao Cấp Thảo Điền Riverview", RentalUnit.unit_number == "Studio 2A")
+    )
+    unit2 = (await session.execute(stmt_unit2)).scalar_one_or_none()
+
+    now = datetime.now(timezone.utc)
+    current_month_str = now.strftime("%Y-%m")
+    # Previous month string (e.g. 2026-08)
+    first_day_current_month = now.replace(day=1)
+    last_day_prev_month = first_day_current_month - timedelta(days=1)
+    prev_month_str = last_day_prev_month.strftime("%Y-%m")
+
+    # Contract 1: P.101
+    contract1 = None
+    if unit1:
+        stmt_c1 = select(RentalContract).where(
+            RentalContract.unit_id == unit1.id,
+            RentalContract.tenant_id == normal_user.id,
+            RentalContract.status == "active",
+        )
+        contract1 = (await session.execute(stmt_c1)).scalar_one_or_none()
+        if not contract1:
+            contract1 = RentalContract(
+                unit_id=unit1.id,
+                property_id=unit1.property_id,
+                host_id=agent_user.id,
+                tenant_id=normal_user.id,
+                tenant_name=normal_user.full_name or "Nguyễn Văn A",
+                tenant_phone=normal_user.phone or "0912345678",
+                start_date=now - timedelta(days=90),
+                end_date=now + timedelta(days=275),
+                rental_price=float(unit1.price),
+                deposit_amount=float(unit1.deposit or unit1.price),
+                payment_cycle_months=1,
+                electricity_rate=3800.0,
+                water_rate=100000.0,
+                water_billing_type="per_person",
+                service_fee=100000.0,
+                status="active",
+            )
+            session.add(contract1)
+            await session.flush()
+            stats["contracts"] += 1
+            logger.info("Created sample active contract for unit P.101 (tenant: %s)", normal_user.email)
+
+    # Contract 2: Studio 2A
+    if unit2:
+        stmt_c2 = select(RentalContract).where(
+            RentalContract.unit_id == unit2.id,
+            RentalContract.tenant_id == normal_user.id,
+            RentalContract.status == "active",
+        )
+        contract2 = (await session.execute(stmt_c2)).scalar_one_or_none()
+        if not contract2:
+            contract2 = RentalContract(
+                unit_id=unit2.id,
+                property_id=unit2.property_id,
+                host_id=agent_user.id,
+                tenant_id=normal_user.id,
+                tenant_name=normal_user.full_name or "Nguyễn Văn A",
+                tenant_phone=normal_user.phone or "0912345678",
+                start_date=now - timedelta(days=60),
+                end_date=now + timedelta(days=305),
+                rental_price=float(unit2.price),
+                deposit_amount=float(unit2.deposit or unit2.price),
+                payment_cycle_months=1,
+                electricity_rate=3500.0,
+                water_rate=25000.0,
+                water_billing_type="per_m3",
+                service_fee=150000.0,
+                status="active",
+            )
+            session.add(contract2)
+            await session.flush()
+            stats["contracts"] += 1
+            logger.info("Created sample active contract for unit Studio 2A (tenant: %s)", normal_user.email)
+
+    # Invoices for Contract 1:
+    if contract1 and unit1:
+        # Invoice 1: Current month, unpaid/pending for testing debt reminder
+        stmt_inv1 = select(MonthlyInvoice).where(
+            MonthlyInvoice.contract_id == contract1.id,
+            MonthlyInvoice.billing_month == current_month_str,
+        )
+        inv1 = (await session.execute(stmt_inv1)).scalar_one_or_none()
+        if not inv1:
+            elec_rate = float(contract1.electricity_rate)
+            elec_amt = 55.0 * elec_rate
+            water_amt = float(contract1.water_rate)
+            svc_amt = float(contract1.service_fee)
+            other_amt = 100000.0
+            room_amt = float(contract1.rental_price)
+            tot_amt = room_amt + elec_amt + water_amt + svc_amt + other_amt
+
+            inv1 = MonthlyInvoice(
+                contract_id=contract1.id,
+                unit_id=unit1.id,
+                host_id=agent_user.id,
+                tenant_id=normal_user.id,
+                billing_month=current_month_str,
+                room_amount=room_amt,
+                electricity_previous_index=120.0,
+                electricity_current_index=175.0,
+                electricity_rate=elec_rate,
+                electricity_amount=elec_amt,
+                water_previous_index=0.0,
+                water_current_index=1.0,
+                water_rate=float(contract1.water_rate),
+                water_amount=water_amt,
+                service_amount=svc_amt,
+                other_amount=other_amt,
+                total_amount=tot_amt,
+                status="pending",
+                due_date=now + timedelta(days=5),
+                notes=f"Hóa đơn tiền phòng và điện nước tháng {current_month_str}",
+            )
+            session.add(inv1)
+            stats["invoices"] += 1
+            logger.info("Created sample pending monthly invoice for %s (Contract 1)", current_month_str)
+
+        # Invoice 2: Previous month, paid
+        stmt_inv2 = select(MonthlyInvoice).where(
+            MonthlyInvoice.contract_id == contract1.id,
+            MonthlyInvoice.billing_month == prev_month_str,
+        )
+        inv2 = (await session.execute(stmt_inv2)).scalar_one_or_none()
+        if not inv2:
+            elec_rate = float(contract1.electricity_rate)
+            elec_amt = 50.0 * elec_rate
+            water_amt = float(contract1.water_rate)
+            svc_amt = float(contract1.service_fee)
+            other_amt = 100000.0
+            room_amt = float(contract1.rental_price)
+            tot_amt = room_amt + elec_amt + water_amt + svc_amt + other_amt
+
+            inv2 = MonthlyInvoice(
+                contract_id=contract1.id,
+                unit_id=unit1.id,
+                host_id=agent_user.id,
+                tenant_id=normal_user.id,
+                billing_month=prev_month_str,
+                room_amount=room_amt,
+                electricity_previous_index=70.0,
+                electricity_current_index=120.0,
+                electricity_rate=elec_rate,
+                electricity_amount=elec_amt,
+                water_previous_index=0.0,
+                water_current_index=1.0,
+                water_rate=float(contract1.water_rate),
+                water_amount=water_amt,
+                service_amount=svc_amt,
+                other_amount=other_amt,
+                total_amount=tot_amt,
+                status="paid",
+                due_date=last_day_prev_month,
+                paid_at=last_day_prev_month - timedelta(days=2),
+                notes=f"Hóa đơn tiền phòng tháng {prev_month_str} (Đã thanh toán qua VietQR Napas 247)",
+            )
+            session.add(inv2)
+            stats["invoices"] += 1
+            logger.info("Created sample paid monthly invoice for %s (Contract 1)", prev_month_str)
+
+    # 3. Rental Inquiry: P.202 available unit for VietQR reservation testing
+    stmt_unit_inq = (
+        select(RentalUnit)
+        .join(RentalProperty)
+        .where(RentalProperty.name == "Nhà Trọ Xanh Sinh Viên Bách - Kinh - Xây", RentalUnit.unit_number == "P.202")
+    )
+    unit_inq = (await session.execute(stmt_unit_inq)).scalar_one_or_none()
+    if unit_inq:
+        stmt_inq = select(RentalInquiry).where(
+            RentalInquiry.unit_id == unit_inq.id,
+            RentalInquiry.tenant_id == normal_user.id,
+        )
+        existing_inq = (await session.execute(stmt_inq)).scalar_one_or_none()
+        if not existing_inq:
+            inquiry = RentalInquiry(
+                unit_id=unit_inq.id,
+                tenant_id=normal_user.id,
+                host_id=agent_user.id,
+                inquiry_type="booking_request",
+                tenant_name=normal_user.full_name or "Nguyễn Văn A",
+                tenant_phone=normal_user.phone or "0912345678",
+                message="Em chào anh chủ nhà, em là sinh viên năm 3 Bách Khoa muốn thuê phòng P.202 từ đầu tháng tới ạ.",
+                status="pending",
+            )
+            session.add(inquiry)
+            await session.flush()
+            stats["inquiries"] += 1
+            logger.info("Created sample pending booking inquiry for P.202 (Ready for VietQR deposit)")
+
+            # Seed sample pending DepositTransaction
+            stmt_dep = select(DepositTransaction).where(DepositTransaction.reference_code == "DEP-SAMPLE-P202")
+            existing_dep = (await session.execute(stmt_dep)).scalar_one_or_none()
+            if not existing_dep:
+                dep_amount = float(unit_inq.deposit or 3800000.0)
+                dep = DepositTransaction(
+                    unit_id=unit_inq.id,
+                    inquiry_id=inquiry.id,
+                    tenant_id=normal_user.id,
+                    host_id=agent_user.id,
+                    amount=dep_amount,
+                    reference_code="DEP-SAMPLE-P202",
+                    payment_method="vietqr",
+                    vietqr_url=f"https://img.vietqr.io/image/970422-0988889999-compact2.png?amount={int(dep_amount)}&addInfo=DEP%20SAMPLE%20P202&accountName=SPACE247%20VIETNAM",
+                    status="pending",
+                    expires_at=now + timedelta(minutes=30),
+                )
+                session.add(dep)
+                logger.info("Created sample pending deposit transaction 'DEP-SAMPLE-P202'")
+
+    await session.commit()
+    logger.info("Contracts/Invoices/Inquiries seeding finished: %s", stats)
+    return stats
+
+
 async def reindex_all_vectors(session: AsyncSession) -> int:
-    """Recompute 768-dim embeddings for all existing properties in database."""
+    """Recompute 768-dim embeddings for all existing properties and projects in database."""
     embedding_svc = get_embedding_service()
+    
+    # 1. Properties
     stmt = select(Property)
     res = await session.execute(stmt)
     properties = res.scalars().all()
@@ -1255,15 +2430,33 @@ async def reindex_all_vectors(session: AsyncSession) -> int:
             district=prop.district or "",
             city=prop.city or "",
             description=prop.description or "",
+            rental_type=prop.rental_type,
+            rental_costs=prop.rental_costs,
+            rental_rules=prop.rental_rules,
         )
         prop.embedding = embedding_svc.generate_embedding(text_to_embed, is_query=False)
         updated_count += 1
         if idx % 10 == 0 or idx == len(properties):
             logger.info("Reindexed [%d/%d] properties...", idx, len(properties))
 
+    # 2. Projects
+    stmt_p = select(Project)
+    res_p = await session.execute(stmt_p)
+    projects = res_p.scalars().all()
+    logger.info("Found %d projects to reindex vectors...", len(projects))
+    for p in projects:
+        text_content = (
+            f"Dự án {p.name or ''}. "
+            f"Chủ đầu tư: {p.developer or ''}. "
+            f"Địa chỉ: {p.address or ''}, {p.district or ''}, {p.city or ''}. "
+            f"Tiện ích: {', '.join(p.amenities or [])}. "
+            f"{p.description or ''}"
+        )
+        p.embedding = embedding_svc.generate_embedding(text_content, is_query=False)
+
     await session.commit()
-    logger.info("Vector re-indexing completed successfully: %d properties updated.", updated_count)
-    return updated_count
+    logger.info("Vector re-indexing completed successfully: %d properties and %d projects updated.", updated_count, len(projects))
+    return updated_count + len(projects)
 
 
 async def main():
@@ -1273,16 +2466,11 @@ async def main():
     try:
         async with AsyncSessionLocal() as session:
             try:
-                if is_reindex_mode:
-                    logger.info("--- Batch Vector Re-indexing Triggered ---")
-                    count = await reindex_all_vectors(session=session)
-                    logger.info("[Space247 Reindex Summary] Reindexed %d properties.", count)
-                    return
-
                 # 1. Seed users first
                 logger.info("--- Step 1: Seeding Default Accounts ---")
                 user_map = await seed_users(session=session)
                 agent_user = user_map.get("agent@space247.vn")
+                normal_user = user_map.get("user@space247.vn")
                 agent_id = agent_user.id if agent_user else None
 
                 # 2. Seed real estate projects
@@ -1311,113 +2499,27 @@ async def main():
 
                 # 4. Seed sample rental properties (Boarding house, Serviced Apartment, Homestay)
                 logger.info("--- Step 4: Seeding Sample Two-Sided Rental Properties & Units ---")
-                from src.models.rental_property import RentalProperty, RentalUnit
-                sample_rentals = [
-                    {
-                        "name": "Nhà Trọ Xanh Sinh Viên Bách - Kinh - Xây",
-                        "property_model": "boarding_house",
-                        "address": "Số 42 Ngõ 10 Tạ Quang Bửu, Phường Bách Khoa",
-                        "ward": "Phường Bách Khoa",
-                        "district": "Quận Hai Bà Trưng",
-                        "city": "Hà Nội",
-                        "latitude": 21.0055,
-                        "longitude": 105.8450,
-                        "description": "Khu nhà trọ 5 tầng mới xây, camera an ninh, khóa vân tay 24/7, gần trường ĐH Bách Khoa, Kinh Tế Quốc Dân.",
-                        "shared_costs": {
-                            "electricity_per_kwh": 3800,
-                            "water_cost": 100000,
-                            "water_unit": "per_person",
-                            "wifi_fee": 100000,
-                            "parking_fee_monthly": 100000,
-                        },
-                        "shared_rules": {
-                            "curfew": False,
-                            "allow_pets": False,
-                            "fingerprint_lock": True,
-                            "live_with_owner": False,
-                        },
-                        "images": [
-                            "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
-                            "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
-                        ],
-                        "units": [
-                            {"unit_number": "P.101", "floor": 1, "area_sqm": 22.0, "price": 3800000, "deposit": 3800000, "status": "available", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True},
-                            {"unit_number": "P.202", "floor": 2, "area_sqm": 25.0, "price": 4200000, "deposit": 4200000, "status": "available", "furnishing": "full", "has_mezzanine": True, "has_private_bathroom": True},
-                            {"unit_number": "P.301", "floor": 3, "area_sqm": 20.0, "price": 3500000, "deposit": 3500000, "status": "occupied", "furnishing": "basic", "has_mezzanine": False, "has_private_bathroom": True},
-                        ],
-                    },
-                    {
-                        "name": "Căn Hộ Dịch Vụ Cao Cấp Thảo Điền Riverview",
-                        "property_model": "serviced_apartment",
-                        "address": "Số 18 Đường số 41, Phường Thảo Điền",
-                        "ward": "Phường Thảo Điền",
-                        "district": "Thành phố Thủ Đức",
-                        "city": "Thành phố Hồ Chí Minh",
-                        "latitude": 10.8038,
-                        "longitude": 106.7321,
-                        "description": "Căn hộ dịch vụ phong cách Indochine sang trọng, có thang máy, dọn phòng 2 lần/tuần, hồ bơi sân thượng.",
-                        "shared_costs": {
-                            "electricity_billing": "state_rate",
-                            "water_cost": 0,
-                            "wifi_fee": 0,
-                            "parking_fee_monthly": 150000,
-                        },
-                        "shared_rules": {
-                            "curfew": False,
-                            "allow_pets": True,
-                            "fingerprint_lock": True,
-                            "live_with_owner": False,
-                        },
-                        "images": [
-                            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80",
-                            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
-                        ],
-                        "units": [
-                            {"unit_number": "Studio 2A", "floor": 2, "area_sqm": 35.0, "price": 9500000, "deposit": 9500000, "status": "available", "furnishing": "full", "has_mezzanine": False, "has_private_bathroom": True},
-                            {"unit_number": "Suite 4B", "floor": 4, "area_sqm": 50.0, "price": 14000000, "deposit": 14000000, "status": "occupied", "furnishing": "full", "has_mezzanine": False, "has_private_bathroom": True},
-                        ],
-                    },
-                ]
+                rental_stats = await seed_rental_properties(
+                    session=session,
+                    host_id=agent_id,
+                )
+                logger.info("[Space247 Rental Seed] %s", rental_stats)
 
-                for item in sample_rentals:
-                    stmt = select(RentalProperty).where(RentalProperty.name == item["name"])
-                    existing_r = (await session.execute(stmt)).scalar_one_or_none()
-                    if existing_r:
-                        continue
-                    r_prop = RentalProperty(
-                        host_id=agent_id,
-                        name=item["name"],
-                        property_model=item["property_model"],
-                        address=item["address"],
-                        ward=item["ward"],
-                        district=item["district"],
-                        city=item["city"],
-                        latitude=item["latitude"],
-                        longitude=item["longitude"],
-                        description=item["description"],
-                        shared_costs=item["shared_costs"],
-                        shared_rules=item["shared_rules"],
-                        images=item["images"],
-                        is_active=True,
+                # 5. Seed sample contracts, invoices & inquiries
+                if agent_user and normal_user:
+                    await seed_contracts_invoices_and_inquiries(
+                        session=session,
+                        agent_user=agent_user,
+                        normal_user=normal_user,
                     )
-                    session.add(r_prop)
-                    await session.flush()
-                    for u in item["units"]:
-                        unit = RentalUnit(
-                            property_id=r_prop.id,
-                            unit_number=u["unit_number"],
-                            floor=u["floor"],
-                            area_sqm=u["area_sqm"],
-                            price=u["price"],
-                            deposit=u["deposit"],
-                            status=u["status"],
-                            furnishing=u["furnishing"],
-                            has_mezzanine=u["has_mezzanine"],
-                            has_private_bathroom=u["has_private_bathroom"],
-                        )
-                        session.add(unit)
-                await session.commit()
-                logger.info("[Space247 Rental Seed] Sample rental properties & units seeded successfully.")
+
+                # 6. Reindex vectors if requested
+                if is_reindex_mode:
+                    logger.info("--- Step 6: Batch Vector Re-indexing Triggered ---")
+                    count = await reindex_all_vectors(session=session)
+                    logger.info("[Space247 Reindex Summary] Reindexed %d properties & projects.", count)
+
+                logger.info("=== Comprehensive Space247 Data Seeding Completed Successfully! ===")
             except Exception as exc:
                 await session.rollback()
                 logger.exception("Error during database operation: %s", exc)
