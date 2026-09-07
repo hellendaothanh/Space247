@@ -1,3 +1,4 @@
+import '../widgets/rental_details.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -168,6 +169,7 @@ class PropertyCard extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      RentalBadges(property: property),
                       Text(
                         property.title,
                         maxLines: 2,
@@ -183,7 +185,7 @@ class PropertyCard extends ConsumerWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            Formatters.formatPrice(property.price, currency: property.currency),
+                            '${Formatters.formatPrice(property.price, currency: property.currency)}${property.listingType == 'rent' ? '/tháng' : ''}',
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:space247_mobile/widgets/rental_details.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:space247_mobile/models/user.dart';
@@ -15,6 +16,22 @@ class FakeFavoriteIdsNotifier extends FavoriteIdsNotifier {
 }
 
 void main() {
+  test('Rental metadata preserves zero, false, unknown and deposit units', () {
+    final property = Property.fromJson({'id': 'rent', 'listing_type': 'rent', 'price': 3000000, 'rental_type': 'room', 'rental_costs': {'deposit_months': 2, 'service_fee_monthly': 0}, 'rental_rules': {'allow_pets': false, 'has_mezzanine': true}});
+    expect(property.depositAmount, 6000000);
+    expect(property.toJson()['rental_costs']['service_fee_monthly'], 0);
+    expect(property.toJson()['rental_rules']['allow_pets'], false);
+    expect(property.rentalCosts?['water_cost'], isNull);
+  });
+  testWidgets('Rental details display fee units and only known positive badges', (tester) async {
+    final property = Property.fromJson({'id': 'rent', 'listing_type': 'rent', 'price': 3000000, 'rental_type': 'room', 'rental_costs': {'deposit_months': 0, 'service_fee_monthly': 0}, 'rental_rules': {'allow_pets': false, 'has_mezzanine': true}});
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: SingleChildScrollView(child: RentalDetails(property: property)))));
+    expect(find.text('Có gác lửng'), findsOneWidget);
+    expect(find.text('Cho nuôi thú cưng'), findsNothing);
+    expect(find.text('Cho nuôi thú cưng: Không'), findsOneWidget);
+    expect(find.text('Dịch vụ (đ/tháng): 0'), findsOneWidget);
+    expect(find.text('Điện (đ/kWh): Chưa cung cấp'), findsOneWidget);
+  });
   group('Data Models & Formatters Test', () {
     test('User model parses correctly', () {
       final json = {
@@ -126,7 +143,7 @@ void main() {
       await tester.pump();
 
       expect(find.text('Căn hộ River Gate 2PN'), findsOneWidget);
-      expect(find.text('18 triệu VND'), findsOneWidget);
+      expect(find.text('18 triệu VND/tháng'), findsOneWidget);
       expect(find.text('92% match'), findsOneWidget);
       expect(find.text('CHO THUÊ'), findsOneWidget);
     });

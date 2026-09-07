@@ -16,7 +16,7 @@ from sqlalchemy import (
     inspect,
     text,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.config import settings
@@ -26,6 +26,7 @@ from src.core.database import Base
 class Property(Base):
     __tablename__ = "properties"
     __table_args__ = (
+        Index("ix_properties_rental_price", "listing_type", "rental_type", "price"),
         Index(
             "ix_properties_embedding_hnsw",
             "embedding",
@@ -51,7 +52,10 @@ class Property(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     property_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    listing_type: Mapped[str] = mapped_column(String(20), nullable=False, index=True)  # sale / rent
+    listing_type: Mapped[str] = mapped_column(String(20), nullable=False, index=True, default="sale", server_default="sale")  # sale / rent
+    rental_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    rental_costs: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    rental_rules: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     price: Mapped[float] = mapped_column(Numeric(15, 2), nullable=False, index=True)
     currency: Mapped[str] = mapped_column(String(10), nullable=False, default="VND")
     area_sqm: Mapped[float] = mapped_column(Float, nullable=False, index=True)

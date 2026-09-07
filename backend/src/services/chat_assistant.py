@@ -18,6 +18,8 @@ from src.schemas.property import (
 )
 from src.services.embedding import EmbeddingService, get_embedding_service
 
+from src.services.rental import apply_rental_filters, resolve_landmark
+
 logger = logging.getLogger(__name__)
 
 
@@ -59,7 +61,7 @@ class ChatAssistantService:
 
         # Common real estate intent keywords
         re_keywords = [
-            "tìm", "mua", "bán", "thuê", "căn hộ", "chung cư", "nhà", "biệt thự",
+            "phòng trọ", "ở ghép", "gác", "loft", "pet", "tìm", "mua", "bán", "thuê", "căn hộ", "chung cư", "nhà", "biệt thự",
             "villa", "đất", "mặt bằng", "quận", "huyện", "phòng ngủ", "tỷ", "tỉ",
             "triệu", "triệu/tháng", "tr/tháng", "diện tích", "hồ bơi", "ban công",
             "nội thất", "hà nội", "hồ chí minh", "đà nẵng", "quận 1", "bình thạnh",
@@ -85,6 +87,7 @@ class ChatAssistantService:
             listing_type = ListingType.RENT
         elif re.search(r"\b(mua|bán|cần mua|tìm mua|mua bán|chuyển nhượng)\b", lower_text):
             listing_type = ListingType.SALE
+        explicit_listing_type = listing_type
 
         # 2. Extract Property Type
         property_type: PropertyType | None = None
@@ -282,6 +285,37 @@ class ChatAssistantService:
             raw_query=raw_query,
         )
 
+        rental_types = {"phòng trọ": "room", "căn hộ dịch vụ": "serviced_apartment", "ở ghép": "house_share", "nguyên căn": "entire_house"}
+        for phrase, subtype in rental_types.items():
+            if phrase in lower_text:
+                criteria.rental_type = subtype
+                criteria.listing_type = ListingType.RENT
+        if "gác" in lower_text or "mezzanine" in lower_text or "loft" in lower_text:
+            criteria.has_mezzanine = not bool(re.search(r"(?:không|cấm)\s+(?:có\s+|cần\s+)?(?:gác|mezzanine|loft)", lower_text))
+            criteria.listing_type = ListingType.RENT
+        if any(x in lower_text for x in ("thú cưng", "nuôi mèo", "nuôi chó", "pet")):
+            criteria.allow_pets = not bool(re.search(r"(?:không|cấm)\s+(?:cho\s+)?(?:phép\s+)?(?:nuôi\s+)?(?:thú cưng|chó|mèo|pets?)", lower_text))
+            criteria.listing_type = ListingType.RENT
+        if "điện" in lower_text and any(x in lower_text for x in ("nhà nước", "giá dân", "bậc thang")):
+            criteria.electricity_billing = "state_rate"
+            criteria.listing_type = ListingType.RENT
+        deposit = re.search(r"cọc\s*(?:tối đa|không quá|dưới)?\s*(\d+(?:[.,]\d+)?)\s*tháng", lower_text)
+        if deposit:
+            criteria.max_deposit = float(deposit.group(1).replace(",", "."))
+        if any(phrase in lower_text for phrase in ("giờ tự do", "giờ giấc tự do", "không giới nghiêm")):
+            criteria.curfew = False
+        if "máy giặt" in lower_text:
+            criteria.has_washing_machine = not bool(re.search(r"không\s+(?:có\s+|cần\s+)?máy giặt", lower_text))
+        if "không chung chủ" in lower_text:
+            criteria.live_with_owner = False
+        landmark = re.search(r"(?:gần|quanh|xung quanh)\s+(.+?)(?=\s+(?:giá|dưới|có|không|cho|tầm|khoảng)|[,.;]|$)", text, re.I)
+        if landmark:
+            criteria.near_landmark = landmark.group(1).strip()
+        if explicit_listing_type == ListingType.SALE:
+            # Rental-only metadata must not turn a purchase into contradictory filters.
+            criteria.listing_type = ListingType.SALE
+            for key in ("rental_type", "allow_pets", "has_mezzanine", "has_washing_machine", "live_with_owner", "curfew", "electricity_billing", "max_deposit"):
+                setattr(criteria, key, None)
         return True, criteria
 
     async def execute_hybrid_search(
@@ -306,6 +340,8 @@ class ChatAssistantService:
             query_parts.extend(criteria.amenities)
         if criteria.raw_query:
             query_parts.append(criteria.raw_query)
+        if criteria.near_landmark:
+            query_parts.append(criteria.near_landmark)
 
         search_query_text = " ".join(query_parts).strip() or "bất động sản"
 
@@ -314,6 +350,8 @@ class ChatAssistantService:
             query_vector = self.embedding_service.generate_embedding(search_query_text, is_query=True)
         except TypeError:
             query_vector = self.embedding_service.generate_embedding(search_query_text)
+
+        coordinates = await resolve_landmark(criteria)
 
         # Build filter statement
         def apply_filters(stmt):
@@ -331,7 +369,7 @@ class ChatAssistantService:
                 stmt = stmt.where(Property.price >= criteria.min_price)
             if criteria.max_price is not None:
                 stmt = stmt.where(Property.price <= criteria.max_price)
-            return stmt
+            return apply_rental_filters(stmt, criteria, coordinates)
 
         # 1. Vector Search
         vector_map: dict[uuid.UUID, tuple[Property, float, int]] = {}

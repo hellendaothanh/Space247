@@ -1,3 +1,4 @@
+import 'rental_details.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/app_providers.dart';
@@ -51,6 +52,37 @@ class _SearchAndFilterHeaderState extends ConsumerState<SearchAndFilterHeader> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (filterState.listingType == 'rent') ExpansionTile(
+            title: const Text('Bộ lọc phòng thuê • giá tháng'),
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: filterState.rentalFilters['rental_type'] as String?,
+                decoration: const InputDecoration(labelText: 'Loại chỗ ở'),
+                items: [const DropdownMenuItem(value: '', child: Text('Tất cả')), ...rentalTypeLabels.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))],
+                onChanged: (v) => ref.read(searchFilterProvider.notifier).setRentalFilter('rental_type', v == '' ? null : v),
+              ),
+              for (final entry in {'min_price': 'Giá từ (đ/tháng)', 'max_price': 'Giá đến (đ/tháng)', 'max_deposit': 'Cọc tối đa (tháng)'}.entries)
+                TextFormField(
+                  key: ValueKey(entry.key), initialValue: filterState.rentalFilters[entry.key]?.toString() ?? '',
+                  decoration: InputDecoration(labelText: entry.value), keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (v) { final number = double.tryParse(v); if (v.isEmpty || (number != null && number.isFinite && number >= 0)) ref.read(searchFilterProvider.notifier).setRentalFilter(entry.key, number); },
+                ),
+              for (final entry in rentalRuleLabels.entries)
+                DropdownButtonFormField<String>(
+                  decoration: InputDecoration(labelText: entry.value),
+                  initialValue: filterState.rentalFilters[entry.key]?.toString() ?? '',
+                  items: const [DropdownMenuItem(value: '', child: Text('Không giới hạn')), DropdownMenuItem(value: 'true', child: Text('Có')), DropdownMenuItem(value: 'false', child: Text('Không'))],
+                  onChanged: (v) => ref.read(searchFilterProvider.notifier).setRentalFilter(entry.key, v == '' ? null : v == 'true'),
+                ),
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(labelText: 'Tính điện'),
+                initialValue: filterState.rentalFilters['electricity_billing'] as String? ?? '',
+                items: const [DropdownMenuItem(value: '', child: Text('Không giới hạn')), DropdownMenuItem(value: 'state_rate', child: Text('Giá nhà nước')), DropdownMenuItem(value: 'fixed', child: Text('Đơn giá cố định'))],
+                onChanged: (v) => ref.read(searchFilterProvider.notifier).setRentalFilter('electricity_billing', v == '' ? null : v),
+              ),
+              TextFormField(initialValue: filterState.rentalFilters['near_landmark'] as String? ?? '', decoration: const InputDecoration(labelText: 'Gần địa điểm (3 km)'), onChanged: (v) => ref.read(searchFilterProvider.notifier).setRentalFilter('near_landmark', v.trim().isEmpty ? null : v.trim())),
+            ],
+          ),
           // Semantic Search Bar
           Row(
             children: [

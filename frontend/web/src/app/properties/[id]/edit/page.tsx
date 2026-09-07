@@ -1,4 +1,5 @@
 "use client";
+import RentalForm, { rentalSchema, type RentalValue } from "@/components/RentalForm";
 
 import { useState, useEffect, useTransition } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -86,6 +87,7 @@ export default function EditPropertyPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [propertyType, setPropertyType] = useState<PropertyType>("apartment");
+  const [rental, setRental] = useState<RentalValue>({});
   const [listingType, setListingType] = useState<ListingType>("sale");
   const [status, setStatus] = useState<PropertyStatus>("active");
   const [priceStr, setPriceStr] = useState("");
@@ -232,6 +234,7 @@ export default function EditPropertyPage() {
         setDescription(data.description);
         setPropertyType(data.property_type);
         setListingType(data.listing_type);
+        setRental({ rental_type: data.rental_type, rental_costs: data.rental_costs, rental_rules: data.rental_rules });
         setStatus(data.status);
         setPriceStr(String(data.price));
         setAreaStr(String(data.area_sqm));
@@ -304,9 +307,11 @@ export default function EditPropertyPage() {
       return;
     }
 
+    const rentalParsed = rentalSchema.safeParse(listingType === "rent" ? rental : { rental_type: null, rental_costs: null, rental_rules: null });
+    if (!rentalParsed.success) { setServerError("Vui lòng kiểm tra chi phí và nội quy thuê."); return; }
     startTransition(async () => {
       try {
-        const updated = await apiClient.updateProperty(propertyId, parsed.data);
+        const updated = await apiClient.updateProperty(propertyId, { ...parsed.data, ...rentalParsed.data });
         setProperty(updated);
         setSuccessMessage("Cập nhật tin đăng và tái tạo vector embedding thành công!");
         setTimeout(() => {
@@ -383,6 +388,7 @@ export default function EditPropertyPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-8">
+        {listingType === "rent" && <RentalForm value={rental} onChange={setRental} />}
           {/* Card 1: Trạng thái & Loại hình */}
           <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-4 mb-6">

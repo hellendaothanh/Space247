@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Search, Compass, Filter, SlidersHorizontal, Loader2 } from "lucide-react";
 import { ListingType, PropertyType } from "@shared/types";
@@ -43,6 +44,15 @@ export default function SearchSection({
   };
 
   const getPriceBounds = (val: string): { min?: number; max?: number } => {
+    if (listingType === "rent") {
+      switch (val) {
+        case "under_2b": return { max: 3_000_000 };
+        case "2b_5b": return { min: 3_000_000, max: 5_000_000 };
+        case "5b_10b": return { min: 5_000_000, max: 10_000_000 };
+        case "above_10b": return { min: 10_000_000 };
+        default: return {};
+      }
+    }
     switch (val) {
       case "under_2b":
         return { max: 2_000_000_000 };
@@ -112,6 +122,7 @@ export default function SearchSection({
         </p>
 
         {/* Search Box Form */}
+        {listingType === "rent" && <Link className="block text-blue-200 underline mb-4" href="/rentals">Lọc phòng trọ, chi phí tháng & nội quy thuê →</Link>}
         <form onSubmit={handleSubmit} className="mt-8">
           <div className="flex flex-col gap-3 sm:flex-row items-center rounded-2xl bg-white/10 p-2 backdrop-blur-xl border border-white/20 shadow-2xl">
             <div className="relative flex-1 w-full flex items-center">
@@ -240,10 +251,10 @@ export default function SearchSection({
               className="rounded-lg bg-slate-800/80 px-3 py-1.5 text-xs text-white border border-white/15 focus:outline-hidden"
             >
               <option value="all">Mọi mức giá</option>
-              <option value="under_2b">Dưới 2 tỷ</option>
-              <option value="2b_5b">2 tỷ - 5 tỷ</option>
-              <option value="5b_10b">5 tỷ - 10 tỷ</option>
-              <option value="above_10b">Trên 10 tỷ</option>
+              <option value="under_2b">{listingType === "rent" ? "Dưới 3 triệu/tháng" : "Dưới 2 tỷ"}</option>
+              <option value="2b_5b">{listingType === "rent" ? "3 - 5 triệu/tháng" : "2 tỷ - 5 tỷ"}</option>
+              <option value="5b_10b">{listingType === "rent" ? "5 - 10 triệu/tháng" : "5 tỷ - 10 tỷ"}</option>
+              <option value="above_10b">{listingType === "rent" ? "Trên 10 triệu/tháng" : "Trên 10 tỷ"}</option>
             </select>
 
             {/* Hybrid Search Toggle */}

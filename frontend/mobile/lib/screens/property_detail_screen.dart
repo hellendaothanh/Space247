@@ -1,3 +1,4 @@
+import '../widgets/rental_details.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -235,7 +236,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                                 const Text('Mức giá', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
                                 const SizedBox(height: 4),
                                 Text(
-                                  Formatters.formatPrice(property.price, currency: property.currency),
+                                  '${Formatters.formatPrice(property.price, currency: property.currency)}${property.listingType == 'rent' ? '/tháng' : ''}',
                                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
                                 ),
                               ],
@@ -276,6 +277,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                       // Description with Markdown
                       const Text('Mô tả bất động sản', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
+                      RentalDetails(property: property),
                       MarkdownBody(
                         data: property.description,
                         styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
@@ -382,7 +384,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            Formatters.formatPrice(property.price, currency: property.currency),
+                            '${Formatters.formatPrice(property.price, currency: property.currency)}${property.listingType == 'rent' ? '/tháng' : ''}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(

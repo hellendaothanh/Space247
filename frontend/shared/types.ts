@@ -19,7 +19,49 @@ export type PropertyStatus =
   | "rented"
   | "inactive";
 
+export type RentalType = "room" | "serviced_apartment" | "house_share" | "entire_house";
+export interface RentalCosts {
+  electricity_per_kwh?: number | null;
+  electricity_billing?: "state_rate" | "fixed" | null;
+  water_cost?: number | null;
+  water_unit?: "per_m3" | "per_person" | null;
+
+  parking_fee_monthly?: number | null;
+  service_fee_monthly?: number | null;
+  deposit_months?: number | null;
+}
+export interface RentalRules {
+  curfew?: boolean | null;
+  private_bathroom?: boolean | null;
+  allow_pets?: boolean | null;
+  has_mezzanine?: boolean | null;
+  has_washing_machine?: boolean | null;
+  live_with_owner?: boolean | null;
+  has_elevator?: boolean | null;
+  fingerprint_lock?: boolean | null;
+  curfew_time?: string | null;
+  max_occupants?: number | null;
+}
+export interface RentalFilters {
+  rental_type?: RentalType;
+  curfew?: boolean | null;
+  private_bathroom?: boolean | null;
+  allow_pets?: boolean;
+  has_mezzanine?: boolean;
+  has_washing_machine?: boolean;
+  live_with_owner?: boolean;
+  has_elevator?: boolean;
+  fingerprint_lock?: boolean;
+  electricity_billing?: "state_rate" | "fixed";
+  max_deposit?: number;
+  near_landmark?: string;
+  radius_km?: number;
+}
+
 export interface PropertyBase {
+  rental_type?: RentalType | null;
+  rental_costs?: RentalCosts | null;
+  rental_rules?: RentalRules | null;
   title: string;
   description: string;
   property_type: PropertyType;
@@ -73,7 +115,7 @@ export interface PropertyDetailResponse extends PropertyResponse {
   agent?: PropertyAgent | null;
 }
 
-export interface SemanticSearchQuery {
+export interface SemanticSearchQuery extends RentalFilters {
   query_vector: number[]; // 768 dimensions
   listing_type?: ListingType;
   property_type?: PropertyType;
@@ -90,7 +132,7 @@ export interface SemanticSearchQuery {
   threshold?: number;
 }
 
-export interface PropertySearchQuery {
+export interface PropertySearchQuery extends RentalFilters {
   query: string; // Natural language query text in Vietnamese or English
   listing_type?: ListingType;
   property_type?: PropertyType;
@@ -261,7 +303,7 @@ export interface ChatMessage {
   content: string;
 }
 
-export interface ExtractedCriteria {
+export interface ExtractedCriteria extends RentalFilters {
   listing_type?: ListingType | null;
   property_type?: PropertyType | null;
   city?: string | null;

@@ -1,3 +1,4 @@
+import RentalDetails from "@/components/RentalDetails";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -227,6 +228,7 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
             </div>
           )}
 
+          <RentalDetails property={property} />
           {/* Mortgage & Financial Affordability Calculator (Chỉ hiển thị cho tin Bán, ẩn với tin Cho thuê) */}
           {property.listing_type !== "rent" && (
             <MortgageCalculator

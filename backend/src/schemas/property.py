@@ -3,6 +3,7 @@ from enum import Enum
 import uuid
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from src.schemas.project import ProjectSummary
+from src.schemas.rental import RentalCosts, RentalRules, RentalType, RentalFilters
 
 
 class ListingType(str, Enum):
@@ -27,6 +28,10 @@ class PropertyStatus(str, Enum):
 
 
 class PropertyBase(BaseModel):
+    rental_type: RentalType | None = None
+    rental_costs: RentalCosts | None = None
+    rental_rules: RentalRules | None = None
+
     title: str = Field(..., min_length=3, max_length=255, description="Listing title")
     description: str = Field(..., min_length=10, description="Detailed property description")
     property_type: PropertyType = Field(..., description="Type of property")
@@ -45,6 +50,12 @@ class PropertyBase(BaseModel):
     images: list[str] = Field(default_factory=list, description="List of property image URLs")
     project_id: uuid.UUID | None = Field(default=None, description="Associated real estate project ID")
 
+    @model_validator(mode="after")
+    def validate_rental_currency(self) -> "PropertyBase":
+        if self.listing_type == ListingType.RENT and self.currency != "VND":
+            raise ValueError("Rental prices must use VND")
+        return self
+
 
 class PropertyCreate(PropertyBase):
     embedding: list[float] | None = Field(
@@ -54,6 +65,10 @@ class PropertyCreate(PropertyBase):
 
 
 class PropertyUpdate(BaseModel):
+    rental_type: RentalType | None = None
+    rental_costs: RentalCosts | None = None
+    rental_rules: RentalRules | None = None
+
     title: str | None = Field(default=None, min_length=3, max_length=255)
     description: str | None = Field(default=None, min_length=10)
     property_type: PropertyType | None = None
@@ -105,7 +120,7 @@ class PropertyDetailResponse(PropertyResponse):
     model_config = ConfigDict(from_attributes=True)
 
 
-class SemanticSearchQuery(BaseModel):
+class SemanticSearchQuery(RentalFilters):
     query_vector: list[float] = Field(..., description="768-dimensional embedding vector")
     listing_type: ListingType | None = Field(default=None, description="Filter by listing type (sale/rent)")
     property_type: PropertyType | None = Field(default=None, description="Filter by property type")
@@ -150,7 +165,7 @@ class SemanticSearchResponse(BaseModel):
     results: list[SearchResultItem]
 
 
-class PropertySearchQuery(BaseModel):
+class PropertySearchQuery(RentalFilters):
     query: str = Field(
         ...,
         min_length=1,

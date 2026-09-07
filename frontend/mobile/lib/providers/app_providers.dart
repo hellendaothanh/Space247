@@ -67,22 +67,26 @@ class SearchFilterState {
   final String query;
   final String? listingType;
   final String? propertyType;
+  final Map<String, dynamic> rentalFilters;
 
   const SearchFilterState({
     this.query = '',
     this.listingType,
     this.propertyType,
+    this.rentalFilters = const {},
   });
 
   SearchFilterState copyWith({
     String? query,
     String? listingType,
     String? propertyType,
+    Map<String, dynamic>? rentalFilters,
     bool clearListingType = false,
     bool clearPropertyType = false,
   }) {
     return SearchFilterState(
       query: query ?? this.query,
+      rentalFilters: rentalFilters ?? this.rentalFilters,
       listingType: clearListingType ? null : (listingType ?? this.listingType),
       propertyType: clearPropertyType ? null : (propertyType ?? this.propertyType),
     );
@@ -101,9 +105,9 @@ class SearchFilterNotifier extends Notifier<SearchFilterState> {
 
   void setListingType(String? type) {
     if (state.listingType == type) {
-      state = state.copyWith(clearListingType: true);
+      state = state.copyWith(clearListingType: true, rentalFilters: {});
     } else {
-      state = state.copyWith(listingType: type);
+      state = state.copyWith(listingType: type, rentalFilters: type == "rent" ? state.rentalFilters : {});
     }
   }
 
@@ -113,6 +117,12 @@ class SearchFilterNotifier extends Notifier<SearchFilterState> {
     } else {
       state = state.copyWith(propertyType: type);
     }
+  }
+
+  void setRentalFilter(String key, dynamic value) {
+    final next = Map<String, dynamic>.from(state.rentalFilters);
+    if (value == null) { next.remove(key); } else { next[key] = value; }
+    state = state.copyWith(listingType: "rent", rentalFilters: next);
   }
 
   void resetFilters() {
@@ -131,6 +141,7 @@ final searchResultsProvider = FutureProvider<PropertySearchResponse>((ref) async
     query: filter.query.trim().isEmpty ? 'bất động sản' : filter.query.trim(),
     listingType: filter.listingType,
     propertyType: filter.propertyType,
+    rentalFilters: filter.rentalFilters,
     limit: 25,
   );
 });

@@ -296,3 +296,70 @@ Toàn bộ các bước tiến hóa cơ sở dữ liệu được phiên bản h
    - Bổ sung các cột trạng thái định danh: `phone_verified` (Boolean) và `last_login_at` (TIMESTAMPTZ).
    - Thiết lập chỉ mục B-Tree `ix_users_role` trên bảng `users` tối ưu lọc theo nhóm quyền quản trị.
 
+
+
+## Rental and serviced apartment metadata
+
+Migration `0008` adds nullable `properties.rental_type VARCHAR(50)`, `rental_costs JSONB`,
+and `rental_rules JSONB`, plus the B-tree index `(listing_type, rental_type, price)`.
+It alters the existing `listing_type` default to `sale`; existing `sale`/`rent` rows
+are preserved. Downgrading 0008 removes only its metadata/index and restores the
+previous absent default; it retains `listing_type`. Vectors remain 768-dimensional.
+
+Rental subtypes: `room`, `serviced_apartment`, `house_share`, `entire_house`.
+Rental price is monthly VND; rental create/update requests reject other currencies. All metadata is optional, including for legacy rows.
+Missing/null values mean unknown; `0` is a known zero charge and `false` is a known
+negative rule. No unknown charge is treated as free and no unknown amenity is shown
+as a positive badge.
+
+`rental_costs`: `electricity_per_kwh` (VND/kWh), `electricity_billing` (`state_rate` or
+`fixed`), `water_cost`, `water_unit` (`per_m3`: VND/m³, `per_person`: VND/person/month),
+`parking_fee_monthly`, `service_fee_monthly` (VND/month), and `deposit_months` (months).
+All numeric costs must be finite and nonnegative. Deposit amount = monthly rent ×
+deposit months. Electricity and water cannot be added to a monthly total without
+usage/person counts; if water billing is absent, its unit remains unknown.
+
+`rental_rules`: nullable booleans `curfew`, `private_bathroom`, `allow_pets`, `has_mezzanine`,
+`has_washing_machine`, `live_with_owner`, `has_elevator`, `fingerprint_lock`;
+`curfew_time` uses 24-hour HH:MM; `max_occupants` is a positive integer.
+`curfew_time` is accepted only when `curfew` is true.
+
+Create/update requests and property responses carry these objects. Omitted update
+fields (including nested cost/rule keys) are preserved; explicit null clears a
+field or entire object. Changing to sale clears all rental metadata. Changes to
+rental metadata refresh embeddings and invalidate property/search caches.
+
+GET `/api/v1/properties`, POST `/api/v1/properties/search`, POST
+`/api/v1/search/semantic`, and chat share exact rental predicates:
+`rental_type`, all eight boolean rule keys, `electricity_billing`, and `max_deposit`
+(in **months**, not VND). Explicit predicates exclude unknown keys and require
+active rental listings before ranking/limits. GET also supports `min_price` and
+`max_price`. Boolean false and deposit ceiling zero are transmitted unchanged.
+
+`near_landmark` is geocoded and filtered through PostGIS `ST_DWithin` with
+`radius_km` defaulting to 3.0. Bách Khoa resolves to Hanoi University of Science and
+Technology. If geocoding fails, natural-language search retains the landmark in
+its semantic query. GET and vector-only requests return 422 when a landmark cannot be resolved, preventing unrelated location results. Web/mobile rental discovery and chat share structured filters.
+
+Example rental metadata:
+```json
+{
+  "listing_type": "rent",
+  "rental_type": "room",
+  "price": 3000000,
+  "rental_costs": {"electricity_billing": "state_rate", "service_fee_monthly": 0, "deposit_months": 2},
+  "rental_rules": {"has_mezzanine": true, "allow_pets": false, "curfew_time": "23:00", "max_occupants": 2}
+}
+```
+
+Example discovery request:
+```json
+{"query":"phòng trọ gần Bách Khoa", "listing_type":"rent", "has_mezzanine":true, "allow_pets":false, "max_price":5000000, "max_deposit":2, "electricity_billing":"state_rate", "near_landmark":"Bách Khoa", "radius_km":3}
+```
+
+Review migration SQL locally with `cd backend` then
+`uv run alembic upgrade head --sql` and
+`uv run alembic downgrade 0008:0007 --sql`. Apply `uv run alembic upgrade head`
+only to an explicitly selected development database after review. Implementation
+verification does not migrate any live database; offline SQL tests do not prove
+execution on PostgreSQL/PostGIS.

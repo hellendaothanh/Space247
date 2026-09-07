@@ -18,6 +18,8 @@ from src.schemas.property import (
     SemanticSearchResponse,
 )
 
+from src.services.rental import apply_rental_filters, resolve_landmark
+
 router = APIRouter()
 
 
@@ -88,6 +90,11 @@ async def semantic_search(
         stmt = stmt.where(Property.area_sqm >= query.min_area_sqm)
     if query.max_area_sqm is not None:
         stmt = stmt.where(Property.area_sqm <= query.max_area_sqm)
+
+    coordinates = await resolve_landmark(query)
+    if query.near_landmark and coordinates is None:
+        raise HTTPException(status_code=422, detail="Landmark could not be resolved. Use a supported landmark or coordinates.")
+    stmt = apply_rental_filters(stmt, query, coordinates)
 
     # Order by cosine distance ascending (closest match first)
     stmt = stmt.order_by(cosine_dist.asc()).limit(query.limit)

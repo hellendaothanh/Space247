@@ -2,6 +2,7 @@ import logging
 import re
 import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from pydantic import ValidationError
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +25,7 @@ from src.models.property import Property
 from src.models.user import User
 from src.schemas.property import (
     ListingType,
+    RentalFilters,
     PropertyAgentResponse,
     PropertyCreate,
     PropertyDetailResponse,
@@ -39,7 +41,9 @@ from src.schemas.property import (
     ComparePropertiesResponse,
     ComparisonData,
 )
+from src.schemas.rental import RentalRuleSchema
 from src.services.embedding import EmbeddingService, get_embedding_service
+from src.services.rental import apply_rental_filters, resolve_landmark, rental_text
 from src.services.ai_comparison import AIComparisonService
 
 logger = logging.getLogger("space247_backend.properties")
@@ -78,6 +82,8 @@ async def create_property(
     Triggers asynchronous background task to match against saved search alerts.
     """
     prop_data = property_in.model_dump()
+    if property_in.listing_type == ListingType.SALE:
+        prop_data.update(rental_type=None, rental_costs=None, rental_rules=None)
 
     if property_in.embedding is not None:
         if len(property_in.embedding) != settings.VECTOR_DIM:
@@ -101,6 +107,8 @@ async def create_property(
             listing_type=property_in.listing_type.value if hasattr(property_in.listing_type, "value") else str(property_in.listing_type),
             num_bedrooms=property_in.num_bedrooms,
         )
+        if property_in.listing_type == ListingType.RENT:
+            text_content += ". " + rental_text(prop_data["rental_type"], prop_data["rental_costs"], prop_data["rental_rules"])
         try:
             prop_data["embedding"] = embedding_service.generate_embedding(text_content, is_query=False)
         except TypeError:
@@ -150,6 +158,19 @@ async def search_properties(
     When enable_hybrid=True, executes both vector search and Full-Text Search (FTS), fusing
     rankings using Reciprocal Rank Fusion (RRF) with smoothing constant k (default 60).
     """
+    # Apply rental intent consistently to web/mobile natural-language discovery.
+    from src.services.chat_assistant import ChatAssistantService
+    from src.schemas.chat import ChatMessage
+    _, inferred = ChatAssistantService(embedding_service).parse_intent_and_criteria([ChatMessage(role="user", content=search_in.query[:4000])])
+    if inferred.listing_type == ListingType.RENT and search_in.listing_type != ListingType.SALE:
+        fields = (*RentalFilters.model_fields, "listing_type", "min_price", "max_price")
+        changes = {key: getattr(inferred, key) for key in fields if key not in search_in.model_fields_set and getattr(inferred, key, None) is not None}
+        try:
+            search_in = PropertySearchQuery.model_validate({**search_in.model_dump(), **changes})
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail="Search price filters conflict with the rental request.") from exc
+    if search_in.near_landmark and search_in.near_landmark not in search_in.query:
+        search_in = search_in.model_copy(update={"query": search_in.query + " " + search_in.near_landmark})
     # Check Redis cache for identical search parameters
     cache_key = generate_search_cache_key(search_in.model_dump())
     cached_data = await get_cached_json(cache_key)
@@ -173,6 +194,8 @@ async def search_properties(
                 f"got {len(query_vector)}"
             ),
         )
+
+    coordinates = await resolve_landmark(search_in)
 
     # Common filter builder for structured metadata
     def apply_filters(base_stmt):
@@ -199,7 +222,7 @@ async def search_properties(
             stmt = stmt.where(Property.area_sqm >= search_in.min_area_sqm)
         if search_in.max_area_sqm is not None:
             stmt = stmt.where(Property.area_sqm <= search_in.max_area_sqm)
-        return stmt
+        return apply_rental_filters(stmt, search_in, coordinates)
 
     # 1. Vector Search Query
     cosine_dist = Property.embedding.cosine_distance(query_vector)
@@ -352,6 +375,9 @@ async def list_properties(
     listing_type: ListingType | None = Query(None, description="Filter by listing type"),
     property_type: PropertyType | None = Query(None, description="Filter by property type"),
     city: str | None = Query(None, description="Filter by city"),
+    min_price: float | None = Query(None, ge=0),
+    max_price: float | None = Query(None, ge=0),
+    rental: RentalFilters = Depends(),
     status: PropertyStatus | None = Query(None, description="Filter by listing status"),
     db: AsyncSession = Depends(get_db_session),
 ) -> list[Property]:
@@ -370,6 +396,14 @@ async def list_properties(
     else:
         stmt = stmt.where(Property.status == PropertyStatus.ACTIVE.value)
 
+    if min_price is not None:
+        stmt = stmt.where(Property.price >= min_price)
+    if max_price is not None:
+        stmt = stmt.where(Property.price <= max_price)
+    coordinates = await resolve_landmark(rental)
+    if rental.near_landmark and coordinates is None:
+        raise HTTPException(status_code=422, detail="Landmark could not be resolved. Use a supported landmark or coordinates.")
+    stmt = apply_rental_filters(stmt, rental, coordinates)
     stmt = stmt.order_by(Property.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(stmt)
     return list(result.scalars().all())
@@ -575,6 +609,11 @@ async def update_property(
             )
 
     update_data = property_update.model_dump(exclude_unset=True)
+    for key in ("rental_costs", "rental_rules"):
+        if isinstance(update_data.get(key), dict):
+            update_data[key] = {**(getattr(property_obj, key, None) or {}), **update_data[key]}
+    if isinstance(update_data.get("rental_rules"), dict):
+        update_data["rental_rules"] = RentalRuleSchema.model_validate(update_data["rental_rules"]).model_dump(exclude_none=True)
     if "listing_type" in update_data and isinstance(update_data["listing_type"], ListingType):
         update_data["listing_type"] = update_data["listing_type"].value
     if "property_type" in update_data and isinstance(update_data["property_type"], PropertyType):
@@ -582,7 +621,14 @@ async def update_property(
     if "status" in update_data and isinstance(update_data["status"], PropertyStatus):
         update_data["status"] = update_data["status"].value
 
+    if update_data.get("listing_type", property_obj.listing_type) == "rent" and update_data.get("currency", property_obj.currency) != "VND":
+        raise HTTPException(status_code=422, detail="Rental prices must use VND.")
+
+    if update_data.get("listing_type", property_obj.listing_type) == "sale" and ("listing_type" in update_data or any(k in update_data for k in ("rental_type", "rental_costs", "rental_rules"))):
+        update_data.update(rental_type=None, rental_costs=None, rental_rules=None)
+
     text_fields = {
+        "rental_type", "rental_costs", "rental_rules",
         "title",
         "description",
         "address",
@@ -619,6 +665,8 @@ async def update_property(
                 listing_type=new_listing_type,
                 num_bedrooms=new_num_bedrooms,
             )
+            if new_listing_type == "rent":
+                combined_text += ". " + rental_text(*(update_data.get(key, getattr(property_obj, key, None)) for key in ("rental_type", "rental_costs", "rental_rules")))
             try:
                 update_data["embedding"] = embedding_service.generate_embedding(combined_text, is_query=False)
             except TypeError:

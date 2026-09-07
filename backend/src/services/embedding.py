@@ -96,6 +96,9 @@ class EmbeddingService:
         area_sqm: float | None = None,
         price: float | None = None,
         currency: str = "VND",
+        rental_type: str | None = None,
+        rental_costs: dict | None = None,
+        rental_rules: dict | None = None,
     ) -> str:
         """
         Construct a consolidated semantic text string from property title, description,
@@ -131,6 +134,9 @@ class EmbeddingService:
         if location_components:
             parts.append(f"Địa chỉ: {', '.join(location_components)}")
 
+        if listing_type == "rent":
+            from src.services.rental import rental_text
+            parts.append(rental_text(rental_type, rental_costs, rental_rules))
         return ". ".join(parts)
 
     def _prepare_text(self, text: str, is_query: bool = False) -> str:

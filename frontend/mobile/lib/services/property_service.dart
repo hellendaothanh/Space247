@@ -13,6 +13,7 @@ class PropertyService {
     required String query,
     String? listingType,
     String? propertyType,
+    Map<String, dynamic> rentalFilters = const {},
     double? minPrice,
     double? maxPrice,
     int limit = 20,
@@ -22,6 +23,7 @@ class PropertyService {
         'query': query,
         'limit': limit,
         'enable_hybrid': true,
+        ...rentalFilters,
       };
 
       if (listingType != null && listingType.isNotEmpty) {

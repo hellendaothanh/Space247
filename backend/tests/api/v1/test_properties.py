@@ -8,6 +8,7 @@ from src.core.database import get_db_session
 from src.api.deps import get_current_active_user
 from src.models.property import Property
 from src.models.user import User
+from sqlalchemy.dialects import postgresql
 
 app = create_app()
 
@@ -239,4 +240,20 @@ async def test_create_property_with_images(client, mock_db_session):
         data = response.json()
         assert len(data["images"]) == 2
         assert data["images"][0] == "https://images.unsplash.com/photo-apartment1.jpg"
+
+
+@pytest.mark.asyncio
+async def test_list_rentals_binds_false_zero_and_landmark_filters(client, mock_db_session):
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = []
+    mock_db_session.execute.return_value = result
+
+    response = await client.get(
+        "/api/v1/properties?listing_type=rent&rental_type=room&allow_pets=false&max_deposit=0&near_landmark=B%C3%A1ch%20Khoa"
+    )
+
+    assert response.status_code == 200
+    statement = mock_db_session.execute.await_args.args[0]
+    sql = str(statement.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
+    assert "allow_pets" in sql and "= false" in sql and "deposit_months" in sql and "ST_DWithin" in sql
 

@@ -319,3 +319,19 @@ Space247/
 ## 9. Giấy Phép (License)
 
 Dự án Space247 được phát triển dưới bản quyền nội bộ phục vụ hệ thống công nghệ bất động sản Space247 Platform.
+
+
+### Rental discovery
+
+The web `/rentals` catalog supports rooms, serviced apartments, house shares and
+entire houses, monthly VND budgets, exact amenity/rule filters, deposit ceilings in
+months, and landmark searches (default 3 km; Bách Khoa resolves to HUST in Hanoi).
+Web create/edit/clone forms and mobile rental discovery/details preserve optional
+expenses and rules, including known zero charges and false values. Unknown
+charges are labeled unavailable; electricity/water totals require actual usage.
+Chat understands Vietnamese room, loft, pet, budget and state electricity tariff
+criteria. Switching a listing to sale clears its rental-only metadata.
+
+See [API contract](docs/api-specs.md#rental-and-serviced-apartment-metadata) and
+[database design](docs/database-design.md#rental-and-serviced-apartment-metadata)
+for field units, request examples, and migration 0008 review instructions.

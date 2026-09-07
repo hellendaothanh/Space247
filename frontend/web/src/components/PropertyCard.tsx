@@ -1,3 +1,4 @@
+import { RentalBadges } from "./RentalDetails";
 import Link from "next/link";
 import { Bed, Bath, Maximize2, MapPin, BadgeCheck, ArrowUpRight, Heart } from "lucide-react";
 import { PropertyResponse, SearchResultItem } from "@shared/types";
@@ -98,6 +99,7 @@ export default function PropertyCard({ item, index = 0 }: PropertyCardProps) {
 
         {/* Title */}
         <Link href={`/properties/${property.id}`} className="mt-2.5 block group-hover:text-blue-600 transition">
+          <RentalBadges property={property} />
           <h3 className="line-clamp-2 text-base font-semibold text-slate-900 leading-snug">
             {property.title}
           </h3>

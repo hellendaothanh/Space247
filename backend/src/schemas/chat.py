@@ -24,7 +24,10 @@ class ChatMessage(BaseModel):
         return v_lower
 
 
-class ExtractedCriteria(BaseModel):
+from src.schemas.rental import RentalFilters
+
+
+class ExtractedCriteria(RentalFilters):
     listing_type: ListingType | None = Field(default=None, description="Sale or rent")
     property_type: PropertyType | None = Field(default=None, description="Apartment, house, villa, etc.")
     city: str | None = Field(default=None, description="Extracted city")

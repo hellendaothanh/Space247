@@ -1,4 +1,5 @@
 "use client";
+import RentalForm, { rentalSchema, type RentalValue } from "@/components/RentalForm";
 
 import { useState, useEffect, useTransition, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -136,6 +137,7 @@ function CreatePropertyFormContent() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [propertyType, setPropertyType] = useState<PropertyType>("apartment");
+  const [rental, setRental] = useState<RentalValue>({});
   const [listingType, setListingType] = useState<ListingType>("sale");
   const [priceStr, setPriceStr] = useState("");
   const [areaStr, setAreaStr] = useState("");
@@ -169,6 +171,7 @@ function CreatePropertyFormContent() {
         setDescription(prop.description || "");
         setPropertyType(prop.property_type);
         setListingType(prop.listing_type);
+        setRental({ rental_type: prop.rental_type, rental_costs: prop.rental_costs, rental_rules: prop.rental_rules });
         setPriceStr(prop.price?.toString() || "");
         setAreaStr(prop.area_sqm?.toString() || "");
         setBedroomsStr(prop.num_bedrooms?.toString() || "2");
@@ -443,9 +446,11 @@ function CreatePropertyFormContent() {
       return;
     }
 
+    const rentalParsed = rentalSchema.safeParse(listingType === "rent" ? rental : { rental_type: null, rental_costs: null, rental_rules: null });
+    if (!rentalParsed.success) { setServerError("Vui lòng kiểm tra chi phí và nội quy thuê."); return; }
     startTransition(async () => {
       try {
-        const createdProperty = await apiClient.createProperty(validation.data);
+        const createdProperty = await apiClient.createProperty({ ...validation.data, ...rentalParsed.data });
         setSuccessInfo({ id: createdProperty.id, title: createdProperty.title });
 
         // Smooth redirect to detail page
@@ -564,6 +569,7 @@ function CreatePropertyFormContent() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
+        {listingType === "rent" && <RentalForm value={rental} onChange={setRental} />}
         {/* SECTION 1: Category & Purpose */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-6">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-4">

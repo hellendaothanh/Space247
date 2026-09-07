@@ -1,3 +1,4 @@
+import type { RentalFilters } from "./types";
 /**
  * Space247 - Shared API Client
  * Compatible with Next.js (Web) and React Native / Mobile
@@ -243,7 +244,9 @@ export class RealEstateApiClient {
     });
   }
 
-  async listProperties(params?: {
+  async listProperties(params?: RentalFilters & {
+    min_price?: number;
+    max_price?: number;
     skip?: number;
     limit?: number;
     listing_type?: ListingType;
@@ -259,6 +262,9 @@ export class RealEstateApiClient {
     if (params?.city) searchParams.set("city", params.city);
     if (params?.status) searchParams.set("status", params.status);
 
+    for (const [key, value] of Object.entries(params ?? {})) {
+      if (value !== undefined && value !== null) searchParams.set(key, String(value));
+    }
     const queryStr = searchParams.toString();
     const endpoint = `/api/v1/properties${queryStr ? `?${queryStr}` : ""}`;
     return this.request<PropertyResponse[]>(endpoint);

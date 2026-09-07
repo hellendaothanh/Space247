@@ -47,6 +47,14 @@ class Property {
   final String description;
   final String propertyType;
   final String listingType;
+  final String? rentalType;
+  final Map<String, dynamic>? rentalCosts;
+  final Map<String, dynamic>? rentalRules;
+
+  double? get depositAmount {
+    final months = rentalCosts?["deposit_months"] as num?;
+    return months == null ? null : price * months.toDouble();
+  }
   final double price;
   final String currency;
   final double areaSqm;
@@ -73,6 +81,9 @@ class Property {
     required this.description,
     required this.propertyType,
     required this.listingType,
+    this.rentalType,
+    this.rentalCosts,
+    this.rentalRules,
     required this.price,
     this.currency = 'VND',
     required this.areaSqm,
@@ -101,6 +112,9 @@ class Property {
       description: (json['description'] as String?) ?? '',
       propertyType: (json['property_type'] as String?) ?? 'apartment',
       listingType: (json['listing_type'] as String?) ?? 'sale',
+      rentalType: json['rental_type'] as String?,
+      rentalCosts: (json['rental_costs'] as Map<String, dynamic>?),
+      rentalRules: (json['rental_rules'] as Map<String, dynamic>?),
       price: ((json['price'] as num?) ?? 0).toDouble(),
       currency: (json['currency'] as String?) ?? 'VND',
       areaSqm: ((json['area_sqm'] as num?) ?? 0).toDouble(),
@@ -137,6 +151,9 @@ class Property {
       'description': description,
       'property_type': propertyType,
       'listing_type': listingType,
+      'rental_type': rentalType,
+      'rental_costs': rentalCosts,
+      'rental_rules': rentalRules,
       'price': price,
       'currency': currency,
       'area_sqm': areaSqm,

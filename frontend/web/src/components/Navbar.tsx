@@ -34,7 +34,7 @@ function NavbarContent() {
 
   const isExploreActive = pathname === "/" && !listingType && view !== "map";
   const isSaleActive = pathname === "/" && listingType === "sale";
-  const isRentActive = pathname === "/" && listingType === "rent";
+  const isRentActive = pathname === "/rentals" || (pathname === "/" && listingType === "rent");
   const isMapActive = pathname === "/" && view === "map";
 
   const { user, logout } = useAuth();
@@ -154,7 +154,7 @@ function NavbarContent() {
             Mua bán
           </Link>
           <Link
-            href="/?listing_type=rent"
+            href="/rentals"
             className={`transition hover:text-blue-600 ${
               isRentActive ? "text-blue-600 font-semibold" : "text-slate-600 hover:text-slate-900"
             }`}
@@ -484,7 +484,7 @@ function NavbarContent() {
               <span>Nhà đất bán</span>
             </Link>
             <Link
-              href="/?listing_type=rent"
+              href="/rentals"
               onClick={() => setMobileMenuOpen(false)}
               className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition ${
                 isRentActive
