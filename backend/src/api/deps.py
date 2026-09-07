@@ -106,6 +106,7 @@ def require_roles(allowed_roles: list[str]):
 
 
 get_current_superadmin_user = require_roles(["superadmin"])
+get_current_host_user = require_roles(["host", "agent", "admin", "superadmin"])
 
 
 

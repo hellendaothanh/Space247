@@ -55,6 +55,14 @@ import {
   UserUpdateByAdminRequest,
   UserAdminDetailResponse,
   UserPaginationResponse,
+  RentalProperty,
+  RentalPropertyCreate,
+  RentalUnit,
+  RentalUnitCreate,
+  RentalInquiry,
+  RentalInquiryCreate,
+  LandlordDashboardStats,
+  RentalSearchFilterQuery,
 } from "./types";
 
 
@@ -579,6 +587,91 @@ export class RealEstateApiClient {
       `/api/v1/projects/${encodeURIComponent(idOrSlug)}/properties${qs ? `?${qs}` : ""}`,
       { method: "GET" }
     );
+  }
+
+  // -------------------------------------------------------------
+  // Two-Sided Rental API (Tenant & Host)
+  // -------------------------------------------------------------
+
+  // Tenant API
+  async listRentals(params?: RentalSearchFilterQuery): Promise<RentalProperty[]> {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      if (params.skip !== undefined) searchParams.append("skip", params.skip.toString());
+      if (params.limit !== undefined) searchParams.append("limit", params.limit.toString());
+      if (params.query) searchParams.append("query", params.query);
+      if (params.property_model) searchParams.append("property_model", params.property_model);
+      if (params.city) searchParams.append("city", params.city);
+      if (params.district) searchParams.append("district", params.district);
+      if (params.min_price !== undefined) searchParams.append("min_price", params.min_price.toString());
+      if (params.max_price !== undefined) searchParams.append("max_price", params.max_price.toString());
+      if (params.furnishing) searchParams.append("furnishing", params.furnishing);
+      if (params.has_mezzanine !== undefined) searchParams.append("has_mezzanine", params.has_mezzanine.toString());
+      if (params.has_private_bathroom !== undefined) searchParams.append("has_private_bathroom", params.has_private_bathroom.toString());
+      if (params.allow_pets !== undefined) searchParams.append("allow_pets", params.allow_pets.toString());
+      if (params.fingerprint_lock !== undefined) searchParams.append("fingerprint_lock", params.fingerprint_lock.toString());
+      if (params.curfew !== undefined) searchParams.append("curfew", params.curfew.toString());
+      if (params.only_available !== undefined) searchParams.append("only_available", params.only_available.toString());
+    }
+    const qs = searchParams.toString();
+    return this.request<RentalProperty[]>(`/api/v1/rentals${qs ? `?${qs}` : ""}`, { method: "GET" });
+  }
+
+  async getRentalProperty(id: string): Promise<RentalProperty> {
+    return this.request<RentalProperty>(`/api/v1/rentals/${encodeURIComponent(id)}`, { method: "GET" });
+  }
+
+  async inquireRentalUnit(unitId: string, data: RentalInquiryCreate): Promise<RentalInquiry> {
+    return this.request<RentalInquiry>(`/api/v1/rentals/units/${encodeURIComponent(unitId)}/inquire`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getMyRentalInquiries(): Promise<RentalInquiry[]> {
+    return this.request<RentalInquiry[]>("/api/v1/rentals/my-inquiries", { method: "GET" });
+  }
+
+  // Host API
+  async getLandlordStats(): Promise<LandlordDashboardStats> {
+    return this.request<LandlordDashboardStats>("/api/v1/host/stats", { method: "GET" });
+  }
+
+  async getHostProperties(): Promise<RentalProperty[]> {
+    return this.request<RentalProperty[]>("/api/v1/host/properties", { method: "GET" });
+  }
+
+  async createRentalProperty(data: RentalPropertyCreate): Promise<RentalProperty> {
+    return this.request<RentalProperty>("/api/v1/host/properties", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async addRentalUnit(propertyId: string, data: RentalUnitCreate): Promise<RentalUnit> {
+    return this.request<RentalUnit>(`/api/v1/host/properties/${encodeURIComponent(propertyId)}/units`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateRentalUnitStatus(unitId: string, status: string): Promise<RentalUnit> {
+    return this.request<RentalUnit>(`/api/v1/host/units/${encodeURIComponent(unitId)}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async getHostInquiries(statusFilter?: string): Promise<RentalInquiry[]> {
+    const qs = statusFilter ? `?status_filter=${encodeURIComponent(statusFilter)}` : "";
+    return this.request<RentalInquiry[]>(`/api/v1/host/inquiries${qs}`, { method: "GET" });
+  }
+
+  async updateInquiryStatus(inquiryId: string, status: string): Promise<RentalInquiry> {
+    return this.request<RentalInquiry>(`/api/v1/host/inquiries/${encodeURIComponent(inquiryId)}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
   }
 }
 

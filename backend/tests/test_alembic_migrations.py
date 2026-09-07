@@ -37,7 +37,7 @@ def test_alembic_script_directory_and_head_revision():
 
     heads = script.get_heads()
     assert len(heads) == 1, f"Expected exactly 1 head revision, got {heads}"
-    assert heads[0] == "0008", f"Expected head revision to be '0008', got {heads[0]}"
+    assert heads[0] == "0009", f"Expected head revision to be '0009', got {heads[0]}"
 
     rev1 = script.get_revision("0001")
     assert rev1 is not None
@@ -74,6 +74,16 @@ def test_alembic_script_directory_and_head_revision():
     assert rev7 is not None
     assert "user" in rev7.doc.lower() or "rbac" in rev7.doc.lower()
     assert rev7.down_revision == "0006"
+
+    rev8 = script.get_revision("0008")
+    assert rev8 is not None
+    assert "rental" in rev8.doc.lower()
+    assert rev8.down_revision == "0007"
+
+    rev9 = script.get_revision("0009")
+    assert rev9 is not None
+    assert "rental" in rev9.doc.lower()
+    assert rev9.down_revision == "0008"
 
 
 def test_alembic_offline_sql_generation(capsys):
@@ -151,6 +161,9 @@ def test_models_metadata_aligned_with_properties():
     assert "saved_search_alerts" in Base.metadata.tables
     assert "user_notifications" in Base.metadata.tables
     assert "projects" in Base.metadata.tables
+    assert "rental_properties" in Base.metadata.tables
+    assert "rental_units" in Base.metadata.tables
+    assert "rental_inquiries" in Base.metadata.tables
 
     prop_table = Base.metadata.tables["properties"]
     assert "embedding" in prop_table.c

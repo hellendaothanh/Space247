@@ -372,6 +372,15 @@ function NavbarContent() {
                     )}
 
                     <Link
+                      href="/host/rentals"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50/60 hover:bg-emerald-100 transition"
+                    >
+                      <Building2 className="h-4 w-4 text-emerald-600" />
+                      <span>Kênh Chủ Nhà (Host)</span>
+                    </Link>
+
+                    <Link
                       href="/properties/my"
                       onClick={() => setDropdownOpen(false)}
                       className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition"

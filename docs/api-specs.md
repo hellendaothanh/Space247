@@ -821,3 +821,146 @@ Review migration SQL locally with `cd backend` then
 only to an explicitly selected development database after review. Implementation
 verification does not migrate any live database; offline SQL tests do not prove
 execution on PostgreSQL/PostGIS.
+
+---
+
+## 3. Phân Hệ Cho Thuê 2 Chiều: Tenant Discovery & Landlord Host Management
+
+Phân hệ cho thuê phân tách rõ ràng giữa Tòa nhà / Khu trọ (`rental_properties`) và Phòng / Căn hộ con (`rental_units`), với vai trò Chủ nhà (`host`/`agent`/`admin`) và Khách thuê (`user`).
+
+### 3.1. Endpoints Khách Thuê (Tenant Discovery & Booking)
+
+#### 1. Tra cứu khu trọ và phòng trống
+- **Endpoint**: `GET /api/v1/rentals`
+- **Xác thực**: Không yêu cầu
+- **Query Parameters**:
+  - `keyword` (string): Tìm theo tên khu trọ hoặc địa chỉ
+  - `property_model` (string): `"boarding_house"` | `"serviced_apartment"` | `"homestay"`
+  - `city`, `district`, `ward` (string)
+  - `min_price`, `max_price` (float): Lọc theo giá phòng còn trống
+  - `furnishing` (string): `"empty"` | `"basic"` | `"full"`
+  - `pets_allowed`, `no_curfew`, `fingerprint_access` (bool)
+  - `lat`, `lng`, `radius_km` (float): Tìm kiếm không gian xung quanh tọa độ
+  - `page` (int, default 1), `limit` (int, default 20)
+- **Response**: `RentalPropertyListResponse` gồm danh sách tòa nhà kèm danh sách phòng còn trống (`available_units`).
+
+#### 2. Xem chi tiết tòa nhà / khu trọ kèm danh sách phòng
+- **Endpoint**: `GET /api/v1/rentals/{property_id}`
+- **Xác thực**: Không yêu cầu
+- **Response**: `RentalPropertyDetailResponse` (Chi tiết biểu phí chung `shared_costs`, nội quy `shared_rules`, và toàn bộ phòng).
+
+#### 3. Gửi yêu cầu hẹn xem phòng hoặc đặt cọc giữ chỗ
+- **Endpoint**: `POST /api/v1/rentals/units/{unit_id}/inquire`
+- **Xác thực**: Bắt buộc (`user`, `host`, `agent`, `admin`)
+- **Request Body**:
+  ```json
+  {
+    "inquiry_type": "view_appointment",
+    "scheduled_time": "2026-09-10T14:00:00Z",
+    "message": "Tôi muốn đến xem phòng lúc 14h chiều thứ Năm."
+  }
+  ```
+- **Response**: `RentalInquiryResponse` (Mã yêu cầu, trạng thái `"pending"`).
+- **Ràng buộc**: Không thể gửi yêu cầu nếu phòng đang ở trạng thái `"occupied"`.
+
+#### 4. Xem lịch sử yêu cầu của khách thuê
+- **Endpoint**: `GET /api/v1/rentals/my-inquiries`
+- **Xác thực**: Bắt buộc
+- **Response**: Danh sách `RentalInquiryResponse` của tài khoản hiện tại kèm thông tin phòng và tên tòa nhà.
+
+---
+
+### 3.2. Endpoints Dành Riêng Cho Chủ Nhà (Landlord / Host Portal)
+
+Quyền truy cập: Yêu cầu tài khoản có vai trò `host`, `agent`, `admin`, hoặc `superadmin`.
+
+#### 1. Thống kê tổng quan bảng điều khiển (Host Dashboard KPIs)
+- **Endpoint**: `GET /api/v1/host/stats`
+- **Xác thực**: Bắt buộc (Host / Agent / Admin)
+- **Response**:
+  ```json
+  {
+    "total_properties": 2,
+    "total_units": 15,
+    "occupied_units": 11,
+    "available_units": 3,
+    "reserved_units": 1,
+    "occupancy_rate": 73.33,
+    "estimated_monthly_revenue": 58500000.0,
+    "pending_inquiries_count": 4
+  }
+  ```
+
+#### 2. Đăng ký khu trọ / tòa nhà mới (Multi-step wizard)
+- **Endpoint**: `POST /api/v1/host/properties`
+- **Xác thực**: Bắt buộc (Host / Agent / Admin)
+- **Request Body**:
+  ```json
+  {
+    "name": "Nhà Trọ Xanh Bách Khoa",
+    "property_model": "boarding_house",
+    "address": "Số 42 Tạ Quang Bửu",
+    "district": "Hai Bà Trưng",
+    "city": "Hà Nội",
+    "latitude": 21.0055,
+    "longitude": 105.8450,
+    "shared_costs": {
+      "electricity": {"rate": 3500, "unit": "kWh"},
+      "water": {"rate": 100000, "unit": "person_month"},
+      "internet": {"rate": 100000, "unit": "room_month"},
+      "parking": {"rate": 120000, "unit": "bike_month"}
+    },
+    "shared_rules": {
+      "pets_allowed": false,
+      "curfew": true,
+      "curfew_time": "23:00",
+      "fingerprint_access": true
+    },
+    "images": ["https://images.unsplash.com/photo-1545324418-cc1a3fa10c00"]
+  }
+  ```
+- **Response**: `RentalPropertyDetailResponse` (HTTP 201).
+
+#### 3. Thêm phòng con vào khu trọ
+- **Endpoint**: `POST /api/v1/host/properties/{property_id}/units`
+- **Xác thực**: Bắt buộc (Host sở hữu hoặc Admin)
+- **Request Body**:
+  ```json
+  {
+    "unit_number": "Phòng 302",
+    "floor": 3,
+    "area_sqm": 25.0,
+    "price_monthly": 4200000,
+    "deposit_amount": 4200000,
+    "status": "available",
+    "furnishing": "full",
+    "images": ["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267"]
+  }
+  ```
+- **Response**: `RentalUnitResponse` (HTTP 201).
+
+#### 4. Cập nhật nhanh trạng thái phòng (1-Click status toggle)
+- **Endpoint**: `PATCH /api/v1/host/units/{unit_id}/status`
+- **Xác thực**: Bắt buộc (Host sở hữu hoặc Admin)
+- **Request Body**:
+  ```json
+  {
+    "status": "occupied"
+  }
+  ```
+- **Response**: `RentalUnitResponse`.
+
+#### 5. Quản lý danh sách lịch hẹn và phê duyệt / từ chối
+- **Endpoint**: `GET /api/v1/host/inquiries`
+- **Xác thực**: Bắt buộc (Host / Agent / Admin)
+- **Query Parameters**: `status` ("pending" | "confirmed" | "rejected" | "completed")
+- **Response**: Danh sách `RentalInquiryResponse` các yêu cầu gửi đến bất kỳ phòng nào thuộc các tòa nhà của chủ nhà.
+
+- **Cập nhật trạng thái duyệt**: `PATCH /api/v1/host/inquiries/{inquiry_id}/status`
+- **Request Body**:
+  ```json
+  {
+    "status": "confirmed"
+  }
+  ```
+

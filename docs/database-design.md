@@ -10,6 +10,11 @@ Hệ thống Space247 sử dụng PostgreSQL 16 kết hợp hai tiện ích mở
 erDiagram
     projects ||--o{ properties : "nhóm căn hộ (1:N)"
     users ||--o{ properties : "đăng tin (1:N)"
+    users ||--o{ rental_properties : "quản lý khu trọ/CHDV/homestay (1:N)"
+    users ||--o{ rental_inquiries : "gửi yêu cầu thuê/hẹn xem phòng (1:N)"
+    users ||--o{ rental_inquiries : "chủ nhà nhận lịch hẹn (1:N)"
+    rental_properties ||--o{ rental_units : "chứa các phòng/căn hộ con (1:N)"
+    rental_units ||--o{ rental_inquiries : "phòng được yêu cầu (1:N)"
     users ||--o{ favorite_properties : "lưu yêu thích (1:N)"
     properties ||--o{ favorite_properties : "được yêu thích (1:N)"
     users ||--o{ saved_search_alerts : "tạo cảnh báo (1:N)"
@@ -83,6 +88,57 @@ erDiagram
         uuid project_id FK "Indexed, SET NULL on delete"
         text_array images "TEXT[] Mảng đường dẫn ảnh"
         vector_768 embedding "HNSW Cosine Index"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    rental_properties {
+        uuid id PK "Indexed"
+        uuid host_id FK "Indexed -> users.id"
+        varchar_255 name "Indexed"
+        varchar_50 property_model "boarding_house | serviced_apartment | homestay (Indexed)"
+        text description
+        varchar_500 address
+        varchar_100 ward
+        varchar_100 district "Indexed"
+        varchar_100 city "Indexed"
+        float latitude
+        float longitude
+        geometry_point_4326 geom "GiST Spatial Index"
+        text_array images
+        jsonb shared_costs "electricity, water, internet, parking, cleaning..."
+        jsonb shared_rules "pets, curfew, fingerprint, gender, max_occupants..."
+        varchar_20 status "active | inactive | maintenance"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    rental_units {
+        uuid id PK "Indexed"
+        uuid property_id FK "Indexed -> rental_properties.id"
+        varchar_50 unit_number "Số/Mã phòng (101, A2...)"
+        int floor
+        float area_sqm "Diện tích phòng"
+        numeric_15_2 price_monthly "Giá thuê tháng (hoặc ngày nếu homestay)"
+        numeric_15_2 deposit_amount "Tiền cọc yêu cầu"
+        varchar_20 status "available | occupied | reserved (Indexed)"
+        varchar_30 furnishing "empty | basic | full"
+        text_array images "Ảnh thực tế của phòng"
+        jsonb amenities "Tiện nghi riêng: điều hòa, tủ lạnh, ban công..."
+        text description
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    rental_inquiries {
+        uuid id PK "Indexed"
+        uuid unit_id FK "Indexed -> rental_units.id"
+        uuid tenant_id FK "Indexed -> users.id"
+        uuid host_id FK "Indexed -> users.id"
+        varchar_30 inquiry_type "view_appointment | booking_request"
+        timestamptz scheduled_time "Thời gian hẹn xem phòng"
+        text message "Ghi chú từ khách thuê"
+        varchar_20 status "pending | confirmed | rejected | completed (Indexed)"
         timestamptz created_at
         timestamptz updated_at
     }
@@ -363,3 +419,48 @@ Review migration SQL locally with `cd backend` then
 only to an explicitly selected development database after review. Implementation
 verification does not migrate any live database; offline SQL tests do not prove
 execution on PostgreSQL/PostGIS.
+
+---
+
+## 3. Phân Hệ Cho Thuê 2 Chiều: Tòa Nhà/Khu Trọ & Phòng Đơn Lẻ (Migration 0009)
+
+Hệ thống bổ sung cấu trúc quan hệ phân cấp 1-nhiều rõ ràng giữa Tòa nhà / Khu trọ (`rental_properties`) và Từng phòng / Căn hộ con (`rental_units`), hỗ trợ 3 mô hình kinh doanh chính:
+1. **Phòng trọ / Nhà trọ (`boarding_house`)**: Thường dùng chung tiện ích tòa nhà, tính tiền theo tháng.
+2. **Căn hộ dịch vụ (`serviced_apartment`)**: Đầy đủ nội thất, dịch vụ dọn phòng, tính tiền theo tháng/quý.
+3. **Homestay (`homestay`)**: Phục vụ lưu trú ngắn hạn theo đêm hoặc dài hạn theo tuần/tháng.
+
+### Bảng `rental_properties` (Tòa nhà / Khu trọ / Cơ sở homestay)
+- Quản lý thông tin chung toàn khu: tên tòa nhà, địa chỉ, quận/huyện, tọa độ `geom (Point, 4326)` có GiST spatial index.
+- Liên kết với chủ nhà thông qua `host_id` (tham chiếu `users.id`, vai trò `host` hoặc `agent`).
+- `shared_costs` (JSONB): Biểu phí chung áp dụng toàn tòa nhà:
+  - `electricity`: `{ "rate": 3500, "unit": "kWh", "billing_type": "meter" }`
+  - `water`: `{ "rate": 100000, "unit": "person_month", "billing_type": "fixed" }`
+  - `internet`: `{ "rate": 100000, "unit": "room_month" }`
+  - `parking`: `{ "rate": 120000, "unit": "bike_month" }`
+  - `service_fee`: `{ "rate": 50000, "unit": "room_month" }`
+- `shared_rules` (JSONB): Nội quy chung toàn khu:
+  - `pets_allowed` (boolean), `curfew` (boolean), `curfew_time` (chuỗi HH:mm), `fingerprint_access` (boolean), `gender_restriction` ("none" | "female_only" | "male_only"), `max_occupants_per_room` (int).
+
+### Bảng `rental_units` (Phòng / Căn hộ thành viên)
+- Liên kết 1-nhiều với `rental_properties` qua `property_id` (CASCADE on delete).
+- `unit_number`: Mã hoặc số phòng (VD: "P.201", "Studio 3A").
+- `floor`: Tầng lầu (int).
+- `area_sqm`: Diện tích thực tế sử dụng (m²).
+- `price_monthly`: Giá thuê theo tháng (hoặc giá/đêm đối với mô hình Homestay).
+- `deposit_amount`: Số tiền cọc quy định (VND).
+- `status`: Trạng thái thực tế của phòng:
+  - `"available"`: Còn trống, sẵn sàng cho khách thuê.
+  - `"occupied"`: Đã có người thuê (loại khỏi danh sách tìm kiếm phòng trống).
+  - `"reserved"`: Đang có khách giữ chỗ / đặt cọc tạm thời.
+- `furnishing`: Mức độ nội thất (`"empty"`, `"basic"`, `"full"`).
+- `images`: Mảng ảnh thực tế của từng phòng riêng biệt.
+
+### Bảng `rental_inquiries` (Lịch hẹn & Yêu cầu thuê)
+- Kết nối trực tiếp Khách thuê (`tenant_id`), Chủ nhà (`host_id`), và Phòng cụ thể (`unit_id`).
+- `inquiry_type`:
+  - `"view_appointment"`: Đặt lịch hẹn xem phòng trực tiếp.
+  - `"booking_request"`: Gửi yêu cầu đặt phòng / giữ chỗ.
+- `scheduled_time`: Thời gian khách mong muốn đến xem phòng hoặc nhận phòng.
+- `message`: Lời nhắn hoặc yêu cầu thêm từ khách thuê.
+- `status`: Quy trình xử lý yêu cầu (`"pending"` -> `"confirmed"` | `"rejected"` -> `"completed"`).
+

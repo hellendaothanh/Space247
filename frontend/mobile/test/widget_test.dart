@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:space247_mobile/models/user.dart';
 import 'package:space247_mobile/models/property.dart';
+import 'package:space247_mobile/models/rental_property.dart';
 import 'package:space247_mobile/models/search_result.dart';
 import 'package:space247_mobile/models/favorite.dart';
 import 'package:space247_mobile/widgets/property_card.dart';
@@ -22,6 +23,32 @@ void main() {
     expect(property.toJson()['rental_costs']['service_fee_monthly'], 0);
     expect(property.toJson()['rental_rules']['allow_pets'], false);
     expect(property.rentalCosts?['water_cost'], isNull);
+  });
+  test('Two-sided RentalProperty and RentalUnit parse correctly', () {
+    final unit = RentalUnit.fromJson({
+      'id': 'u1',
+      'property_id': 'p1',
+      'unit_number': 'P.101',
+      'area_sqm': 25.0,
+      'price': 3500000.0,
+      'status': 'available',
+      'has_mezzanine': true,
+      'has_private_bathroom': true,
+    });
+    expect(unit.isAvailable, true);
+    expect(unit.unitNumber, 'P.101');
+
+    final prop = RentalProperty.fromJson({
+      'id': 'p1',
+      'host_id': 'h1',
+      'name': 'Nhà Trọ Xanh',
+      'property_model': 'boarding_house',
+      'address': '10 Tạ Quang Bửu',
+      'city': 'Hà Nội',
+      'units': [unit.toJson()],
+    });
+    expect(prop.units.length, 1);
+    expect(prop.priceUnitLabel, '/tháng');
   });
   testWidgets('Rental details display fee units and only known positive badges', (tester) async {
     final property = Property.fromJson({'id': 'rent', 'listing_type': 'rent', 'price': 3000000, 'rental_type': 'room', 'rental_costs': {'deposit_months': 0, 'service_fee_monthly': 0}, 'rental_rules': {'allow_pets': false, 'has_mezzanine': true}});

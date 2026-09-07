@@ -647,3 +647,149 @@ export interface ProjectFilterQuery {
   q?: string;
 }
 
+// -------------------------------------------------------------
+// Two-Sided Rental System (Host & Tenant Platform)
+// -------------------------------------------------------------
+export type RentalPropertyModel = "boarding_house" | "serviced_apartment" | "homestay";
+export type RentalUnitStatus = "available" | "occupied" | "reserved";
+export type RentalUnitFurnishing = "empty" | "basic" | "full";
+export type RentalInquiryType = "view_appointment" | "booking_request";
+export type RentalInquiryStatus = "pending" | "confirmed" | "rejected" | "completed";
+
+export interface RentalUnit {
+  id: string;
+  property_id: string;
+  unit_number: string;
+  floor?: number | null;
+  area_sqm: number;
+  price: number;
+  deposit?: number | null;
+  status: RentalUnitStatus;
+  furnishing: RentalUnitFurnishing;
+  has_mezzanine: boolean;
+  has_private_bathroom: boolean;
+  max_occupants?: number | null;
+  images: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RentalUnitCreate {
+  unit_number: string;
+  floor?: number | null;
+  area_sqm: number;
+  price: number;
+  deposit?: number | null;
+  status?: RentalUnitStatus;
+  furnishing?: RentalUnitFurnishing;
+  has_mezzanine?: boolean;
+  has_private_bathroom?: boolean;
+  max_occupants?: number | null;
+  images?: string[];
+}
+
+export interface RentalPropertyHostSummary {
+  id: string;
+  full_name: string;
+  email: string;
+  phone?: string | null;
+  avatar_url?: string | null;
+}
+
+export interface RentalProperty {
+  id: string;
+  host_id: string;
+  host?: RentalPropertyHostSummary | null;
+  name: string;
+  description: string;
+  property_model: RentalPropertyModel;
+  address: string;
+  ward?: string | null;
+  district?: string | null;
+  city: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  shared_costs?: Record<string, any>;
+  shared_rules?: Record<string, any>;
+  images: string[];
+  is_active: boolean;
+  total_units_count: number;
+  available_units_count: number;
+  min_price?: number | null;
+  max_price?: number | null;
+  units: RentalUnit[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RentalPropertyCreate {
+  name: string;
+  description?: string;
+  property_model?: RentalPropertyModel;
+  address: string;
+  ward?: string | null;
+  district?: string | null;
+  city: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  shared_costs?: Record<string, any>;
+  shared_rules?: Record<string, any>;
+  images?: string[];
+  is_active?: boolean;
+  initial_units?: RentalUnitCreate[];
+}
+
+export interface RentalInquiry {
+  id: string;
+  unit_id: string;
+  tenant_id: string;
+  host_id: string;
+  inquiry_type: RentalInquiryType;
+  scheduled_time?: string | null;
+  tenant_name?: string | null;
+  tenant_phone?: string | null;
+  message?: string | null;
+  status: RentalInquiryStatus;
+  created_at: string;
+  updated_at: string;
+  unit?: RentalUnit | null;
+}
+
+export interface RentalInquiryCreate {
+  inquiry_type?: RentalInquiryType;
+  scheduled_time?: string | null;
+  tenant_name?: string | null;
+  tenant_phone?: string | null;
+  message?: string | null;
+}
+
+export interface LandlordDashboardStats {
+  total_properties: number;
+  total_units: number;
+  available_units: number;
+  occupied_units: number;
+  reserved_units: number;
+  occupancy_rate: number;
+  estimated_monthly_revenue: number;
+  pending_inquiries_count: number;
+}
+
+export interface RentalSearchFilterQuery {
+  skip?: number;
+  limit?: number;
+  query?: string;
+  property_model?: RentalPropertyModel;
+  city?: string;
+  district?: string;
+  min_price?: number;
+  max_price?: number;
+  furnishing?: RentalUnitFurnishing;
+  has_mezzanine?: boolean;
+  has_private_bathroom?: boolean;
+  allow_pets?: boolean;
+  fingerprint_lock?: boolean;
+  curfew?: boolean;
+  only_available?: boolean;
+}
+
+

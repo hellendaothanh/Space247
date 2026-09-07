@@ -35,10 +35,12 @@ async def register(
             detail="Email address already registered",
         )
 
-    # Prevent privilege escalation: only allow user or agent on public self-registration
+    # Prevent privilege escalation: only allow user, agent, or host on public self-registration
     assigned_role = UserRole.USER.value
     if user_in.role in (UserRole.AGENT, "agent"):
         assigned_role = UserRole.AGENT.value
+    elif user_in.role in (UserRole.HOST, "host"):
+        assigned_role = UserRole.HOST.value
 
     # Hash password & create user
     user = User(
