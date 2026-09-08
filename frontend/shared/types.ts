@@ -78,6 +78,8 @@ export interface PropertyBase {
   latitude?: number | null;
   longitude?: number | null;
   images?: string[];
+  video_url?: string | null;
+  virtual_tour_url?: string | null;
   project_id?: string | null;
 }
 
@@ -105,6 +107,8 @@ export interface PropertyResponse extends PropertyBase {
   user_id?: string | null; // UUID of owner user
   status: PropertyStatus;
   images: string[];
+  video_url?: string | null;
+  virtual_tour_url?: string | null;
   agent?: PropertyAgent | null;
   project?: ProjectSummary | null;
   created_at: string; // ISO 8601 string
@@ -609,6 +613,8 @@ export interface ProjectBase {
   latitude?: number | null;
   longitude?: number | null;
   images?: string[];
+  video_url?: string | null;
+  virtual_tour_url?: string | null;
   master_plan_url?: string | null;
   legal_status?: string | null;
   price_range_min?: number | null;
@@ -633,6 +639,8 @@ export interface ProjectSummary {
   city: string;
   district?: string | null;
   images: string[];
+  video_url?: string | null;
+  virtual_tour_url?: string | null;
   price_range_min?: number | null;
   price_range_max?: number | null;
 }

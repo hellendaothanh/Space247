@@ -27,6 +27,8 @@ class ProjectBase(BaseModel):
     latitude: float | None = Field(default=None, ge=-90.0, le=90.0, description="Latitude coordinate")
     longitude: float | None = Field(default=None, ge=-180.0, le=180.0, description="Longitude coordinate")
     images: list[str] = Field(default_factory=list, description="List of project render/actual image URLs")
+    video_url: str | None = Field(default=None, max_length=500, description="Optional project video URL")
+    virtual_tour_url: str | None = Field(default=None, max_length=500, description="Optional virtual tour URL")
     master_plan_url: str | None = Field(default=None, max_length=500, description="Master plan / floor plan image URL")
     legal_status: str | None = Field(default=None, max_length=255, description="Legal certification (e.g. Sổ hồng lâu dài, 1/500)")
     price_range_min: float | None = Field(default=None, ge=0, description="Minimum estimated unit price")
@@ -62,6 +64,8 @@ class ProjectUpdate(BaseModel):
     latitude: float | None = Field(default=None, ge=-90.0, le=90.0)
     longitude: float | None = Field(default=None, ge=-180.0, le=180.0)
     images: list[str] | None = None
+    video_url: str | None = Field(default=None, max_length=500)
+    virtual_tour_url: str | None = Field(default=None, max_length=500)
     master_plan_url: str | None = None
     legal_status: str | None = None
     price_range_min: float | None = Field(default=None, ge=0)
@@ -79,6 +83,8 @@ class ProjectSummary(BaseModel):
     city: str
     district: str | None = None
     images: list[str] = Field(default_factory=list)
+    video_url: str | None = None
+    virtual_tour_url: str | None = None
     price_range_min: float | None = None
     price_range_max: float | None = None
 

@@ -71,6 +71,8 @@ class Project(Base):
         default=list,
         server_default="{}",
     )
+    video_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    virtual_tour_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     master_plan_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     legal_status: Mapped[str | None] = mapped_column(String(255), nullable=True)
     price_range_min: Mapped[float | None] = mapped_column(Numeric(15, 2), nullable=True)

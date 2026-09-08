@@ -60,6 +60,7 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
               : const [
                   'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80',
                 ];
+          final hasMedia = _isEmbeddableVideo(property.videoUrl) || _isSupportedTour(property.virtualTourUrl);
 
           return CustomScrollView(
             slivers: [
@@ -129,13 +130,17 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                           });
                         },
                         itemBuilder: (context, index) {
-                          return CachedNetworkImage(
-                            imageUrl: displayImages[index],
-                            fit: BoxFit.cover,
-                            placeholder: (_, _) => Container(color: Colors.grey.shade200),
-                            errorWidget: (_, _, _) => Container(
-                              color: Colors.grey.shade300,
-                              child: const Icon(Icons.home_work, size: 64, color: Colors.grey),
+                          return InteractiveViewer(
+                            minScale: 1,
+                            maxScale: 4,
+                            child: CachedNetworkImage(
+                              imageUrl: displayImages[index],
+                              fit: BoxFit.cover,
+                              placeholder: (_, _) => Container(color: Colors.grey.shade200),
+                              errorWidget: (_, _, _) => Container(
+                                color: Colors.grey.shade300,
+                                child: const Icon(Icons.home_work, size: 64, color: Colors.grey),
+                              ),
                             ),
                           );
                         },
@@ -256,6 +261,21 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 20),
+                      if (hasMedia) ...[
+                        const Text('Media', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: [
+                            if (_isEmbeddableVideo(property.videoUrl))
+                              FilledButton.icon(onPressed: () => _openMedia(context, property.videoUrl!), icon: const Icon(Icons.play_circle_outline), label: const Text('Xem video')),
+                            if (_isSupportedTour(property.virtualTourUrl))
+                              OutlinedButton.icon(onPressed: () => _openMedia(context, property.virtualTourUrl!), icon: const Icon(Icons.threesixty_outlined), label: const Text('Xem tour ảo')),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                      ],
                       // Features / Specs
                       const Text('Thông tin chi tiết', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 12),
@@ -577,6 +597,26 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
           SnackBar(content: Text('Không thể mở ứng dụng email tới $email')),
         );
       }
+    }
+  }
+
+  bool _isEmbeddableVideo(String? value) {
+    if (value == null) return false;
+    final uri = Uri.tryParse(value);
+    if (uri == null || !(uri.scheme == 'http' || uri.scheme == 'https')) return false;
+    final host = uri.host.toLowerCase();
+    return const {'youtu.be', 'youtube.com', 'www.youtube.com', 'm.youtube.com', 'tiktok.com', 'www.tiktok.com', 'm.tiktok.com', 'vm.tiktok.com'}.contains(host);
+  }
+
+  bool _isSupportedTour(String? value) {
+    final uri = value == null ? null : Uri.tryParse(value);
+    return uri != null && uri.scheme == 'https' && const {'my.matterport.com', 'matterport.com', 'www.matterport.com'}.contains(uri.host.toLowerCase());
+  }
+
+  Future<void> _openMedia(BuildContext context, String value) async {
+    final uri = Uri.parse(value);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Không thể mở media')));
     }
   }
 

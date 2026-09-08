@@ -7,6 +7,8 @@ class ProjectSummary {
   final String city;
   final String? district;
   final List<String> images;
+  final String? videoUrl;
+  final String? virtualTourUrl;
   final double? priceRangeMin;
   final double? priceRangeMax;
 
@@ -19,6 +21,8 @@ class ProjectSummary {
     required this.city,
     this.district,
     this.images = const [],
+    this.videoUrl,
+    this.virtualTourUrl,
     this.priceRangeMin,
     this.priceRangeMax,
   });
@@ -36,6 +40,8 @@ class ProjectSummary {
               ?.map((e) => e.toString())
               .toList() ??
           const [],
+      videoUrl: json['video_url'] as String?,
+      virtualTourUrl: json['virtual_tour_url'] as String?,
       priceRangeMin: (json['price_range_min'] as num?)?.toDouble(),
       priceRangeMax: (json['price_range_max'] as num?)?.toDouble(),
     );
@@ -51,6 +57,8 @@ class ProjectSummary {
       'city': city,
       'district': district,
       'images': images,
+      'video_url': videoUrl,
+      'virtual_tour_url': virtualTourUrl,
       'price_range_min': priceRangeMin,
       'price_range_max': priceRangeMax,
     };

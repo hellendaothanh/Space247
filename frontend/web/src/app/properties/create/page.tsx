@@ -92,6 +92,8 @@ const propertyFormSchema = z.object({
     .nullable()
     .optional(),
   images: z.array(z.string()).optional().default([]),
+  video_url: z.string().trim().max(500).nullable().optional(),
+  virtual_tour_url: z.string().trim().max(500).nullable().optional(),
 });
 
 type PropertyFormValues = z.infer<typeof propertyFormSchema>;
@@ -149,6 +151,8 @@ function CreatePropertyFormContent() {
   const [city, setCity] = useState("Thành phố Hồ Chí Minh");
   const [latitudeStr, setLatitudeStr] = useState("");
   const [longitudeStr, setLongitudeStr] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [virtualTourUrl, setVirtualTourUrl] = useState("");
 
   // Projects State
   const [projects, setProjects] = useState<ProjectResponse[]>([]);
@@ -190,6 +194,8 @@ function CreatePropertyFormContent() {
         if (prop.images && Array.isArray(prop.images) && prop.images.length > 0) {
           setUploadedImages(prop.images);
         }
+        setVideoUrl(prop.video_url || "");
+        setVirtualTourUrl(prop.virtual_tour_url || "");
       } catch (err: any) {
         console.error("Failed to load property to clone:", err);
       } finally {
@@ -429,6 +435,8 @@ function CreatePropertyFormContent() {
       latitude: isNaN(latNum as number) ? null : latNum,
       longitude: isNaN(lngNum as number) ? null : lngNum,
       images: uploadedImages,
+      video_url: videoUrl.trim() || null,
+      virtual_tour_url: virtualTourUrl.trim() || null,
     };
 
     const validation = propertyFormSchema.safeParse(payloadCandidate);
@@ -1104,6 +1112,10 @@ function CreatePropertyFormContent() {
               ))}
             </div>
           )}
+          <div className="grid gap-4 border-t border-slate-100 pt-5 sm:grid-cols-2">
+            <input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="URL video YouTube hoặc TikTok" className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs" />
+            <input value={virtualTourUrl} onChange={(e) => setVirtualTourUrl(e.target.value)} placeholder="URL tour ảo Matterport hoặc VR 360" className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs" />
+          </div>
         </div>
 
         {/* Submit Actions */}

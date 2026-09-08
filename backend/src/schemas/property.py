@@ -48,6 +48,8 @@ class PropertyBase(BaseModel):
     latitude: float | None = Field(default=None, ge=-90.0, le=90.0, description="Latitude")
     longitude: float | None = Field(default=None, ge=-180.0, le=180.0, description="Longitude")
     images: list[str] = Field(default_factory=list, description="List of property image URLs")
+    video_url: str | None = Field(default=None, max_length=500, description="Optional listing video URL")
+    virtual_tour_url: str | None = Field(default=None, max_length=500, description="Optional virtual tour URL")
     project_id: uuid.UUID | None = Field(default=None, description="Associated real estate project ID")
 
     @model_validator(mode="after")
@@ -85,6 +87,8 @@ class PropertyUpdate(BaseModel):
     latitude: float | None = Field(default=None, ge=-90.0, le=90.0)
     longitude: float | None = Field(default=None, ge=-180.0, le=180.0)
     images: list[str] | None = Field(default=None, description="List of property image URLs")
+    video_url: str | None = Field(default=None, max_length=500)
+    virtual_tour_url: str | None = Field(default=None, max_length=500)
     project_id: uuid.UUID | None = None
     status: PropertyStatus | None = None
     embedding: list[float] | None = None

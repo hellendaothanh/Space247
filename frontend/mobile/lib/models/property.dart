@@ -67,6 +67,8 @@ class Property {
   final double? latitude;
   final double? longitude;
   final List<String> images;
+  final String? videoUrl;
+  final String? virtualTourUrl;
   final String? projectId;
   final PropertyAgent? agent;
   final ProjectSummary? project;
@@ -96,6 +98,8 @@ class Property {
     this.latitude,
     this.longitude,
     this.images = const [],
+    this.videoUrl,
+    this.virtualTourUrl,
     this.projectId,
     this.agent,
     this.project,
@@ -130,6 +134,8 @@ class Property {
               ?.map((e) => e.toString())
               .toList() ??
           const [],
+      videoUrl: json['video_url'] as String?,
+      virtualTourUrl: json['virtual_tour_url'] as String?,
       projectId: json['project_id'] as String?,
       agent: json['agent'] != null
           ? PropertyAgent.fromJson(json['agent'] as Map<String, dynamic>)
@@ -166,6 +172,8 @@ class Property {
       'latitude': latitude,
       'longitude': longitude,
       'images': images,
+      'video_url': videoUrl,
+      'virtual_tour_url': virtualTourUrl,
       'project_id': projectId,
       'agent': agent?.toJson(),
       'project': project?.toJson(),

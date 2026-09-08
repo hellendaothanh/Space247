@@ -59,6 +59,8 @@ const editPropertyFormSchema = z.object({
   status: z.enum(["active", "pending", "sold", "rented", "inactive"] as const),
   latitude: z.number().min(-90).max(90).nullable().optional(),
   longitude: z.number().min(-180).max(180).nullable().optional(),
+  video_url: z.string().trim().max(500).nullable().optional(),
+  virtual_tour_url: z.string().trim().max(500).nullable().optional(),
 });
 
 const MAJOR_CITIES = [
@@ -100,6 +102,8 @@ export default function EditPropertyPage() {
   const [city, setCity] = useState("Thành phố Hồ Chí Minh");
   const [latitudeStr, setLatitudeStr] = useState("");
   const [longitudeStr, setLongitudeStr] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [virtualTourUrl, setVirtualTourUrl] = useState("");
 
   // Projects State
   const [projects, setProjects] = useState<ProjectResponse[]>([]);
@@ -246,6 +250,8 @@ export default function EditPropertyPage() {
         setCity(data.city);
         setLatitudeStr(data.latitude !== null && data.latitude !== undefined ? String(data.latitude) : "");
         setLongitudeStr(data.longitude !== null && data.longitude !== undefined ? String(data.longitude) : "");
+        setVideoUrl(data.video_url || "");
+        setVirtualTourUrl(data.virtual_tour_url || "");
         setSelectedProjectId(data.project_id || data.project?.id || "");
       } catch (err: any) {
         setServerError(err?.message || "Không thể tải thông tin bất động sản.");
@@ -293,6 +299,8 @@ export default function EditPropertyPage() {
       city: city.trim(),
       latitude: latitudeStr ? parseFloat(latitudeStr) : null,
       longitude: longitudeStr ? parseFloat(longitudeStr) : null,
+      video_url: videoUrl.trim() || null,
+      virtual_tour_url: virtualTourUrl.trim() || null,
     };
 
     const parsed = editPropertyFormSchema.safeParse(rawValues);
@@ -813,6 +821,12 @@ export default function EditPropertyPage() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Action Bar */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs">
+            <h2 className="mb-4 text-base font-bold text-slate-900">Video & tour ảo</h2>
+            <div className="grid gap-4 sm:grid-cols-2"><input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="URL video YouTube hoặc TikTok" className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs" /><input value={virtualTourUrl} onChange={(e) => setVirtualTourUrl(e.target.value)} placeholder="URL tour ảo Matterport hoặc VR 360" className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs" /></div>
           </div>
 
           {/* Action Bar */}

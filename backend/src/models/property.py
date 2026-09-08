@@ -103,6 +103,8 @@ class Property(Base):
         default=list,
         server_default="{}",
     )
+    video_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    virtual_tour_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     # 768-dimensional vector embedding for semantic search
     embedding = mapped_column(Vector(settings.VECTOR_DIM), nullable=True)

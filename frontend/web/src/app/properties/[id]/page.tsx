@@ -23,7 +23,7 @@ import { formatPrice, formatPropertyType } from "@/lib/utils";
 import PropertyFavoriteButton from "@/components/PropertyFavoriteButton";
 import PropertyDetailMap from "@/components/PropertyDetailMap";
 import MortgageCalculator from "@/components/MortgageCalculator";
-import PropertyGallery from "@/components/PropertyGallery";
+import MediaSuite from "@/components/MediaSuite";
 import PropertyShareButton from "@/components/PropertyShareButton";
 import PropertyBookingModal from "@/components/PropertyBookingModal";
 
@@ -111,12 +111,7 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
         {/* Left 2 Cols: Gallery & Details */}
         <div className="space-y-8">
           {/* Photo Gallery Carousel with Thumbnail Selector and Fallback */}
-          <PropertyGallery
-            images={property.images}
-            propertyType={property.property_type}
-            title={property.title}
-            listingType={property.listing_type}
-          />
+          <MediaSuite images={property.images} videoUrl={property.video_url} virtualTourUrl={property.virtual_tour_url} propertyType={property.property_type} title={property.title} latitude={property.latitude} longitude={property.longitude} />
 
           {/* Title & Location Header */}
           <div className="rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-xs">

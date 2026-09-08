@@ -37,7 +37,7 @@ def test_alembic_script_directory_and_head_revision():
 
     heads = script.get_heads()
     assert len(heads) == 1, f"Expected exactly 1 head revision, got {heads}"
-    assert heads[0] == "0010", f"Expected head revision to be '0010', got {heads[0]}"
+    assert heads[0] == "0012", f"Expected head revision to be '0012', got {heads[0]}"
 
     rev1 = script.get_revision("0001")
     assert rev1 is not None
@@ -90,6 +90,10 @@ def test_alembic_script_directory_and_head_revision():
     assert "contract" in rev10.doc.lower() or "invoice" in rev10.doc.lower() or "deposit" in rev10.doc.lower()
     assert rev10.down_revision == "0009"
 
+    rev12 = script.get_revision("0012")
+    assert rev12 is not None
+    assert rev12.down_revision == "0011"
+
 
 def test_alembic_offline_sql_generation(capsys):
     """Verify that offline SQL generation ('upgrade head --sql') produces proper DDL statements."""
@@ -125,6 +129,10 @@ def test_alembic_offline_sql_generation(capsys):
     # Verify 0006 additions
     assert "CREATE TABLE projects" in generated_sql
     assert "ALTER TABLE properties ADD COLUMN project_id UUID" in generated_sql
+    assert "ALTER TABLE properties ADD COLUMN video_url VARCHAR(500)" in generated_sql
+    assert "ALTER TABLE properties ADD COLUMN virtual_tour_url VARCHAR(500)" in generated_sql
+    assert "ALTER TABLE projects ADD COLUMN video_url VARCHAR(500)" in generated_sql
+    assert "ALTER TABLE projects ADD COLUMN virtual_tour_url VARCHAR(500)" in generated_sql
 
     # Verify 0007 additions
     assert "ALTER TABLE users ADD COLUMN phone_verified" in generated_sql
@@ -179,12 +187,16 @@ def test_models_metadata_aligned_with_properties():
     assert "user_id" in prop_table.c
     assert "images" in prop_table.c
     assert "project_id" in prop_table.c
+    assert "video_url" in prop_table.c
+    assert "virtual_tour_url" in prop_table.c
 
     project_table = Base.metadata.tables["projects"]
     assert "name" in project_table.c
     assert "slug" in project_table.c
     assert "developer" in project_table.c
     assert "embedding" in project_table.c
+    assert "video_url" in project_table.c
+    assert "virtual_tour_url" in project_table.c
 
     user_table = Base.metadata.tables["users"]
     assert "email" in user_table.c

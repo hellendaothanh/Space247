@@ -25,6 +25,7 @@ import { ProjectDetailResponse, PropertyResponse } from "@shared/types";
 import { formatPrice, formatProjectStatus } from "@/lib/utils";
 import PropertyCard from "@/components/PropertyCard";
 import PropertyDetailMap from "@/components/PropertyDetailMap";
+import MediaSuite from "@/components/MediaSuite";
 
 interface ProjectDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -296,6 +297,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="mx-auto -mt-4 max-w-7xl px-4 sm:px-6 lg:px-8">
+        <MediaSuite images={project.images} videoUrl={project.video_url} virtualTourUrl={project.virtual_tour_url} title={project.name} latitude={project.latitude} longitude={project.longitude} />
       </div>
 
       {/* Navigation Tabs */}
