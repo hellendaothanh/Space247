@@ -31,6 +31,7 @@ flowchart TD
 - **Frontend Mobile**: Flutter 3.x, Riverpod, Dio, CachedNetworkImage, FlutterMap.
 - **Authentication**: Xác thực phân quyền JSON Web Token (JWT HS256) kết hợp hàm băm mật khẩu `bcrypt`, hỗ trợ phân quyền vai trò người dùng (`user`, `agent`, `admin`).
 - **Shared SDK**: Khai báo kiểu dữ liệu TypeScript (DTOs) và API Client tại `frontend/shared/` dùng chung giữa Web và Mobile.
+- **Media Suite**: Gallery mosaic/lightbox, video review YouTube/TikTok, tour Matterport/VR 360 và bản đồ được tích hợp trên trang chi tiết Web và Mobile.
 
 ---
 
@@ -107,6 +108,7 @@ Danh mục các bản di chuyển lược đồ (Migrations):
 | `0004` | `0004_add_alerts_and_notifications.py` | Tạo bảng `saved_search_alerts` và `user_notifications` |
 | `0005` | `0005_add_property_images_and_user_avatar.py` | Bổ sung cột `images TEXT[]` vào `properties` và `avatar_url VARCHAR` vào `users` |
 | `0006` | `0006_add_projects_table_and_property_project_fk.py` | Tạo bảng `projects` (đại đô thị, master plan, HNSW & GiST) và thêm khóa ngoại `project_id` trong `properties` |
+| `0012` | `0012_add_media_urls.py` | Bổ sung `video_url` và `virtual_tour_url` dạng `VARCHAR(500)` cho `properties` và `projects` |
 
 ### Bước 4: Nạp dữ liệu mẫu khởi tạo (Data Seeding)
 ```bash
@@ -231,7 +233,7 @@ Hệ thống được bảo đảm chất lượng nghiêm ngặt thông qua cá
 cd backend
 uv run pytest
 ```
-- **Kết quả thực tế**: 108/108 tests PASS trên 15 bộ kiểm thử (test suites).
+- **Kết quả thực tế**: 174/174 tests PASS.
 - **Phạm vi kiểm thử**: Di chuyển cơ sở dữ liệu Alembic (0001-0006), phân quyền bảo mật JWT, CRUD bất động sản kèm mảng ảnh, quản lý dự án bất động sản (CRUD, slug, thống kê bảng hàng, cache Redis 30m), định giá AVM, tính toán bản đồ Isochrone PostGIS, so sánh BĐS, chatbot AI trích xuất tiêu chí và ý định dự án, tìm kiếm lai RRF, cơ chế bộ nhớ đệm Redis, và cảnh báo nền.
 
 ### Frontend Web
@@ -254,12 +256,12 @@ flutter analyze    # 0 lỗi cú pháp, 0 cảnh báo nghiêm trọng
 ```
 Space247/
 ├── backend/
-│   ├── migrations/versions/        # Tệp di chuyển lược đồ cơ sở dữ liệu Alembic (0001–0006)
+│   ├── migrations/versions/        # Tệp di chuyển lược đồ cơ sở dữ liệu Alembic (0001–0012)
 │   ├── scripts/                    # Script nạp dữ liệu mẫu seed_properties.py
 │   ├── src/
 │   │   ├── api/v1/endpoints/       # auth, properties, projects, search, chat, agent, spatial, financial, alerts, notifications, health
 │   │   ├── core/                   # config, database, cache, security
-│   │   ├── models/                 # Project, Property, User (với geom PostGIS, embedding VECTOR, images TEXT[])
+│   │   ├── models/                 # Project, Property, User (geom, embedding, images và media URLs)
 │   │   ├── schemas/                # Lược đồ dữ liệu Pydantic v2 chuẩn hóa (project, property, chat...)
 │   │   └── services/               # EmbeddingService, ChatAssistantService, AlertMatchingService, AIComparisonService
 │   └── tests/                      # 108 ca kiểm thử đơn vị và tích hợp
@@ -282,7 +284,8 @@ Space247/
 │   ├── coding-standards-and-git-rules.md # Quy chuẩn lập trình, Git flow và Quality Gate
 │   ├── performance-sla.md          # Cam kết SLA, định chuẩn độ trễ và kiểm thử tải trọng
 │   ├── runbook.md                  # Cẩm nang vận hành và xử lý sự cố hệ thống
-│   └── security-privacy.md         # Chính sách bảo mật, chống cào dữ liệu và Nghị định 13/2023/NĐ-CP
+│   ├── security-privacy.md         # Chính sách bảo mật, chống cào dữ liệu và Nghị định 13/2023/NĐ-CP
+│   └── media-suite.md               # Hợp đồng Media Suite, parser, Web, Mobile và quality gates
 ├── scripts/                        # Script khởi động tự động đa nền tảng
 ├── docker-compose.yml              # Cấu hình container PostgreSQL 16 + pgvector/PostGIS và Redis 7
 └── README.md                       # Tài liệu tổng quan dự án
@@ -300,15 +303,16 @@ Space247/
 | [`docs/performance-sla.md`](file:///Users/hautp/Documents/project/Space247/docs/performance-sla.md) | Định chuẩn độ trễ P95/P99, giám sát profiling và kế hoạch tải trọng k6 |
 | [`docs/runbook.md`](file:///Users/hautp/Documents/project/Space247/docs/runbook.md) | Cẩm nang xử lý sự cố CSDL, suy giảm Redis và tái sinh vector `--reindex-vectors` |
 | [`docs/security-privacy.md`](file:///Users/hautp/Documents/project/Space247/docs/security-privacy.md) | Quản lý định danh, che số điện thoại, Rate Limiting và tuân thủ Nghị định 13/2023/NĐ-CP |
+| [`docs/media-suite.md`](docs/media-suite.md) | Hợp đồng Media Suite, embed an toàn, gallery, tour ảo và hướng dẫn kiểm tra |
 
 ---
 
-## 8. Lược Đồ Cơ Sở Dữ Liệu Tóm Tắt (Revision 0006)
+## 8. Lược Đồ Cơ Sở Dữ Liệu Tóm Tắt (Revision 0012)
 
 | Tên bảng | Các trường chính và kiểu dữ liệu | Chỉ mục chính |
 |---|---|---|
-| `projects` | `id`, `name`, `slug`, `developer`, `description`, `status`, `total_units`, `launch_year`, `handover_year`, `address`, `city`, `district`, `ward`, `latitude`, `longitude`, `geom (geometry(Point, 4326))`, `images (TEXT[])`, `master_plan_url`, `legal_status`, `price_range_min`, `price_range_max`, `amenities (TEXT[])`, `embedding (VECTOR(768))` | Unique B-Tree (`slug`), HNSW (`vector_cosine_ops`), GiST (`geom`), B-Tree (`city`, `developer`, `status`) |
-| `properties` | `id`, `title`, `description`, `price`, `area_sqm`, `address`, `city`, `district`, `ward`, `latitude`, `longitude`, `geom (geometry(Point, 4326))`, `images (TEXT[])`, `embedding (VECTOR(768))`, `user_id (FK)`, `project_id (FK)`, `status` | HNSW (`vector_cosine_ops`), GiST (`geom`), GIN (Full-Text tiếng Việt), B-Tree (`city`, `price`, `area_sqm`, `project_id`) |
+| `projects` | `id`, `name`, `slug`, `developer`, `description`, `status`, `total_units`, `address`, `geom`, `images (TEXT[])`, `video_url`, `virtual_tour_url`, `master_plan_url`, `amenities`, `embedding` | Unique B-Tree (`slug`), HNSW, GiST, B-Tree (`city`, `developer`, `status`) |
+| `properties` | `id`, `title`, `description`, `price`, `area_sqm`, `address`, `geom`, `images (TEXT[])`, `video_url`, `virtual_tour_url`, `embedding`, `user_id (FK)`, `project_id (FK)`, `status` | HNSW, GiST, GIN Full-Text, B-Tree (`city`, `price`, `area_sqm`, `project_id`) |
 | `users` | `id`, `email`, `hashed_password`, `full_name`, `phone`, `avatar_url`, `role`, `is_active`, `created_at` | Unique B-Tree (`email`), B-Tree (`role`) |
 | `favorite_properties` | `user_id (FK)`, `property_id (FK)`, `created_at` | Composite Primary Key (`user_id`, `property_id`) |
 | `saved_search_alerts` | `id`, `user_id (FK)`, `title`, `criteria (JSONB)`, `frequency`, `is_active`, `last_notified_at` | B-Tree (`user_id`), B-Tree (`is_active`) |
