@@ -1,275 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { Search, Compass, Filter, SlidersHorizontal, Loader2 } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
+import { Loader2, Search, SlidersHorizontal, X } from "lucide-react";
 import { ListingType, PropertyType } from "@shared/types";
 
 export interface FilterState {
-  query: string;
-  listing_type?: ListingType;
-  property_type?: PropertyType;
-  min_price?: number;
-  max_price?: number;
-  city?: string;
-  enable_hybrid: boolean;
+  query: string; listing_type?: ListingType; property_type?: PropertyType;
+  min_price?: number; max_price?: number; city?: string; min_bedrooms?: number;
+  min_area_sqm?: number; max_area_sqm?: number; enable_hybrid: boolean;
+}
+interface Props { onSearch: (filters: FilterState) => void; isLoading: boolean; totalResults?: number; initialListingType?: ListingType; }
+const tags = ["Căn hộ gần Metro", "Biệt thự có hồ bơi", "Nhà phố kinh doanh"];
+const types: [string, PropertyType | undefined][] = [["Tất cả loại hình", undefined], ["Chung cư", "apartment"], ["Nhà phố", "house"], ["Trọ & CHDV", "apartment"], ["Biệt thự", "villa"], ["Đất nền", "land"]];
+
+export default function SearchSection({ onSearch, isLoading, initialListingType }: Props) {
+  const [query, setQuery] = useState(""); const [listingType, setListingType] = useState<ListingType>(initialListingType ?? "sale");
+  const [propertyType, setPropertyType] = useState<PropertyType>(); const [price, setPrice] = useState("all"); const [drawerOpen, setDrawerOpen] = useState(false);
+  const [city, setCity] = useState(""); const [bedrooms, setBedrooms] = useState(""); const [area, setArea] = useState(""); const [direction, setDirection] = useState(""); const [amenities, setAmenities] = useState<string[]>([]);
+  useEffect(() => { if (initialListingType) setListingType(initialListingType); }, [initialListingType]);
+  useEffect(() => setPrice("all"), [listingType]);
+  const submit = (event?: FormEvent, nextQuery = query) => {
+    event?.preventDefault(); const values = listingType === "rent" ? [3e6, 5e6, 1e7] : [2e9, 5e9, 1e10];
+    const priceBounds = price === "under" ? { max_price: values[0] } : price === "mid" ? { min_price: values[0], max_price: values[1] } : price === "high" ? { min_price: values[1], max_price: values[2] } : price === "above" ? { min_price: values[2] } : {};
+    const areaBounds = area === "under50" ? { max_area_sqm: 50 } : area === "50to80" ? { min_area_sqm: 50, max_area_sqm: 80 } : area === "80to120" ? { min_area_sqm: 80, max_area_sqm: 120 } : area === "above120" ? { min_area_sqm: 120 } : {};
+    const natural = [nextQuery.trim(), direction && `hướng ${direction}`, ...amenities].filter(Boolean).join("; ");
+    onSearch({ query: natural, listing_type: listingType, property_type: propertyType, city: city || undefined, min_bedrooms: bedrooms ? Number(bedrooms) : undefined, enable_hybrid: true, ...priceBounds, ...areaBounds });
+  };
+  const options = listingType === "rent" ? [["all", "Mọi mức giá"], ["under", "Dưới 3 triệu/tháng"], ["mid", "3 – 5 triệu/tháng"], ["high", "5 – 10 triệu/tháng"], ["above", "Trên 10 triệu/tháng"]] : [["all", "Mọi mức giá"], ["under", "Dưới 2 tỷ"], ["mid", "2 – 5 tỷ"], ["high", "5 – 10 tỷ"], ["above", "Trên 10 tỷ"]];
+  const toggle = (value: string) => setAmenities((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
+  return <section className="relative overflow-hidden rounded-3xl bg-slate-950 px-4 py-10 shadow-2xl sm:px-8 sm:py-14"><div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(37,99,235,.42),transparent_42%)]"/><div className="relative mx-auto max-w-6xl"><p className="text-center text-xs font-semibold uppercase tracking-[.22em] text-blue-300">Space247 Selection</p><h1 className="mt-3 text-center text-3xl font-bold tracking-tight text-white sm:text-5xl">Tìm nơi ở phù hợp với nhịp sống của bạn</h1><form onSubmit={submit} className="mt-8 rounded-2xl bg-white p-2 shadow-2xl"><div className="flex w-fit rounded-xl bg-slate-100 p-1">{(["sale", "rent"] as ListingType[]).map((type) => <button key={type} type="button" onClick={() => setListingType(type)} className={`min-w-28 rounded-lg px-4 py-2 text-sm font-semibold ${listingType === type ? "bg-slate-900 text-white shadow" : "text-slate-600"}`}>{type === "sale" ? "Mua bán" : "Cho thuê"}</button>)}</div><div className="mt-2 grid gap-2 lg:grid-cols-[minmax(0,1fr)_180px_195px_auto]"><label className="flex min-h-13 items-center gap-3 rounded-xl border border-slate-200 px-4"><Search className="h-5 w-5 text-slate-400"/><input value={query} onChange={(event) => setQuery(event.target.value)} className="w-full bg-transparent text-sm outline-none" placeholder="Khu vực, dự án hoặc nhu cầu của bạn"/></label><select value={propertyType ?? ""} onChange={(event) => setPropertyType((event.target.value || undefined) as PropertyType | undefined)} className="min-h-13 rounded-xl border border-slate-200 px-3 text-sm">{types.map(([label, value]) => <option key={label} value={value ?? ""}>{label}</option>)}</select><select value={price} onChange={(event) => setPrice(event.target.value)} className="min-h-13 rounded-xl border border-slate-200 px-3 text-sm">{options.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><button disabled={isLoading} className="inline-flex min-h-13 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">{isLoading ? <Loader2 className="h-5 w-5 animate-spin"/> : <Search className="h-5 w-5"/>}Tìm kiếm</button></div><button type="button" onClick={() => setDrawerOpen(true)} className="mt-2 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"><SlidersHorizontal className="h-4 w-4"/>Bộ lọc nâng cao</button><span className="float-right mt-4 text-xs text-slate-500">Tìm kiếm chuyên sâu bằng AI</span></form><div className="mt-4 flex flex-wrap justify-center gap-2">{tags.map((tag) => <button key={tag} type="button" onClick={() => { setQuery(tag); submit(undefined, tag); }} className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-slate-200 hover:bg-white/20">{tag}</button>)}</div>{listingType === "rent" && <Link href="/rentals" className="mt-4 block text-center text-sm text-blue-200 underline">Xem phòng trọ và căn hộ dịch vụ</Link>}</div>{drawerOpen && <div className="fixed inset-0 z-60 bg-slate-950/35" role="dialog" aria-modal="true"><aside className="ml-auto flex h-full w-full max-w-md flex-col bg-white shadow-2xl"><header className="flex items-center justify-between border-b p-5"><div><h2 className="font-bold">Bộ lọc nâng cao</h2><p className="text-xs text-slate-500">Tinh chỉnh nhu cầu tìm kiếm</p></div><button type="button" onClick={() => setDrawerOpen(false)} aria-label="Đóng bộ lọc"><X className="h-5 w-5"/></button></header><div className="flex-1 space-y-4 overflow-y-auto p-5"><Select label="Khu vực" value={city} setValue={setCity} options={[["", "Toàn quốc"], ["Thành phố Hồ Chí Minh", "TP. Hồ Chí Minh"], ["Thành phố Hà Nội", "Hà Nội"]]}/><Select label="Số phòng ngủ" value={bedrooms} setValue={setBedrooms} options={[["", "Không giới hạn"], ["1", "Từ 1 phòng ngủ"], ["2", "Từ 2 phòng ngủ"], ["3", "Từ 3 phòng ngủ"]]}/><Select label="Diện tích" value={area} setValue={setArea} options={[["", "Không giới hạn"], ["under50", "Dưới 50 m²"], ["50to80", "50 – 80 m²"], ["80to120", "80 – 120 m²"], ["above120", "Trên 120 m²"]]}/><Select label="Hướng nhà" value={direction} setValue={setDirection} options={[["", "Không giới hạn"], ["Đông", "Đông"], ["Tây", "Tây"], ["Nam", "Nam"], ["Bắc", "Bắc"]]}/><div><p className="mb-2 text-sm font-semibold">Tiện ích</p><div className="flex flex-wrap gap-2">{["Gần Metro", "Hồ bơi", "Công viên", "Cho nuôi thú cưng"].map((item) => <button type="button" key={item} onClick={() => toggle(item)} className={`rounded-full px-3 py-2 text-xs ${amenities.includes(item) ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"}`}>{item}</button>)}</div></div></div><footer className="border-t p-5"><button type="button" onClick={() => { setDrawerOpen(false); submit(); }} className="w-full rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white">Áp dụng bộ lọc</button></footer></aside></div>}</section>;
 }
 
-interface SearchSectionProps {
-  onSearch: (filters: FilterState) => void;
-  isLoading: boolean;
-  totalResults?: number;
-  initialListingType?: ListingType;
-}
-
-export default function SearchSection({
-  onSearch,
-  isLoading,
-  totalResults,
-  initialListingType,
-}: SearchSectionProps) {
-  const [query, setQuery] = useState("");
-  const [listingType, setListingType] = useState<ListingType | undefined>(initialListingType);
-  const [propertyType, setPropertyType] = useState<PropertyType | undefined>(undefined);
-  const [city, setCity] = useState<string | undefined>(undefined);
-  const [priceRange, setPriceRange] = useState<string>("all");
-  const [enableHybrid, setEnableHybrid] = useState(true);
-
-  useEffect(() => {
-    setListingType(initialListingType);
-  }, [initialListingType]);
-
-  const handlePriceChange = (val: string) => {
-    setPriceRange(val);
-  };
-
-  const getPriceBounds = (val: string): { min?: number; max?: number } => {
-    if (listingType === "rent") {
-      switch (val) {
-        case "under_2b": return { max: 3_000_000 };
-        case "2b_5b": return { min: 3_000_000, max: 5_000_000 };
-        case "5b_10b": return { min: 5_000_000, max: 10_000_000 };
-        case "above_10b": return { min: 10_000_000 };
-        default: return {};
-      }
-    }
-    switch (val) {
-      case "under_2b":
-        return { max: 2_000_000_000 };
-      case "2b_5b":
-        return { min: 2_000_000_000, max: 5_000_000_000 };
-      case "5b_10b":
-        return { min: 5_000_000_000, max: 10_000_000_000 };
-      case "above_10b":
-        return { min: 10_000_000_000 };
-      default:
-        return {};
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const bounds = getPriceBounds(priceRange);
-    onSearch({
-      query: query.trim(),
-      listing_type: listingType,
-      property_type: propertyType,
-      city: city || undefined,
-      min_price: bounds.min,
-      max_price: bounds.max,
-      enable_hybrid: enableHybrid,
-    });
-  };
-
-  const sampleQueries = [
-    "Căn hộ 2 phòng ngủ view sông Sài Gòn",
-    "Nhà phố mặt tiền kinh doanh Cầu Giấy Hà Nội",
-    "Biệt thự sân vườn hồ bơi Thảo Điền",
-    "Chung cư cao cấp 3PN cạnh Metro",
-  ];
-
-  const handleListingTypeSelect = (type: ListingType | undefined) => {
-    setListingType(type);
-    const bounds = getPriceBounds(priceRange);
-    onSearch({
-      query: query.trim(),
-      listing_type: type,
-      property_type: propertyType,
-      city: city || undefined,
-      min_price: bounds.min,
-      max_price: bounds.max,
-      enable_hybrid: enableHybrid,
-    });
-  };
-
-  return (
-    <div className="relative overflow-hidden rounded-3xl bg-linear-to-b from-slate-900 via-blue-950 to-slate-900 px-6 py-12 sm:px-12 sm:py-16 shadow-2xl border border-slate-800">
-      {/* Decorative gradient blur balls */}
-      <div className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full bg-blue-600/20 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-purple-500/20 blur-3xl" />
-
-      <div className="relative mx-auto max-w-4xl text-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-3.5 py-1 text-xs font-semibold text-blue-300 backdrop-blur-md">
-          <Compass className="h-3.5 w-3.5 text-blue-400" />
-          <span>Công Nghệ Tìm Kiếm Bất Động Sản Thông Minh</span>
-        </div>
-
-        <h1 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-5xl text-white">
-          Tìm Không Gian Sống Hoàn Hảo Cho Bạn
-        </h1>
-        <p className="mt-3 text-sm sm:text-base text-slate-300 max-w-2xl mx-auto">
-          Nhập nhu cầu tìm kiếm tự nhiên như đang trao đổi với chuyên viên — AI sẽ tự động phân tích ngân sách, vị trí và tiện ích phù hợp nhất.
-        </p>
-
-        {/* Search Box Form */}
-        {listingType === "rent" && <Link className="block text-blue-200 underline mb-4" href="/rentals">Lọc phòng trọ, chi phí tháng & nội quy thuê →</Link>}
-        <form onSubmit={handleSubmit} className="mt-8">
-          <div className="flex flex-col gap-3 sm:flex-row items-center rounded-2xl bg-white/10 p-2 backdrop-blur-xl border border-white/20 shadow-2xl">
-            <div className="relative flex-1 w-full flex items-center">
-              <Search className="absolute left-4 h-5 w-5 text-slate-400" />
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                aria-label="Tìm kiếm bất động sản"
-                placeholder="Nhập mong muốn của bạn (Ví dụ: Căn hộ 2 phòng ngủ gần Metro view thoáng dưới 4 tỷ)..."
-                className="w-full rounded-xl bg-transparent py-3.5 pl-12 pr-4 text-sm sm:text-base text-white placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-400"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/40 hover:bg-blue-500 active:scale-[0.98] transition disabled:opacity-50 cursor-pointer"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Đang phân tích...</span>
-                </>
-              ) : (
-                <>
-                  <Search className="h-4 w-4 text-blue-200" />
-                  <span>Tìm kiếm</span>
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Sample Prompts */}
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-300">
-            <span className="text-slate-400">Gợi ý:</span>
-            {sampleQueries.map((sample, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => {
-                  setQuery(sample);
-                  const bounds = getPriceBounds(priceRange);
-                  onSearch({
-                    query: sample,
-                    listing_type: listingType,
-                    property_type: propertyType,
-                    city: city || undefined,
-                    min_price: bounds.min,
-                    max_price: bounds.max,
-                    enable_hybrid: enableHybrid,
-                  });
-                }}
-                className="rounded-lg bg-white/10 px-2.5 py-1 hover:bg-white/20 transition cursor-pointer border border-white/5"
-              >
-                &ldquo;{sample}&rdquo;
-              </button>
-            ))}
-          </div>
-
-          {/* Quick Filters Bar */}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3 rounded-2xl bg-white/5 p-4 border border-white/10 backdrop-blur-md">
-            {/* Listing Type Filter */}
-            <div className="flex rounded-lg bg-black/20 p-1 text-xs">
-              <button
-                type="button"
-                onClick={() => handleListingTypeSelect(undefined)}
-                className={`rounded-md px-3 py-1.5 transition cursor-pointer ${
-                  listingType === undefined ? "bg-blue-600 text-white font-semibold" : "text-slate-300 hover:text-white"
-                }`}
-              >
-                Tất cả
-              </button>
-              <button
-                type="button"
-                onClick={() => handleListingTypeSelect("sale")}
-                className={`rounded-md px-3 py-1.5 transition cursor-pointer ${
-                  listingType === "sale" ? "bg-blue-600 text-white font-semibold" : "text-slate-300 hover:text-white"
-                }`}
-              >
-                Mua bán
-              </button>
-              <button
-                type="button"
-                onClick={() => handleListingTypeSelect("rent")}
-                className={`rounded-md px-3 py-1.5 transition cursor-pointer ${
-                  listingType === "rent" ? "bg-emerald-600 text-white font-semibold" : "text-slate-300 hover:text-white"
-                }`}
-              >
-                Cho thuê
-              </button>
-            </div>
-
-            {/* Property Type Dropdown */}
-            <select
-              value={propertyType || ""}
-              onChange={(e) => setPropertyType(e.target.value ? (e.target.value as PropertyType) : undefined)}
-              aria-label="Loại bất động sản"
-              className="rounded-lg bg-slate-800/80 px-3 py-1.5 text-xs text-white border border-white/15 focus:outline-hidden"
-            >
-              <option value="">Tất cả loại hình</option>
-              <option value="apartment">Căn hộ chung cư</option>
-              <option value="house">Nhà phố</option>
-              <option value="villa">Biệt thự</option>
-              <option value="land">Đất nền</option>
-              <option value="commercial">Mặt bằng kinh doanh</option>
-            </select>
-
-            {/* City Dropdown */}
-            <select
-              value={city || ""}
-              onChange={(e) => setCity(e.target.value || undefined)}
-              aria-label="Khu vực thành phố"
-              className="rounded-lg bg-slate-800/80 px-3 py-1.5 text-xs text-white border border-white/15 focus:outline-hidden"
-            >
-              <option value="">Toàn quốc</option>
-              <option value="Thành phố Hồ Chí Minh">TP. Hồ Chí Minh</option>
-              <option value="Thành phố Hà Nội">Hà Nội</option>
-            </select>
-
-            {/* Price Range Dropdown */}
-            <select
-              value={priceRange}
-              onChange={(e) => handlePriceChange(e.target.value)}
-              aria-label="Khoảng giá"
-              className="rounded-lg bg-slate-800/80 px-3 py-1.5 text-xs text-white border border-white/15 focus:outline-hidden"
-            >
-              <option value="all">Mọi mức giá</option>
-              <option value="under_2b">{listingType === "rent" ? "Dưới 3 triệu/tháng" : "Dưới 2 tỷ"}</option>
-              <option value="2b_5b">{listingType === "rent" ? "3 - 5 triệu/tháng" : "2 tỷ - 5 tỷ"}</option>
-              <option value="5b_10b">{listingType === "rent" ? "5 - 10 triệu/tháng" : "5 tỷ - 10 tỷ"}</option>
-              <option value="above_10b">{listingType === "rent" ? "Trên 10 triệu/tháng" : "Trên 10 tỷ"}</option>
-            </select>
-
-            {/* Hybrid Search Toggle */}
-            <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer ml-1">
-              <input
-                type="checkbox"
-                checked={enableHybrid}
-                onChange={(e) => setEnableHybrid(e.target.checked)}
-                className="h-3.5 w-3.5 rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500"
-              />
-              <span>Tìm kiếm chuyên sâu bằng AI</span>
-            </label>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
+function Select({ label, value, setValue, options }: { label: string; value: string; setValue: (value: string) => void; options: string[][] }) { return <label className="block text-sm font-semibold text-slate-700">{label}<select value={value} onChange={(event) => setValue(event.target.value)} className="mt-2 w-full rounded-xl border p-3 text-sm font-normal">{options.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>; }

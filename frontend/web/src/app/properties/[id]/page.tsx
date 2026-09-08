@@ -25,6 +25,7 @@ import PropertyDetailMap from "@/components/PropertyDetailMap";
 import MortgageCalculator from "@/components/MortgageCalculator";
 import PropertyGallery from "@/components/PropertyGallery";
 import PropertyShareButton from "@/components/PropertyShareButton";
+import PropertyBookingModal from "@/components/PropertyBookingModal";
 
 interface PropertyDetailPageProps {
   params: Promise<{ id: string }>;
@@ -106,9 +107,9 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
       </div>
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,65fr)_minmax(280px,35fr)]">
         {/* Left 2 Cols: Gallery & Details */}
-        <div className="lg:col-span-2 space-y-8">
+        <div className="space-y-8">
           {/* Photo Gallery Carousel with Thumbnail Selector and Fallback */}
           <PropertyGallery
             images={property.images}
@@ -190,9 +191,9 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
           </div>
 
           {/* Description Section */}
-          <div className="rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-xs space-y-4">
+          <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs sm:p-8 space-y-4">
             <h2 className="text-lg font-bold text-slate-900">Thông tin chi tiết</h2>
-            <div className="prose max-w-none text-slate-700 text-sm sm:text-base leading-relaxed">
+            <div className="prose prose-slate max-w-none text-sm leading-relaxed sm:text-base prose-headings:font-bold prose-a:text-blue-700">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {property.description}
               </ReactMarkdown>
@@ -240,7 +241,7 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
         </div>
 
         {/* Right 1 Col: Contact & Safety Sidebar */}
-        <div className="space-y-6">
+        <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
           {/* Linked Project Banner */}
           {property.project && (
             <div className="rounded-3xl border border-blue-100 bg-linear-to-br from-blue-50/80 to-indigo-50/80 p-5 shadow-xs">
@@ -324,6 +325,7 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
                 </div>
 
                 <div className="space-y-3">
+                  <PropertyBookingModal propertyTitle={property.title} agentName={agentName} agentPhone={agentPhone} agentEmail={agentEmail} />
                   <a
                     href={`tel:${agentPhone.replace(/\s+/g, "")}`}
                     className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white shadow-xs hover:bg-blue-700 transition"
@@ -362,7 +364,7 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
               Không đặt cọc hoặc chuyển tiền trước khi xem trực tiếp bất động sản và kiểm tra giấy tờ pháp lý (Sổ đỏ / Sổ hồng) bản gốc.
             </p>
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   );

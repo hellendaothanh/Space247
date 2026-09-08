@@ -76,6 +76,9 @@ function HomePageContent() {
       !filters.listing_type &&
       !filters.property_type &&
       !filters.city &&
+      filters.min_bedrooms === undefined &&
+      filters.min_area_sqm === undefined &&
+      filters.max_area_sqm === undefined &&
       filters.min_price === undefined &&
       filters.max_price === undefined
     ) {
@@ -91,6 +94,9 @@ function HomePageContent() {
         city: filters.city,
         min_price: filters.min_price,
         max_price: filters.max_price,
+        min_bedrooms: filters.min_bedrooms,
+        min_area_sqm: filters.min_area_sqm,
+        max_area_sqm: filters.max_area_sqm,
         enable_hybrid: filters.enable_hybrid,
         limit: 24,
       });
