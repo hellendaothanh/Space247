@@ -28,7 +28,7 @@ uv sync --all-extras
 ```
 
 ### Bước 3: Áp dụng các bản di chuyển lược đồ (Alembic Migrations)
-Cơ sở dữ liệu được quản lý qua Alembic với lịch sử di chuyển tới revision head `0005`:
+Cơ sở dữ liệu được quản lý qua Alembic với lịch sử di chuyển tới revision head `0012`:
 ```bash
 uv run alembic upgrade head
 ```
@@ -39,6 +39,7 @@ Danh mục các bản di chuyển trong `migrations/versions/`:
 - `0003_add_favorite_properties.py`: Khởi tạo bảng liên kết nhiều-nhiều `favorite_properties`.
 - `0004_add_alerts_and_notifications.py`: Khởi tạo bảng `saved_search_alerts` và `user_notifications`.
 - `0005_add_property_images_and_user_avatar.py`: Bổ sung cột `images TEXT[]` vào bảng `properties` và `avatar_url` vào bảng `users`.
+- `0012_add_media_urls.py`: Bổ sung `video_url` và `virtual_tour_url` dạng `VARCHAR(500)` cho `properties` và `projects`.
 
 ### Bước 4: Nạp dữ liệu khởi tạo (Data Seeding)
 Chạy script seeding dữ liệu thực tế mẫu:
@@ -89,7 +90,8 @@ backend/
 │       ├── 0002_add_users_table_and_property_user_fk.py
 │       ├── 0003_add_favorite_properties.py
 │       ├── 0004_add_alerts_and_notifications.py
-│       └── 0005_add_property_images_and_user_avatar.py
+│       ├── 0005_add_property_images_and_user_avatar.py
+│       └── 0012_add_media_urls.py
 ├── scripts/
 │   └── seed_properties.py         # Script nạp 28 bất động sản thực tế tại Hà Nội và TP.HCM
 ├── src/
@@ -167,7 +169,7 @@ uv run pytest tests/test_alembic_migrations.py
 ```
 
 Kết quả kiểm chuẩn thực tế:
-- **Tổng số ca kiểm thử**: 101/101 ca kiểm thử đạt trạng thái PASS (100%).
+- **Tổng số ca kiểm thử**: 174/174 ca kiểm thử đạt trạng thái PASS (100%).
 - **Thời gian thực thi trung bình**: ~85 giây khi tải mô hình FastEmbed và băm mật khẩu bcrypt.
 
 ---

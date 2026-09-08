@@ -46,6 +46,8 @@ erDiagram
         float longitude
         geometry_point_4326 geom "GiST Spatial Index"
         text_array images
+        varchar_500 video_url "YouTube / TikTok review"
+        varchar_500 virtual_tour_url "Matterport / VR 360"
         varchar_500 master_plan_url
         varchar_255 legal_status
         numeric_15_2 price_range_min
@@ -93,6 +95,8 @@ erDiagram
         uuid user_id FK "Indexed"
         uuid project_id FK "Indexed, SET NULL on delete"
         text_array images "TEXT[] Mảng đường dẫn ảnh"
+        varchar_500 video_url "YouTube / TikTok review"
+        varchar_500 virtual_tour_url "Matterport / VR 360"
         vector_768 embedding "HNSW Cosine Index"
         timestamptz created_at
         timestamptz updated_at
@@ -207,6 +211,8 @@ erDiagram
 | `longitude` | `FLOAT` | NULL | Tọa độ kinh độ |
 | `geom` | `geometry(Point, 4326)` | NULL | Điểm hình học PostGIS (chỉ mục GiST) |
 | `images` | `TEXT[]` | NOT NULL, Default `'{}'` | Mảng URL phối cảnh và thực tế dự án |
+| `video_url` | `VARCHAR(500)` | NULL | URL video review YouTube, Shorts hoặc TikTok |
+| `virtual_tour_url` | `VARCHAR(500)` | NULL | URL tour ảo Matterport hoặc VR 360 |
 | `master_plan_url` | `VARCHAR(500)` | NULL | URL ảnh sơ đồ mặt bằng tổng thể phân khu |
 | `legal_status` | `VARCHAR(255)` | NULL | Tình trạng pháp lý (Sổ hồng lâu dài, 1/500...) |
 | `price_range_min` | `NUMERIC(15, 2)` | NULL | Khoảng giá tham khảo thấp nhất (VND) |
@@ -242,6 +248,8 @@ Bảng trung tâm lưu trữ toàn bộ dữ liệu thuộc tính, hình ảnh, 
 | `user_id` | `UUID` | Foreign Key (`users.id`), ON DELETE SET NULL | Mã người dùng sở hữu/đăng tin |
 | `project_id` | `UUID` | Foreign Key (`projects.id`), ON DELETE SET NULL, Indexed | Mã dự án chứa căn hộ (Revision 0006) |
 | `images` | `TEXT[]` | NOT NULL, Default `'{}'` | Mảng danh sách URL hình ảnh của bất động sản |
+| `video_url` | `VARCHAR(500)` | NULL | URL video review YouTube, Shorts hoặc TikTok |
+| `virtual_tour_url` | `VARCHAR(500)` | NULL | URL tour ảo Matterport hoặc VR 360 |
 | `embedding` | `VECTOR(768)` | NULL | Vector biểu diễn ngữ nghĩa 768 chiều |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL, Default `NOW()` | Thời điểm tạo bản ghi |
 | `updated_at` | `TIMESTAMPTZ` | NOT NULL, Default `NOW()` | Thời điểm cập nhật lần cuối |
@@ -357,6 +365,9 @@ Toàn bộ các bước tiến hóa cơ sở dữ liệu được phiên bản h
    - Mở rộng phân quyền vai trò người dùng hỗ trợ cấp quản trị tối cao (`superadmin`).
    - Bổ sung các cột trạng thái định danh: `phone_verified` (Boolean) và `last_login_at` (TIMESTAMPTZ).
    - Thiết lập chỉ mục B-Tree `ix_users_role` trên bảng `users` tối ưu lọc theo nhóm quyền quản trị.
+8. **`0012_add_media_urls.py`**:
+   - Bổ sung `video_url VARCHAR(500)` và `virtual_tour_url VARCHAR(500)` cho `properties` và `projects`.
+   - Giữ nguyên `images TEXT[]` để lưu danh sách URL ảnh.
 
 
 

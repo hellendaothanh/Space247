@@ -90,7 +90,7 @@ frontend/web/
 │   │   ├── chat/               # ChatAssistantWidget (cửa sổ trợ lý AI nổi)
 │   │   ├── common/             # Navbar, Footer, Modal, Toast notification
 │   │   ├── map/                # Bản đồ tương tác Leaflet và Isochrone Heatmap
-│   │   └── property/           # PropertyCard, PropertyGallery, MortgageCalculator,
+│   │   └── property/           # PropertyCard, MediaSuite, MortgageCalculator,
 │   │                           # PropertyShareButton, AIComparisonModal, AVMAdvisor
 │   └── lib/                    # Cấu hình nội bộ, tiện ích format dữ liệu, cookie helper
 ├── package.json
@@ -117,7 +117,7 @@ Thư viện dùng chung từ thư mục cấp cha:
    - Bản đồ nhiệt tiện ích (Amenity Heatmap) phân lớp: Trường học, Bệnh viện, Ga Metro, Siêu thị với thuật toán ước lượng mật độ mượt mà.
    - Lớp phủ phân tích ranh giới di chuyển theo thời gian (Isochrone Reachability Polygon) và ghim định vị chuẩn GIS SVG.
    - Toàn bộ giao diện bản đồ tuân thủ tiêu chuẩn đồ họa chuyên nghiệp (Enterprise GIS), loại bỏ hoàn toàn các emoji không chuẩn mực.
-3. **Bộ sưu tập hình ảnh (PropertyGallery)**: Trình diễn ảnh dạng lưới kèm thanh trượt thu nhỏ (thumbnail strip) và bộ đếm ảnh.
+3. **Media Suite**: Trình diễn ảnh dạng mosaic kèm lightbox carousel, video review YouTube/TikTok, tour Matterport và tab bản đồ trên trang chi tiết bất động sản và dự án.
 4. **Bảng tính vay mua nhà (MortgageCalculator)**: Tích hợp ngay trên trang chi tiết, cho phép tính số tiền trả góp theo dư nợ giảm dần hoặc niên kim cố định.
 5. **Cửa sổ Trợ lý AI (ChatAssistantWidget)**: Khung chat nổi hỗ trợ tương tác tự nhiên, trích xuất nhu cầu và gợi ý thẻ bài đăng trực quan.
 6. **So sánh Bất động sản AI**: Cho phép đối chiếu từ 2 đến 3 căn nhà theo đơn giá trên một mét vuông, vị trí địa lý, tiện ích và tiềm năng tăng trưởng.
