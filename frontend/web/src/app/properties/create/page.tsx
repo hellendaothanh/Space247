@@ -483,13 +483,13 @@ function CreatePropertyFormContent() {
             Đăng tin Bất động sản Mới
           </h1>
           <p className="mt-1 text-sm text-slate-600">
-            Hệ thống AI Space247 sẽ tự động vector hóa 768 chiều để tin đăng tiếp cận đúng khách hàng tiềm năng.
+            Hệ thống AI Space247 sẽ tự động tối ưu nội dung để tin đăng tiếp cận đúng khách hàng tiềm năng.
           </p>
         </div>
 
         <div className="flex items-center gap-2 rounded-xl bg-blue-50/80 px-3.5 py-2 text-xs font-medium text-blue-700 border border-blue-100">
           <ShieldCheck className="h-4 w-4 shrink-0 text-blue-600" />
-          <span>Định danh & chuẩn hóa Vector 768 chiều</span>
+          <span>Tối ưu hiển thị bằng AI</span>
         </div>
       </div>
 
@@ -522,7 +522,7 @@ function CreatePropertyFormContent() {
           <div>
             <h4 className="font-semibold text-emerald-900">Đăng tin thành công!</h4>
             <p className="text-sm text-emerald-800 mt-0.5">
-              Bất động sản &ldquo;{successInfo.title}&rdquo; đã được lưu và tạo vector tìm kiếm. Đang chuyển hướng đến trang chi tiết...
+              Bất động sản &ldquo;{successInfo.title}&rdquo; đã được lưu và tối ưu tìm kiếm. Đang chuyển hướng đến trang chi tiết...
             </p>
           </div>
         </div>
@@ -1122,7 +1122,7 @@ function CreatePropertyFormContent() {
             {isPending ? (
               <>
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                <span>Đang xử lý & tạo Vector AI...</span>
+                <span>Đang tối ưu tin đăng bằng AI...</span>
               </>
             ) : (
               <>

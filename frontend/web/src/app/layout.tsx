@@ -13,9 +13,9 @@ import ScrollToTopButton from "@/components/ScrollToTopButton";
 const inter = Inter({ subsets: ["latin", "vietnamese"] });
 
 export const metadata: Metadata = {
-  title: "Space247 - Nền tảng Bất động sản AI & Hybrid Search",
+  title: "Space247 - Nền tảng Bất động sản thông minh",
   description:
-    "Tìm kiếm bất động sản thông minh bằng ngôn ngữ tự nhiên kết hợp AI Vector 768 chiều và Full-Text Search PostgreSQL.",
+    "Khám phá, mua bán và thuê bất động sản phù hợp với nhu cầu của bạn trên Space247.",
 };
 
 export default function RootLayout({

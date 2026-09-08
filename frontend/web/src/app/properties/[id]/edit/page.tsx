@@ -313,7 +313,7 @@ export default function EditPropertyPage() {
       try {
         const updated = await apiClient.updateProperty(propertyId, { ...parsed.data, ...rentalParsed.data });
         setProperty(updated);
-        setSuccessMessage("Cập nhật tin đăng và tái tạo vector embedding thành công!");
+        setSuccessMessage("Cập nhật tin đăng và tối ưu tìm kiếm thành công!");
         setTimeout(() => {
           router.push("/properties/my");
         }, 1200);
@@ -521,7 +521,7 @@ export default function EditPropertyPage() {
                   <p className="mt-1 text-[11px] text-rose-600 font-medium">{errors.description}</p>
                 )}
                 <p className="mt-1 text-[11px] text-slate-400">
-                  Hệ thống AI sẽ tự động tái tạo vector ngữ nghĩa 768 chiều khi bạn sửa tiêu đề hoặc mô tả.
+                  Hệ thống AI sẽ tự động tối ưu khả năng tìm kiếm khi bạn sửa tiêu đề hoặc mô tả.
                 </p>
               </div>
 

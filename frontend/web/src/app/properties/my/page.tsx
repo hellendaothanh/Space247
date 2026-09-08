@@ -533,7 +533,7 @@ export default function MyPropertiesPage() {
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              Bạn có chắc chắn muốn xóa vĩnh viễn bài đăng này khỏi hệ thống Space247? Tất cả dữ liệu vector AI và thông tin liên quan sẽ bị xóa bỏ.
+              Bạn có chắc chắn muốn xóa vĩnh viễn bài đăng này khỏi hệ thống Space247? Toàn bộ thông tin liên quan sẽ bị xóa bỏ.
             </p>
 
             <div className="mt-6 flex items-center justify-end gap-3">

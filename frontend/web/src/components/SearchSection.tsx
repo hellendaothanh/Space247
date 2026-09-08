@@ -111,14 +111,14 @@ export default function SearchSection({
       <div className="relative mx-auto max-w-4xl text-center">
         <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-3.5 py-1 text-xs font-semibold text-blue-300 backdrop-blur-md">
           <Compass className="h-3.5 w-3.5 text-blue-400" />
-          <span>Tìm kiếm thông minh với Vector Embedding 768 chiều & PostGIS</span>
+          <span>Công Nghệ Tìm Kiếm Bất Động Sản Thông Minh</span>
         </div>
 
         <h1 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-5xl text-white">
-          Tìm ngôi nhà mơ ước bằng ngôn ngữ tự nhiên
+          Tìm Không Gian Sống Hoàn Hảo Cho Bạn
         </h1>
         <p className="mt-3 text-sm sm:text-base text-slate-300 max-w-2xl mx-auto">
-          Mô tả không gian sống lý tưởng của bạn như cách bạn trao đổi với một chuyên viên bất động sản am hiểu thị trường.
+          Nhập nhu cầu tìm kiếm tự nhiên như đang trao đổi với chuyên viên — AI sẽ tự động phân tích ngân sách, vị trí và tiện ích phù hợp nhất.
         </p>
 
         {/* Search Box Form */}
@@ -132,7 +132,7 @@ export default function SearchSection({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 aria-label="Tìm kiếm bất động sản"
-                placeholder="Nhập yêu cầu: 'Căn hộ 2PN ban công view sông Bình Thạnh'..."
+                placeholder="Nhập mong muốn của bạn (Ví dụ: Căn hộ 2 phòng ngủ gần Metro view thoáng dưới 4 tỷ)..."
                 className="w-full rounded-xl bg-transparent py-3.5 pl-12 pr-4 text-sm sm:text-base text-white placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-400"
               />
             </div>
@@ -265,7 +265,7 @@ export default function SearchSection({
                 onChange={(e) => setEnableHybrid(e.target.checked)}
                 className="h-3.5 w-3.5 rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500"
               />
-              <span>Hybrid Search (Vector + FTS)</span>
+              <span>Tìm kiếm chuyên sâu bằng AI</span>
             </label>
           </div>
         </form>

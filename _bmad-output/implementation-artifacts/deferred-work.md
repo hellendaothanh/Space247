@@ -49,3 +49,6 @@
 - source_spec: `C:\Devsecops\Space247/_bmad-output/implementation-artifacts/spec-space247-frontend-web.md`
   summary: Synchronize URL query parameters with homepage search state and add infinite scroll / pagination.
   evidence: Reviewer noted navigation links set query params not read by client and results list is currently capped at single page.
+- source_spec: `C:\Devsecops\Space247\_bmad-output\implementation-artifacts\spec-commercial-ux-polish.md`
+  summary: Create dedicated policy, dispute-support, mortgage-calculator, and AI-comparison landing pages for the commercial footer.
+  evidence: The footer requirement names these destinations, but the application has no standalone routes for them; adding their content and flows exceeds this UX-polish scope.

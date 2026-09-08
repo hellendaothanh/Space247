@@ -93,7 +93,7 @@ class _SearchAndFilterHeaderState extends ConsumerState<SearchAndFilterHeader> {
                   controller: _controller,
                   onSubmitted: (_) => _submitSearch(),
                   decoration: InputDecoration(
-                    hintText: 'Tìm kiếm AI: "chung cư 2 phòng ngủ gần Q1"...',
+                    hintText: 'Nhập mong muốn của bạn (Ví dụ: Căn hộ 2 phòng ngủ gần Metro view thoáng dưới 4 tỷ)...',
                     hintStyle: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
                     prefixIcon: const Icon(Icons.auto_awesome, color: AppTheme.primaryColor, size: 20),
                     suffixIcon: _controller.text.isNotEmpty
