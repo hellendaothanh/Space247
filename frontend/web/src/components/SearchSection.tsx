@@ -12,7 +12,7 @@ export interface FilterState {
 }
 interface Props { onSearch: (filters: FilterState) => void; isLoading: boolean; totalResults?: number; initialListingType?: ListingType; }
 const tags = ["Căn hộ gần Metro", "Biệt thự có hồ bơi", "Nhà phố kinh doanh"];
-const types: [string, PropertyType | undefined][] = [["Tất cả loại hình", undefined], ["Chung cư", "apartment"], ["Nhà phố", "house"], ["Trọ & CHDV", "apartment"], ["Biệt thự", "villa"], ["Đất nền", "land"]];
+const types: [string, PropertyType | undefined][] = [["Tất cả loại hình", undefined], ["Chung cư", "apartment"], ["Nhà phố", "house"], ["Trọ & CHDV", "apartment"], ["Biệt thự", "villa"], ["Đất nền", "land"], ["Mặt bằng kinh doanh", "commercial"]];
 
 export default function SearchSection({ onSearch, isLoading, initialListingType }: Props) {
   const [query, setQuery] = useState(""); const [listingType, setListingType] = useState<ListingType>(initialListingType ?? "sale");

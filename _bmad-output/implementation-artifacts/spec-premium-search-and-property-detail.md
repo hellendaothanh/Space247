@@ -3,7 +3,7 @@ title: 'Redesign Premium Home Search and Property Detail'
 type: 'feature'
 created: '2026-09-08'
 baseline_commit: '1476d75ccfa9b5a9b1be6e7dacbb4e98abff72c1'
-status: 'in-progress'
+status: 'in-review'
 route: 'dispatch'
 review_loop_iteration: 0
 context: []
