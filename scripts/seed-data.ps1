@@ -38,6 +38,25 @@ if (Get-Command "docker" -ErrorAction SilentlyContinue) {
         Pop-Location
         Start-Sleep -Seconds 3
     }
+
+    $postgisAvailable = docker exec real_estate_postgres psql -U postgres -d real_estate_db -tAc "SELECT EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'postgis')" 2>$null
+    if ($postgisAvailable -ne "t") {
+        Write-Host "Rebuilding postgres with PostGIS support..." -ForegroundColor Yellow
+        Push-Location $ProjectRoot
+        docker compose up --build -d --force-recreate postgres
+        Pop-Location
+
+        $deadline = (Get-Date).AddSeconds(60)
+        do {
+            Start-Sleep -Seconds 2
+            $containerStatus = docker inspect --format="{{.State.Health.Status}}" real_estate_postgres 2>$null
+        } while ($containerStatus -ne "healthy" -and (Get-Date) -lt $deadline)
+
+        if ($containerStatus -ne "healthy") {
+            Write-Error "PostgreSQL container did not become healthy after rebuilding with PostGIS support."
+            exit 1
+        }
+    }
 }
 
 # 2. Run migrations first to ensure tables exist
