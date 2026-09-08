@@ -1119,4 +1119,10 @@ Quyền truy cập: Yêu cầu tài khoản có vai trò `host`, `agent`, `admin
   4. Gửi `user_notifications` xác nhận tức thì cho cả khách thuê và chủ nhà
   5. Đảm bảo Idempotency (gọi lặp lại vẫn trả về HTTP 200 an toàn)
 
+## KYC Documents
+
+- `POST /api/v1/kyc/verification`: JWT bắt buộc, multipart `citizen_id`, `front`, `back`; chỉ nhận JPEG, PNG hoặc WebP. Trả về trạng thái, CCCD che và hai retrieval grants 900 giây.
+- `GET /api/v1/kyc/my-documents`: JWT bắt buộc; chỉ chủ sở hữu truy xuất được. Chỉ `superadmin` được truyền `user_id` để review một người dùng khác; `admin` nhận 403.
+- URL grant local là stream API ký riêng theo tài liệu và hết hạn sau 900 giây. Với S3/R2, response dùng provider pre-signed URL cùng TTL. Không endpoint nào trả filesystem path, CCCD đầy đủ hoặc permanent object URL.
+
 

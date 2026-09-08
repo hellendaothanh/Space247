@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { apiClient } from "@/lib/api";
-import type { UserProfileDetailResponse } from "@shared/types";
+import type { KycDocumentsResponse, UserProfileDetailResponse } from "@shared/types";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -30,6 +30,9 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<"profile" | "security">("profile");
   const [loading, setLoading] = useState<boolean>(true);
   const [profileData, setProfileData] = useState<UserProfileDetailResponse | null>(null);
+  const [kycDocuments, setKycDocuments] = useState<KycDocumentsResponse | null>(null);
+  const [kycError, setKycError] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
 
   // Profile Form state
   const [fullName, setFullName] = useState("");
@@ -59,6 +62,11 @@ export default function ProfilePage() {
         setFullName(data.full_name || "");
         setPhone(data.phone || data.phone_number || "");
         setAvatarUrl(data.avatar_url || "");
+        try {
+          setKycDocuments(await apiClient.getMyKycDocuments());
+        } catch (err: any) {
+          if (!err.message?.includes("[404]")) setKycError(true);
+        }
       } catch (err) {
         console.error("Failed to load profile", err);
       } finally {
@@ -211,6 +219,20 @@ export default function ProfilePage() {
             Khách hàng (User)
           </span>
         );
+    }
+  };
+
+  const documentUrl = (url: string) => url.startsWith("/")
+    ? `${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1").replace(/\/api\/v1\/?$/, "")}${url}`
+    : url;
+
+  const openKycDocument = async (side: "front" | "back") => {
+    try {
+      const refreshed = await apiClient.getMyKycDocuments();
+      setKycDocuments(refreshed);
+      setPreview(documentUrl(refreshed[side].url));
+    } catch {
+      setKycError(true);
     }
   };
 
@@ -448,6 +470,27 @@ export default function ProfilePage() {
                     </button>
                   </div>
                 </form>
+
+                <section className="mt-8 border-t border-slate-100 pt-6">
+                  <h2 className="text-sm font-bold text-slate-900">Xác thực CCCD</h2>
+                  {kycDocuments ? (
+                    <div className="mt-3 rounded-xl border border-slate-200 p-4">
+                      <p className="text-sm text-slate-600">Trạng thái: <span className="font-semibold">{kycDocuments.status}</span> · {kycDocuments.masked_citizen_id}</p>
+                      <div className="mt-3 flex gap-3">
+                        {(["front", "back"] as const).map((side, index) => (
+                          <button key={side} type="button" onClick={() => openKycDocument(side)} className="relative h-32 w-40 overflow-hidden rounded-lg border border-slate-200 bg-slate-200">
+                            <span className="absolute inset-0 bg-[repeating-linear-gradient(-45deg,rgba(255,255,255,.45),rgba(255,255,255,.45)_8px,rgba(203,213,225,.45)_8px,rgba(203,213,225,.45)_16px)] blur-sm" />
+                            <span className="absolute inset-0 flex items-center justify-center text-center text-xs font-bold text-slate-600">Space247<br />Verification</span>
+                            <span className="absolute inset-x-0 bottom-0 bg-white/85 p-2 text-xs font-semibold text-slate-700">CCCD {index === 0 ? "mặt trước" : "mặt sau"}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-slate-500">{kycError ? "Không thể tải trạng thái xác thực. Vui lòng thử lại." : "Chưa có hồ sơ CCCD."}</p>
+                  )}
+                </section>
+                {preview && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4" onClick={() => setPreview(null)}><img src={preview} alt="CCCD" className="max-h-full max-w-full rounded-lg" /></div>}
               </div>
             )}
 

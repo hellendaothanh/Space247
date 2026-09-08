@@ -11,6 +11,7 @@ from src.models.rental_property import (
     RentalUnit,
 )
 from src.models.user import User, UserRole
+from src.models.kyc import UserKycVerification, KycVerificationStatus
 
 __all__ = [
     "DepositTransaction",
@@ -26,4 +27,6 @@ __all__ = [
     "User",
     "UserNotification",
     "UserRole",
+    "UserKycVerification",
+    "KycVerificationStatus",
 ]

@@ -9,6 +9,7 @@ from src.api.v1.endpoints import (
     financial,
     health,
     host,
+    kyc,
     notifications,
     payments,
     projects,
@@ -37,4 +38,5 @@ api_router.include_router(agent.router, prefix="/agent", tags=["agent"])
 api_router.include_router(alerts.router, prefix="/alerts", tags=["alerts"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(financial.router, prefix="/financial", tags=["financial"])
+api_router.include_router(kyc.router, prefix="/kyc", tags=["kyc"])
 

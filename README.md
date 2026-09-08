@@ -340,6 +340,10 @@ See [API contract](docs/api-specs.md#rental-and-serviced-apartment-metadata) and
 [database design](docs/database-design.md#rental-and-serviced-apartment-metadata)
 for field units, request examples, and migration 0008 review instructions.
 
+### Private KYC documents
+
+CCCD front/back uploads use private storage only. Development defaults to `backend/storage/kyc/`, which must never be mounted as static content. Configure `KYC_STORAGE_BACKEND=local` or S3/R2 with `KYC_S3_ENDPOINT_URL`, `KYC_S3_BUCKET`, `KYC_S3_ACCESS_KEY_ID`, `KYC_S3_SECRET_ACCESS_KEY`, and `KYC_S3_REGION`. `KYC_RETRIEVAL_TTL_SECONDS` defaults to `900`; the API returns temporary grants only.
+
 ### Host Management, VietQR Reservation Deposits & AI Living Cost Estimator
 
 - **Kênh Quản Lý Chủ Nhà (Host Dashboard)**: Bảng điều khiển trực quan tại `/host/dashboard` (Next.js) và `HostManagementScreen` (Flutter Mobile) hiển thị các chỉ số KPI vận hành trọng yếu (tỷ lệ lấp đầy, doanh thu dự kiến tháng, số hóa đơn chưa thu, yêu cầu thuê chờ duyệt).

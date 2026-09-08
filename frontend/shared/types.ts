@@ -249,6 +249,21 @@ export interface UserProfileDetailResponse extends UserResponse {
   total_alerts: number;
 }
 
+export type KycVerificationStatus = "pending" | "verified" | "rejected";
+
+export interface KycDocumentGrant {
+  url: string;
+  expires_in: number;
+}
+
+export interface KycDocumentsResponse {
+  status: KycVerificationStatus;
+  masked_citizen_id: string;
+  front: KycDocumentGrant;
+  back: KycDocumentGrant;
+  updated_at: string;
+}
+
 export interface UserCreateByAdminRequest {
   email: string;
   password: string;

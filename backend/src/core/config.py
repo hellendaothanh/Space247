@@ -1,5 +1,6 @@
 import json
 from typing import Any
+from pathlib import Path
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -35,6 +36,17 @@ class Settings(BaseSettings):
     # Google Gemini AI
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.5-flash"
+
+    # Private KYC document storage. Local storage is intentionally outside all static mounts.
+    KYC_STORAGE_BACKEND: str = "local"
+    KYC_LOCAL_STORAGE_PATH: str = str(Path(__file__).resolve().parents[2] / "storage" / "kyc")
+    KYC_S3_ENDPOINT_URL: str = ""
+    KYC_S3_BUCKET: str = ""
+    KYC_S3_ACCESS_KEY_ID: str = ""
+    KYC_S3_SECRET_ACCESS_KEY: str = ""
+    KYC_S3_REGION: str = "auto"
+    KYC_RETRIEVAL_TTL_SECONDS: int = 900
+    KYC_MAX_FILE_SIZE_BYTES: int = 10 * 1024 * 1024
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

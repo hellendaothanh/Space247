@@ -537,6 +537,17 @@ Hệ thống bổ sung chu trình hoàn chỉnh từ lúc khách đặt cọc gi
 | `notes` | `TEXT` | NULL | Ghi chú thêm |
 | `last_reminded_at` | `TIMESTAMPTZ` | NULL | Lần cuối chủ nhà gửi thông báo nhắc nợ |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL, Default `NOW()` | Thời gian tạo hóa đơn |
+
+### 4.4. Bảng `user_kyc_verifications`
+Lưu metadata KYC riêng tư, một bản ghi trên mỗi người dùng. Không lưu base64, đường dẫn hệ thống tệp, URL object vĩnh viễn hoặc số CCCD đầy đủ.
+
+| Cột | Kiểu | Ràng buộc |
+|---|---|---|
+| `user_id` | `UUID` | FK `users.id`, UNIQUE, CASCADE |
+| `status` | `VARCHAR(20)` | `pending`, `verified`, hoặc `rejected` |
+| `citizen_id_last4` | `VARCHAR(4)` | Chỉ bốn số cuối để hiển thị che |
+| `front_document_key`, `back_document_key` | `VARCHAR(512)` | Private storage key, không public URL |
+| `*_content_type` | `VARCHAR(100)` | MIME type đã kiểm tra |
 | `updated_at` | `TIMESTAMPTZ` | NOT NULL, Default `NOW()` | Thời gian cập nhật |
 
 ### 4.3. Bảng `deposit_transactions` (Giao Dịch Đặt Cọc Giữ Chỗ VietQR)

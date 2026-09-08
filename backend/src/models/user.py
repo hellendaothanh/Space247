@@ -51,6 +51,7 @@ class User(Base):
 
     # Relationships
     properties = relationship("Property", back_populates="owner")
+    kyc_verification = relationship("UserKycVerification", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     @property
     def phone_number(self) -> str | None:

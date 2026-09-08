@@ -71,6 +71,7 @@ import {
   DepositTransaction,
   PaymentWebhookPayload,
   RentalSearchFilterQuery,
+  KycDocumentsResponse,
 } from "./types";
 
 
@@ -96,10 +97,8 @@ export class RealEstateApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      ...(options.headers as Record<string, string>),
-    };
+    const headers: Record<string, string> = { ...(options.headers as Record<string, string>) };
+    if (!(options.body instanceof FormData)) headers["Content-Type"] = "application/json";
 
     if (this.getAuthToken) {
       const token = await this.getAuthToken();
@@ -202,6 +201,19 @@ export class RealEstateApiClient {
       method: "POST",
       body: JSON.stringify(data),
     });
+  }
+
+  async getMyKycDocuments(userId?: string): Promise<KycDocumentsResponse> {
+    const query = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
+    return this.request<KycDocumentsResponse>(`/api/v1/kyc/my-documents${query}`);
+  }
+
+  async uploadKycVerification(citizenId: string, front: File, back: File): Promise<KycDocumentsResponse> {
+    const form = new FormData();
+    form.append("citizen_id", citizenId);
+    form.append("front", front);
+    form.append("back", back);
+    return this.request<KycDocumentsResponse>("/api/v1/kyc/verification", { method: "POST", body: form });
   }
 
   // Superadmin User Management
