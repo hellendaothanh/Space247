@@ -72,6 +72,11 @@ import {
   PaymentWebhookPayload,
   RentalSearchFilterQuery,
   KycDocumentsResponse,
+  ViewingBookingRequest,
+  ViewingCalendarResponse,
+  ViewingScheduleWindow,
+  ViewingSlot,
+  HostSchedule,
 } from "./types";
 
 
@@ -652,6 +657,26 @@ export class RealEstateApiClient {
     return this.request<RentalInquiry[]>("/api/v1/rentals/my-inquiries", { method: "GET" });
   }
 
+  async getViewingSlots(unitId: string, date: string): Promise<ViewingSlot[]> {
+    return this.request<ViewingSlot[]>(`/api/v1/rentals/${encodeURIComponent(unitId)}/available-slots?date=${encodeURIComponent(date)}`, { method: "GET" });
+  }
+
+  async bookViewingSlot(unitId: string, data: ViewingBookingRequest): Promise<RentalInquiry> {
+    return this.request<RentalInquiry>(`/api/v1/rentals/units/${encodeURIComponent(unitId)}/book-appointment`, { method: "POST", body: JSON.stringify(data) });
+  }
+
+  async getHostAvailableSlots(unitId: string, date: string): Promise<ViewingSlot[]> {
+    return this.getViewingSlots(unitId, date);
+  }
+
+  async bookAppointment(unitId: string, data: ViewingBookingRequest): Promise<RentalInquiry> {
+    return this.bookViewingSlot(unitId, data);
+  }
+
+  async getViewingCalendar(inquiryId: string): Promise<ViewingCalendarResponse> {
+    return this.request<ViewingCalendarResponse>(`/api/v1/rentals/inquiries/${encodeURIComponent(inquiryId)}/calendar`, { method: "GET" });
+  }
+
   // Host API
   async getLandlordStats(): Promise<LandlordDashboardStats> {
     return this.request<LandlordDashboardStats>("/api/v1/host/stats", { method: "GET" });
@@ -692,6 +717,26 @@ export class RealEstateApiClient {
       method: "PATCH",
       body: JSON.stringify({ status }),
     });
+  }
+
+  async getViewingSchedule(): Promise<ViewingScheduleWindow[]> {
+    return this.request<ViewingScheduleWindow[]>("/api/v1/host/schedule", { method: "GET" });
+  }
+
+  async replaceViewingSchedule(windows: ViewingScheduleWindow[]): Promise<ViewingScheduleWindow[]> {
+    return this.request<ViewingScheduleWindow[]>("/api/v1/host/schedule", { method: "PUT", body: JSON.stringify({ windows }) });
+  }
+
+  async confirmViewing(inquiryId: string): Promise<RentalInquiry> {
+    return this.request<RentalInquiry>(`/api/v1/host/appointments/${encodeURIComponent(inquiryId)}/confirm`, { method: "POST" });
+  }
+
+  async updateHostSchedule(windows: HostSchedule[]): Promise<ViewingScheduleWindow[]> {
+    return this.replaceViewingSchedule(windows.map((window) => ({ ...window, weekday: window.day_of_week })));
+  }
+
+  async confirmAppointment(inquiryId: string): Promise<RentalInquiry> {
+    return this.confirmViewing(inquiryId);
   }
 
   async getHostDashboardStats(): Promise<HostDashboardStats> {

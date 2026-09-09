@@ -179,6 +179,10 @@ class RentalInquiry {
   final String? tenantPhone;
   final String? message;
   final String status;
+  final String? appointmentDate;
+  final String? appointmentStart;
+  final String? appointmentEnd;
+  final String? calendarGoogleUrl;
 
   RentalInquiry({
     required this.id,
@@ -191,6 +195,10 @@ class RentalInquiry {
     this.tenantPhone,
     this.message,
     this.status = 'pending',
+    this.appointmentDate,
+    this.appointmentStart,
+    this.appointmentEnd,
+    this.calendarGoogleUrl,
   });
 
   factory RentalInquiry.fromJson(Map<String, dynamic> json) {
@@ -207,8 +215,31 @@ class RentalInquiry {
       tenantPhone: json['tenant_phone'] as String?,
       message: json['message'] as String?,
       status: json['status'] as String? ?? 'pending',
+      appointmentDate: json['appointment_date'] as String?,
+      appointmentStart: (json['start_time'] ?? json['appointment_start']) as String?,
+      appointmentEnd: (json['end_time'] ?? json['appointment_end']) as String?,
+      calendarGoogleUrl: (json['google_calendar_url'] ?? json['calendar_google_url']) as String?,
     );
   }
+}
+
+class ViewingSlot {
+  final String date;
+  final String startTime;
+  final String endTime;
+  const ViewingSlot({required this.date, required this.startTime, required this.endTime});
+  factory ViewingSlot.fromJson(Map<String, dynamic> json) => ViewingSlot(date: json['date'] as String, startTime: json['start_time'] as String, endTime: json['end_time'] as String);
+}
+
+class ViewingScheduleWindow {
+  final int weekday;
+  final String startTime;
+  final String endTime;
+  final int slotDurationMinutes;
+  final bool isActive;
+  const ViewingScheduleWindow({required this.weekday, required this.startTime, required this.endTime, this.slotDurationMinutes = 30, this.isActive = true});
+  factory ViewingScheduleWindow.fromJson(Map<String, dynamic> json) => ViewingScheduleWindow(weekday: json['weekday'] as int, startTime: json['start_time'] as String, endTime: json['end_time'] as String, slotDurationMinutes: json['slot_duration_minutes'] as int? ?? 30, isActive: json['is_active'] as bool? ?? true);
+  Map<String, dynamic> toJson() => {'weekday': weekday, 'start_time': startTime, 'end_time': endTime, 'slot_duration_minutes': slotDurationMinutes, 'is_active': isActive};
 }
 
 class HostDashboardStats {

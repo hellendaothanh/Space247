@@ -791,6 +791,12 @@ export interface RentalInquiry {
   host_id: string;
   inquiry_type: RentalInquiryType;
   scheduled_time?: string | null;
+  appointment_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  google_calendar_url?: string | null;
+  calendar_event_uid?: string | null;
+  reminder_status?: "pending" | "sent" | "failed";
   tenant_name?: string | null;
   tenant_phone?: string | null;
   message?: string | null;
@@ -958,6 +964,50 @@ export interface RentalSearchFilterQuery {
   fingerprint_lock?: boolean;
   curfew?: boolean;
   only_available?: boolean;
+}
+
+export interface ViewingScheduleWindow {
+  weekday: number;
+  start_time: string;
+  end_time: string;
+  slot_duration_minutes: number;
+  is_active: boolean;
+}
+
+export interface ViewingSlot {
+  date: string;
+  start_time: string;
+  end_time: string;
+}
+
+export interface ViewingBookingRequest {
+  date: string;
+  start_time: string;
+  tenant_name?: string;
+  tenant_phone?: string;
+  message?: string;
+}
+
+export interface HostSchedule {
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  slot_duration_minutes: number;
+  is_active: boolean;
+}
+
+export type TimeSlot = ViewingSlot;
+export type AppointmentBookingPayload = ViewingBookingRequest;
+
+export interface AvailableSlotsResponse {
+  date: string;
+  slots: TimeSlot[];
+}
+
+export interface ViewingCalendarResponse {
+  inquiry_id: string;
+  google_calendar_url: string;
+  ical_uid: string;
 }
 
 

@@ -1,15 +1,16 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 import logging
 from typing import Any
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import get_current_active_user, get_current_host_user, get_optional_current_user
 from src.core.database import get_db_session
-from src.models.rental_property import DepositTransaction, RentalInquiry, RentalProperty, RentalUnit
+from src.models.rental_property import DepositTransaction, HostViewingBlockedDate, HostViewingSchedule, RentalInquiry, RentalProperty, RentalUnit
 from src.models.user import User
 from src.schemas.rental_management import (
     DepositApproveRequest,
@@ -22,8 +23,12 @@ from src.schemas.rental_management import (
     RentalUnitFurnishing,
     RentalUnitResponse,
     RentalUnitStatus,
+    ViewingBookingRequest,
+    ViewingCalendarResponse,
+    ViewingSlot,
 )
 from src.services.payment_service import PaymentService
+from src.services.viewing_calendar import calendar_values
 
 logger = logging.getLogger("space247_backend.rentals")
 router = APIRouter()
@@ -172,6 +177,98 @@ async def get_my_inquiries(
     )
     result = await db.execute(stmt)
     return list(result.scalars().all())
+
+
+async def _available_slot_windows(db: AsyncSession, host_id: uuid.UUID, day: date) -> list[tuple[time, time, int]]:
+    blocked = await db.execute(select(HostViewingBlockedDate.id).where(HostViewingBlockedDate.host_id == host_id, HostViewingBlockedDate.date == day))
+    if blocked.scalar_one_or_none() is not None:
+        return []
+    schedules = await db.execute(select(HostViewingSchedule).where(HostViewingSchedule.host_id == host_id, HostViewingSchedule.day_of_week == day.weekday(), HostViewingSchedule.is_active == True).order_by(HostViewingSchedule.start_time))
+    return [(window.start_time, window.end_time, window.slot_duration_minutes) for window in schedules.scalars().all()]
+
+
+@router.get("/{unit_id}/available-slots", response_model=list[ViewingSlot], summary="List available viewing slots for a Vietnam civil date")
+async def list_viewing_slots(unit_id: uuid.UUID, day: date = Query(..., alias="date"), db: AsyncSession = Depends(get_db_session)) -> list[ViewingSlot]:
+    unit = (await db.execute(select(RentalUnit).where(RentalUnit.id == unit_id).options(selectinload(RentalUnit.property)))).scalar_one_or_none()
+    if not unit or not unit.property.is_active or unit.status == RentalUnitStatus.OCCUPIED.value:
+        return []
+    windows = await _available_slot_windows(db, unit.property.host_id, day)
+    if not windows:
+        return []
+    appointments = await db.execute(select(RentalInquiry).where(RentalInquiry.host_id == unit.property.host_id, RentalInquiry.appointment_date == day, RentalInquiry.status.in_(("pending", "confirmed"))))
+    reserved = [(item.start_time, item.end_time) for item in appointments.scalars().all() if item.start_time and item.end_time]
+    slots: list[ViewingSlot] = []
+    for starts_at, ends_at, duration in windows:
+        cursor = datetime.combine(day, starts_at)
+        boundary = datetime.combine(day, ends_at)
+        while cursor + timedelta(minutes=duration) <= boundary:
+            start, end = cursor.time(), (cursor + timedelta(minutes=duration)).time()
+            if not any(start < existing_end and end > existing_start for existing_start, existing_end in reserved):
+                slots.append(ViewingSlot(date=day, start_time=start, end_time=end))
+            cursor += timedelta(minutes=duration)
+    return slots
+
+
+@router.post("/units/{unit_id}/book-appointment", response_model=RentalInquiryResponse, status_code=status.HTTP_201_CREATED, summary="Book an available viewing slot")
+async def book_viewing_slot(unit_id: uuid.UUID, booking: ViewingBookingRequest, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db_session)) -> RentalInquiry:
+    from src.services.viewing_calendar import VIETNAM_TZ
+    if booking.date < datetime.now(VIETNAM_TZ).date():
+        raise HTTPException(status_code=422, detail="Không thể đặt lịch trong quá khứ")
+    unit = (await db.execute(select(RentalUnit).where(RentalUnit.id == unit_id).options(selectinload(RentalUnit.property)))).scalar_one_or_none()
+    if not unit:
+        raise HTTPException(status_code=404, detail="Không tìm thấy phòng tương ứng")
+    if unit.status == RentalUnitStatus.OCCUPIED.value or not unit.property.is_active:
+        raise HTTPException(status_code=409, detail="Phòng không còn khả dụng để đặt lịch xem")
+    end_time = None
+    for starts_at, ends_at, duration in await _available_slot_windows(db, unit.property.host_id, booking.date):
+        start_minutes = starts_at.hour * 60 + starts_at.minute
+        requested_minutes = booking.start_time.hour * 60 + booking.start_time.minute
+        if (requested_minutes - start_minutes) % duration != 0:
+            continue
+        candidate_end = (datetime.combine(booking.date, booking.start_time) + timedelta(minutes=duration)).time()
+        if starts_at <= booking.start_time and candidate_end <= ends_at:
+            end_time = candidate_end
+            break
+    if end_time is None:
+        raise HTTPException(status_code=409, detail="Khung giờ đã chọn không còn khả dụng")
+    # Serialize all bookings for a host so overlap checks cannot race between tenants.
+    await db.execute(select(User.id).where(User.id == unit.property.host_id).with_for_update())
+    overlap = await db.execute(select(RentalInquiry.id).where(RentalInquiry.host_id == unit.property.host_id, RentalInquiry.appointment_date == booking.date, RentalInquiry.status.in_(("pending", "confirmed")), RentalInquiry.start_time < end_time, RentalInquiry.end_time > booking.start_time).with_for_update())
+    if overlap.scalar_one_or_none() is not None:
+        raise HTTPException(status_code=409, detail="Khung giờ đã được đặt")
+    inquiry = RentalInquiry(unit_id=unit.id, tenant_id=current_user.id, host_id=unit.property.host_id, inquiry_type="view_appointment", appointment_date=booking.date, start_time=booking.start_time, end_time=end_time, scheduled_time=datetime.combine(booking.date, booking.start_time, tzinfo=timezone(timedelta(hours=7))), tenant_name=booking.tenant_name or current_user.full_name, tenant_phone=booking.tenant_phone or current_user.phone, message=booking.message, status="pending")
+    db.add(inquiry)
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Khung giờ đã được đặt")
+    await db.refresh(inquiry)
+    return inquiry
+
+
+@router.get("/appointments/{inquiry_id}/calendar.ics", summary="Download a confirmed viewing as iCalendar")
+async def download_viewing_calendar(inquiry_id: uuid.UUID, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db_session)) -> Response:
+    inquiry = (await db.execute(select(RentalInquiry).where(RentalInquiry.id == inquiry_id))).scalar_one_or_none()
+    if not inquiry:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lịch hẹn")
+    if current_user.id not in (inquiry.tenant_id, inquiry.host_id):
+        raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập lịch hẹn này")
+    if inquiry.status != "confirmed" or not inquiry.ical_data:
+        raise HTTPException(status_code=409, detail="Lịch hẹn chưa được xác nhận")
+    return Response(inquiry.ical_data, media_type="text/calendar", headers={"Content-Disposition": f'attachment; filename="space247-viewing-{inquiry.id}.ics"'})
+
+
+@router.get("/inquiries/{inquiry_id}/calendar", response_model=ViewingCalendarResponse, summary="Get confirmed viewing calendar metadata")
+async def get_viewing_calendar(inquiry_id: uuid.UUID, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db_session)) -> ViewingCalendarResponse:
+    inquiry = (await db.execute(select(RentalInquiry).where(RentalInquiry.id == inquiry_id))).scalar_one_or_none()
+    if not inquiry:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lịch hẹn")
+    if current_user.id not in (inquiry.tenant_id, inquiry.host_id):
+        raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập lịch hẹn này")
+    if inquiry.status != "confirmed" or not inquiry.google_calendar_url or not inquiry.calendar_event_uid:
+        raise HTTPException(status_code=409, detail="Lịch hẹn chưa được xác nhận")
+    return ViewingCalendarResponse(inquiry_id=inquiry.id, google_calendar_url=inquiry.google_calendar_url, ical_uid=inquiry.calendar_event_uid)
 
 
 @router.get(

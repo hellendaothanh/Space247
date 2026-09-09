@@ -551,6 +551,10 @@ Lưu metadata KYC riêng tư, một bản ghi trên mỗi người dùng. Không
 | `updated_at` | `TIMESTAMPTZ` | NOT NULL, Default `NOW()` | Thời gian cập nhật |
 
 ### 4.3. Bảng `deposit_transactions` (Giao Dịch Đặt Cọc Giữ Chỗ VietQR)
+
+### 4.4. Smart viewing calendar
+
+Migration `0014` adds `host_availability_schedules` (Monday=`0`, active weekday windows), `host_blocked_dates`, and calendar metadata on the canonical `rental_inquiries` record. `appointment_date`, `start_time`, and `end_time` are Vietnam civil values; `scheduled_time` remains the compatibility projection. The host/date/start unique constraint is the final exact-slot collision guard.
 | Tên cột | Kiểu dữ liệu | Ràng buộc | Mô tả |
 |---|---|---|---|
 | `id` | `UUID` | Primary Key | Mã định danh giao dịch |

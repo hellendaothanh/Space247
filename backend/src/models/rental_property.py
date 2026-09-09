@@ -1,10 +1,11 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timezone
 import uuid
 from typing import Any
 from geoalchemy2 import Geometry
 from sqlalchemy import (
     Boolean,
     DateTime,
+    Date,
     Float,
     ForeignKey,
     Index,
@@ -12,6 +13,8 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    Time,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, UUID, JSONB
@@ -219,6 +222,8 @@ class RentalInquiry(Base):
         Index("ix_rental_inquiries_tenant_id", "tenant_id"),
         Index("ix_rental_inquiries_host_id", "host_id"),
         Index("ix_rental_inquiries_status", "status"),
+        Index("ix_rental_inquiries_host_appointment", "host_id", "appointment_date", "start_time"),
+        UniqueConstraint("host_id", "appointment_date", "start_time", name="uq_rental_inquiries_host_appointment_start"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -254,6 +259,13 @@ class RentalInquiry(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    appointment_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    start_time: Mapped[time | None] = mapped_column(Time, nullable=True)
+    end_time: Mapped[time | None] = mapped_column(Time, nullable=True)
+    calendar_event_uid: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    google_calendar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ical_data: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reminder_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
     tenant_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     tenant_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     message: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -293,6 +305,38 @@ class RentalInquiry(Base):
         if "updated_at" not in kwargs or kwargs["updated_at"] is None:
             kwargs["updated_at"] = now
         super().__init__(**kwargs)
+
+
+class HostViewingSchedule(Base):
+    __tablename__ = "host_availability_schedules"
+    __table_args__ = (
+        UniqueConstraint("host_id", "day_of_week", "start_time", name="uq_host_availability_schedule_window"),
+        Index("ix_host_availability_schedules_host_day", "host_id", "day_of_week"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    host_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    day_of_week: Mapped[int] = mapped_column(Integer, nullable=False)
+    start_time: Mapped[time] = mapped_column(Time, nullable=False)
+    end_time: Mapped[time] = mapped_column(Time, nullable=False)
+    slot_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class HostViewingBlockedDate(Base):
+    __tablename__ = "host_blocked_dates"
+    __table_args__ = (
+        UniqueConstraint("host_id", "date", name="uq_host_blocked_date"),
+        Index("ix_host_blocked_dates_host_date", "host_id", "date"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    host_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class RentalContract(Base):

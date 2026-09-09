@@ -1,8 +1,8 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import logging
 import uuid
 from geoalchemy2 import WKTElement
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +11,8 @@ from src.api.deps import get_current_host_user
 from src.core.database import get_db_session
 from src.models.alert import UserNotification
 from src.models.rental_property import (
+    HostViewingBlockedDate,
+    HostViewingSchedule,
     MonthlyInvoice,
     RentalContract,
     RentalInquiry,
@@ -35,10 +37,85 @@ from src.schemas.rental_management import (
     RentalUnitStatus,
     RentalUnitStatusUpdate,
     RentalUnitUpdate,
+    ViewingBlockedDateRequest,
+    ViewingScheduleReplaceRequest,
+    ViewingScheduleWindow,
 )
+from src.services.viewing_calendar import calendar_values
+from src.services.viewing_mail import dispatch_viewing_calendar_email
 
 logger = logging.getLogger("space247_backend.host")
 router = APIRouter()
+
+
+@router.get("/schedule", response_model=list[ViewingScheduleWindow], summary="Get the current host viewing schedule")
+async def get_viewing_schedule(current_host: User = Depends(get_current_host_user), db: AsyncSession = Depends(get_db_session)) -> list[HostViewingSchedule]:
+    result = await db.execute(select(HostViewingSchedule).where(HostViewingSchedule.host_id == current_host.id).order_by(HostViewingSchedule.day_of_week, HostViewingSchedule.start_time))
+    return list(result.scalars().all())
+
+
+@router.put("/schedule", response_model=list[ViewingScheduleWindow], summary="Replace the current host weekly viewing schedule")
+async def replace_viewing_schedule(payload: ViewingScheduleReplaceRequest, current_host: User = Depends(get_current_host_user), db: AsyncSession = Depends(get_db_session)) -> list[HostViewingSchedule]:
+    existing = await db.execute(select(HostViewingSchedule).where(HostViewingSchedule.host_id == current_host.id))
+    for window in existing.scalars().all():
+        await db.delete(window)
+    schedules = [HostViewingSchedule(host_id=current_host.id, day_of_week=window.weekday, start_time=window.start_time, end_time=window.end_time, slot_duration_minutes=window.slot_duration_minutes, is_active=window.is_active) for window in payload.windows]
+    db.add_all(schedules)
+    await db.commit()
+    return schedules
+
+
+@router.get("/schedule/blocked-dates", response_model=list[date], summary="List blocked viewing dates")
+async def get_viewing_blocked_dates(current_host: User = Depends(get_current_host_user), db: AsyncSession = Depends(get_db_session)) -> list[date]:
+    result = await db.execute(select(HostViewingBlockedDate.date).where(HostViewingBlockedDate.host_id == current_host.id).order_by(HostViewingBlockedDate.date))
+    return list(result.scalars().all())
+
+
+@router.post("/schedule/block-date", status_code=status.HTTP_201_CREATED, summary="Block a viewing date")
+async def block_viewing_date(payload: ViewingBlockedDateRequest, current_host: User = Depends(get_current_host_user), db: AsyncSession = Depends(get_db_session)) -> ViewingBlockedDateRequest:
+    exists = await db.execute(select(HostViewingBlockedDate.id).where(HostViewingBlockedDate.host_id == current_host.id, HostViewingBlockedDate.date == payload.blocked_date))
+    if exists.scalar_one_or_none() is None:
+        db.add(HostViewingBlockedDate(host_id=current_host.id, date=payload.blocked_date))
+        await db.commit()
+    return payload
+
+
+@router.delete("/schedule/blocked-dates/{blocked_date}", status_code=status.HTTP_204_NO_CONTENT, summary="Unblock a viewing date")
+async def unblock_viewing_date(blocked_date: date, current_host: User = Depends(get_current_host_user), db: AsyncSession = Depends(get_db_session)) -> None:
+    row = (await db.execute(select(HostViewingBlockedDate).where(HostViewingBlockedDate.host_id == current_host.id, HostViewingBlockedDate.date == blocked_date))).scalar_one_or_none()
+    if row:
+        await db.delete(row)
+        await db.commit()
+
+
+@router.post("/appointments/{inquiry_id}/confirm", response_model=RentalInquiryResponse, summary="Confirm a pending viewing and create calendar metadata")
+async def confirm_viewing(inquiry_id: uuid.UUID, background_tasks: BackgroundTasks, current_host: User = Depends(get_current_host_user), db: AsyncSession = Depends(get_db_session)) -> RentalInquiry:
+    inquiry = (await db.execute(select(RentalInquiry).where(RentalInquiry.id == inquiry_id).options(selectinload(RentalInquiry.unit).selectinload(RentalUnit.property), selectinload(RentalInquiry.tenant), selectinload(RentalInquiry.host)).with_for_update())).scalar_one_or_none()
+    if not inquiry:
+        raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu")
+    if inquiry.host_id != current_host.id and current_host.role not in ("admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Bạn không có quyền duyệt yêu cầu này")
+    if inquiry.status != "pending":
+        raise HTTPException(status_code=409, detail="Chỉ có thể xác nhận lịch hẹn đang chờ")
+    if not inquiry.appointment_date or not inquiry.start_time or not inquiry.end_time:
+        raise HTTPException(status_code=409, detail="Lịch hẹn không có khung giờ hợp lệ")
+    await db.execute(select(User.id).where(User.id == inquiry.host_id).with_for_update())
+    overlap = await db.execute(select(RentalInquiry.id).where(RentalInquiry.id != inquiry.id, RentalInquiry.host_id == inquiry.host_id, RentalInquiry.appointment_date == inquiry.appointment_date, RentalInquiry.status == "confirmed", RentalInquiry.start_time < inquiry.end_time, RentalInquiry.end_time > inquiry.start_time).limit(1))
+    if overlap.scalar_one_or_none() is not None:
+        raise HTTPException(status_code=409, detail="Khung giờ đã có lịch xác nhận khác")
+    title = f"Xem phòng {inquiry.unit.unit_number}"
+    location = inquiry.unit.property.address
+    inquiry.google_calendar_url, inquiry.calendar_event_uid, inquiry.ical_data = calendar_values(inquiry_id=str(inquiry.id), day=inquiry.appointment_date, start=inquiry.start_time, end=inquiry.end_time, title=title, location=location)
+    inquiry.status = "confirmed"
+    db.add(UserNotification(user_id=inquiry.tenant_id, title="Lịch xem phòng đã được xác nhận", message=f"{title} vào {inquiry.start_time.strftime('%H:%M')} ngày {inquiry.appointment_date.strftime('%d/%m/%Y')}.", notification_type="viewing_confirmed"))
+    db.add(UserNotification(user_id=inquiry.host_id, title="Đã xác nhận lịch xem phòng", message=f"{title} vào {inquiry.start_time.strftime('%H:%M')} ngày {inquiry.appointment_date.strftime('%d/%m/%Y')}.", notification_type="viewing_confirmed"))
+    await db.commit()
+    await db.refresh(inquiry)
+    body = f"Lịch xem phòng đã được xác nhận: {title}, {inquiry.appointment_date:%d/%m/%Y} {inquiry.start_time:%H:%M}-{inquiry.end_time:%H:%M}.\nĐịa điểm: {location}"
+    for recipient in {inquiry.tenant.email, inquiry.host.email}:
+        if recipient:
+            background_tasks.add_task(dispatch_viewing_calendar_email, to_email=recipient, subject="Space247 - Lịch xem phòng đã được xác nhận", body=body, ical_data=inquiry.ical_data)
+    return inquiry
 
 
 def _populate_host_property_response(prop: RentalProperty) -> RentalPropertyResponse:
@@ -347,6 +424,14 @@ async def update_inquiry_status(
     if inquiry.host_id != current_host.id and current_host.role not in ("admin", "superadmin"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Bạn không có quyền duyệt yêu cầu này")
 
+    if status_in.status.value == "confirmed" and inquiry.status == "pending" and inquiry.appointment_date and inquiry.start_time and inquiry.end_time:
+        title = f"Xem phòng {inquiry.unit.unit_number}" if inquiry.unit else "Xem phòng"
+        location = inquiry.unit.property.address if inquiry.unit and inquiry.unit.property else ""
+        inquiry.google_calendar_url, inquiry.calendar_event_uid, inquiry.ical_data = calendar_values(
+            inquiry_id=str(inquiry.id), day=inquiry.appointment_date, start=inquiry.start_time, end=inquiry.end_time, title=title, location=location,
+        )
+        db.add(UserNotification(user_id=inquiry.tenant_id, title="Lịch xem phòng đã được xác nhận", message=title, notification_type="viewing_confirmed"))
+        db.add(UserNotification(user_id=inquiry.host_id, title="Đã xác nhận lịch xem phòng", message=title, notification_type="viewing_confirmed"))
     inquiry.status = status_in.status.value
     await db.commit()
     await db.refresh(inquiry)

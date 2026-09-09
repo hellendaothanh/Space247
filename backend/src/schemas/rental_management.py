@@ -1,8 +1,8 @@
-from datetime import datetime
+from datetime import date, datetime, time
 from enum import Enum
 from typing import Any, Literal
 import uuid
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class RentalPropertyModel(str, Enum):
@@ -172,6 +172,12 @@ class RentalInquiryResponse(BaseModel):
     host_id: uuid.UUID
     inquiry_type: str
     scheduled_time: datetime | None = None
+    appointment_date: date | None = None
+    start_time: time | None = None
+    end_time: time | None = None
+    google_calendar_url: str | None = None
+    calendar_event_uid: str | None = None
+    reminder_status: str | None = "pending"
     tenant_name: str | None = None
     tenant_phone: str | None = None
     message: str | None = None
@@ -181,6 +187,58 @@ class RentalInquiryResponse(BaseModel):
     unit: RentalUnitResponse | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ViewingScheduleWindow(BaseModel):
+    weekday: int = Field(..., ge=0, le=6)
+    start_time: time
+    end_time: time
+    slot_duration_minutes: int = Field(default=30, ge=1, le=480)
+    is_active: bool = True
+
+    @model_validator(mode="after")
+    def validate_time_range(self) -> "ViewingScheduleWindow":
+        if self.start_time >= self.end_time:
+            raise ValueError("start_time must be before end_time")
+        return self
+
+
+class ViewingScheduleReplaceRequest(BaseModel):
+    windows: list[ViewingScheduleWindow] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_no_overlaps(self) -> "ViewingScheduleReplaceRequest":
+        keys = [(w.weekday, w.start_time) for w in self.windows]
+        if len(keys) != len(set(keys)):
+            raise ValueError("schedule windows may not duplicate")
+        active = sorted((w for w in self.windows if w.is_active), key=lambda w: (w.weekday, w.start_time))
+        if any(a.weekday == b.weekday and a.end_time > b.start_time for a, b in zip(active, active[1:])):
+            raise ValueError("schedule windows may not overlap")
+        return self
+
+
+class ViewingBlockedDateRequest(BaseModel):
+    blocked_date: date
+
+
+class ViewingSlot(BaseModel):
+    date: date
+    start_time: time
+    end_time: time
+
+
+class ViewingBookingRequest(BaseModel):
+    date: date
+    start_time: time
+    tenant_name: str | None = Field(default=None, max_length=255)
+    tenant_phone: str | None = Field(default=None, max_length=50)
+    message: str | None = None
+
+
+class ViewingCalendarResponse(BaseModel):
+    inquiry_id: uuid.UUID
+    google_calendar_url: str
+    ical_uid: str
 
 
 # Host Dashboard KPIs

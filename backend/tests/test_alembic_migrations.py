@@ -37,7 +37,7 @@ def test_alembic_script_directory_and_head_revision():
 
     heads = script.get_heads()
     assert len(heads) == 1, f"Expected exactly 1 head revision, got {heads}"
-    assert heads[0] == "0013", f"Expected head revision to be '0013', got {heads[0]}"
+    assert heads[0] == "0014", f"Expected head revision to be '0014', got {heads[0]}"
 
     rev1 = script.get_revision("0001")
     assert rev1 is not None
@@ -99,6 +99,11 @@ def test_alembic_script_directory_and_head_revision():
     assert "kyc" in rev13.doc.lower()
     assert rev13.down_revision == "0012"
 
+    rev14 = script.get_revision("0014")
+    assert rev14 is not None
+    assert "viewing" in rev14.doc.lower()
+    assert rev14.down_revision == "0013"
+
 
 def test_alembic_offline_sql_generation(capsys):
     """Verify that offline SQL generation ('upgrade head --sql') produces proper DDL statements."""
@@ -139,6 +144,9 @@ def test_alembic_offline_sql_generation(capsys):
     assert "ALTER TABLE projects ADD COLUMN video_url VARCHAR(500)" in generated_sql
     assert "ALTER TABLE projects ADD COLUMN virtual_tour_url VARCHAR(500)" in generated_sql
     assert "CREATE TABLE user_kyc_verifications" in generated_sql
+    assert "CREATE TABLE host_availability_schedules" in generated_sql
+    assert "CREATE TABLE host_blocked_dates" in generated_sql
+    assert "ALTER TABLE rental_inquiries ADD COLUMN appointment_date" in generated_sql
 
     # Verify 0007 additions
     assert "ALTER TABLE users ADD COLUMN phone_verified" in generated_sql
@@ -187,6 +195,8 @@ def test_models_metadata_aligned_with_properties():
     assert "monthly_invoices" in Base.metadata.tables
     assert "deposit_transactions" in Base.metadata.tables
     assert "user_kyc_verifications" in Base.metadata.tables
+    assert "host_availability_schedules" in Base.metadata.tables
+    assert "host_blocked_dates" in Base.metadata.tables
 
     prop_table = Base.metadata.tables["properties"]
     assert "embedding" in prop_table.c
@@ -212,6 +222,15 @@ def test_models_metadata_aligned_with_properties():
     assert "avatar_url" in user_table.c
     assert "phone_verified" in user_table.c
     assert "last_login_at" in user_table.c
+
+    inquiry_table = Base.metadata.tables["rental_inquiries"]
+    assert "appointment_date" in inquiry_table.c
+    assert "start_time" in inquiry_table.c
+    assert "end_time" in inquiry_table.c
+    assert "calendar_event_uid" in inquiry_table.c
+    assert "google_calendar_url" in inquiry_table.c
+    assert "ical_data" in inquiry_table.c
+    assert "reminder_status" in inquiry_table.c
 
     kyc_table = Base.metadata.tables["user_kyc_verifications"]
     assert "user_id" in kyc_table.c

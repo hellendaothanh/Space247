@@ -48,6 +48,14 @@ class Settings(BaseSettings):
     KYC_RETRIEVAL_TTL_SECONDS: int = 900
     KYC_MAX_FILE_SIZE_BYTES: int = 10 * 1024 * 1024
 
+    # Optional viewing confirmation email delivery. Missing configuration is a safe no-op.
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    SMTP_USE_TLS: bool = True
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Any) -> list[str]:

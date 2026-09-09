@@ -17,6 +17,21 @@ class HostService {
     }
   }
 
+  Future<List<ViewingScheduleWindow>> getViewingSchedule() async {
+    final response = await apiClient.dio.get('/host/schedule');
+    return ((response.data as List<dynamic>?) ?? []).map((item) => ViewingScheduleWindow.fromJson(item as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<ViewingScheduleWindow>> replaceViewingSchedule(List<ViewingScheduleWindow> windows) async {
+    final response = await apiClient.dio.put('/host/schedule', data: {'windows': windows.map((item) => item.toJson()).toList()});
+    return ((response.data as List<dynamic>?) ?? []).map((item) => ViewingScheduleWindow.fromJson(item as Map<String, dynamic>)).toList();
+  }
+
+  Future<RentalInquiry> confirmViewing(String inquiryId) async {
+    final response = await apiClient.dio.post('/host/appointments/$inquiryId/confirm');
+    return RentalInquiry.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<List<RentalContract>> getHostContracts() async {
     try {
       final response = await apiClient.dio.get('/host/contracts');

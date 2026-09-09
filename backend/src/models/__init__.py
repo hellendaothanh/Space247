@@ -4,6 +4,8 @@ from src.models.project import Project
 from src.models.property import Property
 from src.models.rental_property import (
     DepositTransaction,
+    HostViewingBlockedDate,
+    HostViewingSchedule,
     MonthlyInvoice,
     RentalContract,
     RentalInquiry,
@@ -16,6 +18,8 @@ from src.models.kyc import UserKycVerification, KycVerificationStatus
 __all__ = [
     "DepositTransaction",
     "FavoriteProperty",
+    "HostViewingBlockedDate",
+    "HostViewingSchedule",
     "MonthlyInvoice",
     "Project",
     "Property",

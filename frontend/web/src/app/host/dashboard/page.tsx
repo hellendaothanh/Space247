@@ -26,6 +26,8 @@ import type {
   RentalContract,
   MonthlyInvoice,
   MeterReadingInput,
+  RentalInquiry,
+  ViewingScheduleWindow,
 } from "@shared/types";
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -39,6 +41,8 @@ export default function HostDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [viewingSchedule, setViewingSchedule] = useState<ViewingScheduleWindow[]>([]);
+  const [viewingInquiries, setViewingInquiries] = useState<RentalInquiry[]>([]);
 
   // Invoice filtering
   const [invoiceFilter, setInvoiceFilter] = useState<"all" | "pending" | "paid" | "overdue">("all");
@@ -61,14 +65,18 @@ export default function HostDashboardPage() {
     setLoading(true);
     setError("");
     try {
-      const [statsData, contractsData, invoicesData] = await Promise.all([
+      const [statsData, contractsData, invoicesData, scheduleData, inquiriesData] = await Promise.all([
         apiClient.getHostDashboardStats(),
         apiClient.getHostContracts(),
         apiClient.getHostInvoices(),
+        apiClient.getViewingSchedule(),
+        apiClient.getHostInquiries(),
       ]);
       setStats(statsData);
       setContracts(contractsData);
       setInvoices(invoicesData);
+      setViewingSchedule(scheduleData);
+      setViewingInquiries(inquiriesData.filter((item) => item.inquiry_type === "view_appointment"));
       if (contractsData.length > 0 && !selectedContractId) {
         setSelectedContractId(contractsData[0].id);
       }
@@ -147,6 +155,24 @@ export default function HostDashboardPage() {
       setInvoiceFormError(err instanceof Error ? err.message : "Lỗi lập hóa đơn");
     } finally {
       setGeneratingInvoices(false);
+    }
+  };
+
+  const updateViewingSchedule = async (windows: ViewingScheduleWindow[]) => {
+    try {
+      setViewingSchedule(await apiClient.replaceViewingSchedule(windows));
+      setSuccessMessage("Đã lưu lịch nhận khách xem phòng");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Không thể lưu lịch xem phòng");
+    }
+  };
+
+  const confirmViewing = async (inquiryId: string) => {
+    try {
+      await apiClient.confirmViewing(inquiryId);
+      await loadDashboardData();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Không thể xác nhận lịch hẹn");
     }
   };
 
@@ -316,6 +342,18 @@ export default function HostDashboardPage() {
       </div>
 
       {/* Main Content Layout: Invoices & Active Contracts */}
+      <section className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+          <h2 className="text-lg font-bold text-slate-900">Lịch nhận khách xem phòng</h2>
+          <p className="mt-1 text-xs text-slate-500">Thứ Hai là 0. Khung giờ chỉ hiển thị khi bật.</p>
+          <div className="mt-4 space-y-2">{[0, 1, 2, 3, 4, 5, 6].map((weekday) => {
+            const window = viewingSchedule.find((item) => item.weekday === weekday);
+            return <div key={weekday} className="flex items-center gap-3 text-sm"><span className="w-16 text-slate-600">Thứ {weekday + 2}</span><input type="time" defaultValue={window?.start_time?.slice(0, 5) ?? "09:00"} onBlur={(e) => updateViewingSchedule([...viewingSchedule.filter((item) => item.weekday !== weekday), { weekday, start_time: e.currentTarget.value, end_time: window?.end_time?.slice(0, 5) ?? "17:00", slot_duration_minutes: window?.slot_duration_minutes ?? 30, is_active: window?.is_active ?? false }])} className="rounded border p-1" /><input type="time" defaultValue={window?.end_time?.slice(0, 5) ?? "17:00"} onBlur={(e) => updateViewingSchedule([...viewingSchedule.filter((item) => item.weekday !== weekday), { weekday, start_time: window?.start_time?.slice(0, 5) ?? "09:00", end_time: e.currentTarget.value, slot_duration_minutes: window?.slot_duration_minutes ?? 30, is_active: window?.is_active ?? false }])} className="rounded border p-1" /><label className="text-xs"><input type="checkbox" checked={window?.is_active ?? false} onChange={(e) => updateViewingSchedule([...viewingSchedule.filter((item) => item.weekday !== weekday), { weekday, start_time: window?.start_time?.slice(0, 5) ?? "09:00", end_time: window?.end_time?.slice(0, 5) ?? "17:00", slot_duration_minutes: window?.slot_duration_minutes ?? 30, is_active: e.target.checked }])} /> Mở lịch</label></div>;
+          })}</div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs"><h2 className="text-lg font-bold text-slate-900">Lịch hẹn xem phòng</h2><div className="mt-4 space-y-3">{viewingInquiries.length === 0 ? <p className="text-sm text-slate-500">Chưa có lịch hẹn.</p> : viewingInquiries.map((item) => <div key={item.id} className="flex items-center justify-between rounded-xl bg-slate-50 p-3 text-sm"><span>{item.tenant_name || "Khách thuê"} · {item.appointment_date} {item.start_time?.slice(0, 5)}</span>{item.status === "pending" ? <button onClick={() => confirmViewing(item.id)} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white">Xác nhận</button> : <span className="text-xs font-semibold text-emerald-700">Đã xác nhận</span>}</div>)}</div></div>
+      </section>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left 2 Cols: Monthly Invoices & Debt Reminders */}
         <div className="lg:col-span-2 space-y-6">

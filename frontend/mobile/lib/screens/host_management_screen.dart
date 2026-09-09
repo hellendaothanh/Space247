@@ -20,6 +20,7 @@ class _HostManagementScreenState extends ConsumerState<HostManagementScreen>
   HostDashboardStats? _stats;
   List<RentalContract> _contracts = [];
   List<MonthlyInvoice> _invoices = [];
+  List<ViewingScheduleWindow> _viewingSchedule = [];
   String _invoiceFilter = 'all';
 
   final NumberFormat _currencyFormat = NumberFormat.currency(
@@ -31,7 +32,7 @@ class _HostManagementScreenState extends ConsumerState<HostManagementScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _loadData();
   }
 
@@ -53,6 +54,7 @@ class _HostManagementScreenState extends ConsumerState<HostManagementScreen>
         hostService.getHostStats(),
         hostService.getHostContracts(),
         hostService.getHostInvoices(),
+        hostService.getViewingSchedule(),
       ]);
 
       if (!mounted) return;
@@ -61,6 +63,7 @@ class _HostManagementScreenState extends ConsumerState<HostManagementScreen>
         _stats = results[0] as HostDashboardStats;
         _contracts = results[1] as List<RentalContract>;
         _invoices = results[2] as List<MonthlyInvoice>;
+        _viewingSchedule = results[3] as List<ViewingScheduleWindow>;
         _isLoading = false;
       });
     } catch (e) {
@@ -334,6 +337,7 @@ class _HostManagementScreenState extends ConsumerState<HostManagementScreen>
           tabs: const [
             Tab(text: 'Hóa Đơn Thu Phí'),
             Tab(text: 'Hợp Đồng Thuê'),
+            Tab(text: 'Lịch Xem Phòng'),
           ],
         ),
       ),
@@ -367,11 +371,40 @@ class _HostManagementScreenState extends ConsumerState<HostManagementScreen>
                     children: [
                       _buildInvoicesTab(),
                       _buildContractsTab(),
+                      _buildViewingScheduleTab(),
                     ],
                   ),
                 ),
     );
   }
+
+  Widget _buildViewingScheduleTab() => ListView(
+    padding: const EdgeInsets.all(16),
+    children: [
+      const Text('Khung giờ nhận khách xem phòng', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 6),
+      const Text('Thứ Hai là ngày đầu tuần. Khung giờ tắt sẽ không hiện cho khách thuê.', style: TextStyle(color: Color(0xFF64748B))),
+      const SizedBox(height: 16),
+      ...List.generate(7, (weekday) {
+        final matches = _viewingSchedule.where((item) => item.weekday == weekday);
+        final ViewingScheduleWindow? window = matches.isEmpty ? null : matches.first;
+        return SwitchListTile(
+          value: window?.isActive ?? false,
+          title: Text(['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ Nhật'][weekday]),
+          subtitle: Text(window == null ? 'Chưa mở lịch' : '${window.startTime.substring(0, 5)} – ${window.endTime.substring(0, 5)}'),
+          onChanged: (enabled) async {
+            final next = [..._viewingSchedule.where((item) => item.weekday != weekday), ViewingScheduleWindow(weekday: weekday, startTime: window?.startTime ?? '09:00', endTime: window?.endTime ?? '17:00', slotDurationMinutes: window?.slotDurationMinutes ?? 30, isActive: enabled)];
+            try {
+              final saved = await ref.read(hostServiceProvider).replaceViewingSchedule(next);
+              if (mounted) setState(() => _viewingSchedule = saved);
+            } catch (e) {
+              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+            }
+          },
+        );
+      }),
+    ],
+  );
 
   Widget _buildKpiHeader() {
     if (_stats == null) return const SizedBox.shrink();

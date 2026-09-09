@@ -20,7 +20,7 @@ import {
   Phone,
   Send,
 } from "lucide-react";
-import type { RentalProperty, RentalUnit } from "@shared/types";
+import type { RentalProperty, RentalUnit, ViewingSlot } from "@shared/types";
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
@@ -41,6 +41,9 @@ export default function RentalPropertyDetailPage({
   const [selectedUnit, setSelectedUnit] = useState<RentalUnit | null>(null);
   const [inquiryType, setInquiryType] = useState<"view_appointment" | "booking_request">("view_appointment");
   const [scheduledDate, setScheduledDate] = useState("");
+  const [slots, setSlots] = useState<ViewingSlot[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<ViewingSlot | null>(null);
+  const [slotsLoading, setSlotsLoading] = useState(false);
   const [tenantName, setTenantName] = useState("");
   const [tenantPhone, setTenantPhone] = useState("");
   const [message, setMessage] = useState("");
@@ -69,18 +72,30 @@ export default function RentalPropertyDetailPage({
     }
   }, [user]);
 
+  useEffect(() => {
+    if (!selectedUnit || !scheduledDate || inquiryType !== "view_appointment") {
+      setSlots([]);
+      setSelectedSlot(null);
+      return;
+    }
+    setSlotsLoading(true);
+    apiClient.getViewingSlots(selectedUnit.id, scheduledDate)
+      .then(setSlots)
+      .catch(() => setSlots([]))
+      .finally(() => setSlotsLoading(false));
+  }, [selectedUnit, scheduledDate, inquiryType]);
+
   const handleInquireSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUnit) return;
     setSubmitting(true);
     try {
-      await apiClient.inquireRentalUnit(selectedUnit.id, {
-        inquiry_type: inquiryType,
-        scheduled_time: scheduledDate ? new Date(scheduledDate).toISOString() : undefined,
-        tenant_name: tenantName,
-        tenant_phone: tenantPhone,
-        message: message,
-      });
+      if (inquiryType === "view_appointment") {
+        if (!selectedSlot) throw new Error("Vui lòng chọn khung giờ còn trống");
+        await apiClient.bookViewingSlot(selectedUnit.id, { date: selectedSlot.date, start_time: selectedSlot.start_time, tenant_name: tenantName, tenant_phone: tenantPhone, message });
+      } else {
+        await apiClient.inquireRentalUnit(selectedUnit.id, { inquiry_type: inquiryType, scheduled_time: scheduledDate ? new Date(scheduledDate).toISOString() : undefined, tenant_name: tenantName, tenant_phone: tenantPhone, message });
+      }
       setInquirySuccess(true);
       setTimeout(() => {
         setInquirySuccess(false);
@@ -433,12 +448,19 @@ export default function RentalPropertyDetailPage({
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-700">Thời gian mong muốn</label>
                   <input
-                    type="datetime-local"
+                    type={inquiryType === "view_appointment" ? "date" : "datetime-local"}
                     value={scheduledDate}
                     onChange={(e) => setScheduledDate(e.target.value)}
                     className="w-full rounded-xl border border-slate-200 p-2.5 text-sm"
                   />
                 </div>
+
+                {inquiryType === "view_appointment" && scheduledDate && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-700">Khung giờ còn trống</label>
+                    {slotsLoading ? <p className="text-xs text-slate-500">Đang tải khung giờ...</p> : slots.length === 0 ? <p className="text-xs text-slate-500">Chủ nhà chưa có lịch trống cho ngày này.</p> : <div className="flex flex-wrap gap-2">{slots.map((slot) => <button key={slot.start_time} type="button" onClick={() => setSelectedSlot(slot)} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${selectedSlot?.start_time === slot.start_time ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 text-slate-700"}`}>{slot.start_time.slice(0, 5)}–{slot.end_time.slice(0, 5)}</button>)}</div>}
+                  </div>
+                )}
 
                 {/* Tenant Contact */}
                 <div className="grid grid-cols-2 gap-3">

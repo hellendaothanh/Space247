@@ -11,6 +11,8 @@ import '../models/property.dart';
 import '../providers/app_providers.dart';
 import '../core/utils.dart';
 import '../core/theme.dart';
+import '../models/rental_property.dart';
+import '../services/viewing_service.dart';
 
 class PropertyDetailScreen extends ConsumerStatefulWidget {
   final String propertyId;
@@ -417,6 +419,17 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
+                    if (property.listingType == 'rent') ...[
+                      Expanded(
+                        flex: 3,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _showViewingSheet(context, property.id, property.address),
+                          icon: const Icon(Icons.event_available, size: 20),
+                          label: const Text('Đặt lịch xem', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                        ),
+                      ),
+                    ] else
                     // Nút Liên Hệ Ngay bên phải
                     Expanded(
                       flex: 3,
@@ -598,6 +611,49 @@ class _PropertyDetailScreenState extends ConsumerState<PropertyDetailScreen> {
         );
       }
     }
+  }
+
+  Future<void> _showViewingSheet(BuildContext context, String unitId, String location) async {
+    final service = ViewingService(ref.read(apiClientProvider));
+    DateTime selectedDate = DateTime.now();
+    ViewingSlot? selectedSlot;
+    List<ViewingSlot> slots = const [];
+    var loading = true;
+    var requested = false;
+    String? error;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => StatefulBuilder(builder: (context, setState) {
+        Future<void> load() async {
+          setState(() { loading = true; error = null; selectedSlot = null; });
+          try {
+            final result = await service.getAvailableSlots(unitId: unitId, date: selectedDate);
+            if (context.mounted) setState(() { slots = result; loading = false; });
+          } catch (e) { if (context.mounted) setState(() { loading = false; error = e.toString(); }); }
+        }
+        if (loading && slots.isEmpty && error == null && !requested) { requested = true; Future.microtask(load); }
+        return Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.viewInsetsOf(context).bottom + 20),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Đặt lịch xem phòng', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(onPressed: () async { final picked = await showDatePicker(context: context, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 90)), initialDate: selectedDate); if (picked != null) { selectedDate = picked; await load(); } }, icon: const Icon(Icons.calendar_today), label: Text('${selectedDate.day.toString().padLeft(2, '0')}/${selectedDate.month.toString().padLeft(2, '0')}/${selectedDate.year}')),
+            if (loading) const Padding(padding: EdgeInsets.all(18), child: Center(child: CircularProgressIndicator()))
+            else if (error != null) Text(error!, style: const TextStyle(color: Colors.red))
+            else if (slots.isEmpty) const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Text('Ngày này chưa có khung giờ trống'))
+            else Wrap(spacing: 8, runSpacing: 8, children: slots.map((slot) => ChoiceChip(label: Text('${slot.startTime.substring(0, 5)} - ${slot.endTime.substring(0, 5)}'), selected: selectedSlot == slot, onSelected: (_) => setState(() => selectedSlot = slot))).toList()),
+            const SizedBox(height: 14),
+            SizedBox(width: double.infinity, child: FilledButton(onPressed: selectedSlot == null ? null : () async { try { final inquiry = await service.bookAppointment(unitId: unitId, slot: selectedSlot!); if (context.mounted) { Navigator.pop(context); await _showCalendarActions(context, inquiry); } } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()))); } }, child: const Text('Xác nhận đặt lịch'))),
+          ]),
+        );
+      }),
+    );
+  }
+
+  Future<void> _showCalendarActions(BuildContext context, RentalInquiry inquiry) async {
+    if (inquiry.calendarGoogleUrl == null) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lịch đã được ghi nhận, chờ chủ nhà xác nhận'))); return; }
+    await showModalBottomSheet<void>(context: context, builder: (context) => SafeArea(child: Wrap(children: [ListTile(leading: const Icon(Icons.event), title: const Text('Mở Google Calendar'), onTap: () { Navigator.pop(context); launchUrl(Uri.parse(inquiry.calendarGoogleUrl!), mode: LaunchMode.externalApplication); }), ListTile(leading: const Icon(Icons.download), title: const Text('Tải lịch iCalendar'), onTap: () async { Navigator.pop(context); final ics = await ViewingService(ref.read(apiClientProvider)).getCalendarIcs(inquiry.id); await launchUrl(Uri.parse('data:text/calendar;charset=utf-8,${Uri.encodeComponent(ics)}'), mode: LaunchMode.externalApplication); })])));
   }
 
   bool _isEmbeddableVideo(String? value) {

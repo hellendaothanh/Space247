@@ -346,6 +346,11 @@ CCCD front/back uploads use private storage only. Development defaults to `backe
 
 ### Host Management, VietQR Reservation Deposits & AI Living Cost Estimator
 
+### Smart Viewing and Calendar
+
+- Hosts configure non-overlapping weekly viewing windows and blocked dates; tenants only see complete, unblocked slots.
+- Booking uses the existing rental inquiry record and returns a conflict for concurrent slot requests. Confirmed appointments provide matching Google Calendar and downloadable iCalendar events, with in-app notifications for both parties.
+
 - **Kênh Quản Lý Chủ Nhà (Host Dashboard)**: Bảng điều khiển trực quan tại `/host/dashboard` (Next.js) và `HostManagementScreen` (Flutter Mobile) hiển thị các chỉ số KPI vận hành trọng yếu (tỷ lệ lấp đầy, doanh thu dự kiến tháng, số hóa đơn chưa thu, yêu cầu thuê chờ duyệt).
 - **Chốt Số Điện Nước & Phát Hành Hóa Đơn Tháng**: Hệ thống ghi nhận chỉ số cũ/mới của đồng hồ điện (kWh) và đồng hồ nước (m³ hoặc khoán), tự động tính toán tổng hóa đơn theo đơn giá hợp đồng và hỗ trợ tính năng 1-Click "Gửi nhắc nợ" qua thông báo in-app tới khách thuê.
 - **Đặt Cọc Giữ Chỗ Tự Động Qua VietQR (Napas 247 QuickLink)**: Khi chủ nhà duyệt yêu cầu thuê, hệ thống tạo giao dịch đặt cọc với mã thanh toán VietQR tự động kèm mã tham chiếu độc nhất và thời hạn hiệu lực 15 phút. Webhook thanh toán tự động cập nhật trạng thái phòng sang `reserved`, xác nhận yêu cầu thuê và thông báo tức thì cho hai bên.
