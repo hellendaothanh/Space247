@@ -12,6 +12,8 @@ class RentalUnit {
   final bool hasPrivateBathroom;
   final int? maxOccupants;
   final List<String> images;
+  final String? floorPlanUrl;
+  final List<String> roomAmenities;
 
   RentalUnit({
     required this.id,
@@ -27,6 +29,8 @@ class RentalUnit {
     this.hasPrivateBathroom = true,
     this.maxOccupants,
     this.images = const [],
+    this.floorPlanUrl,
+    this.roomAmenities = const [],
   });
 
   bool get isAvailable => status == 'available';
@@ -46,6 +50,8 @@ class RentalUnit {
       hasPrivateBathroom: json['has_private_bathroom'] as bool? ?? true,
       maxOccupants: json['max_occupants'] as int?,
       images: (json['images'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+      floorPlanUrl: json['floor_plan_url'] as String?,
+      roomAmenities: (json['room_amenities'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
     );
   }
 
@@ -64,6 +70,8 @@ class RentalUnit {
       'has_private_bathroom': hasPrivateBathroom,
       'max_occupants': maxOccupants,
       'images': images,
+      'floor_plan_url': floorPlanUrl,
+      'room_amenities': roomAmenities,
     };
   }
 }
@@ -83,6 +91,9 @@ class RentalProperty {
   final Map<String, dynamic> sharedCosts;
   final Map<String, dynamic> sharedRules;
   final List<String> images;
+  final String? videoUrl;
+  final List<Map<String, dynamic>> surroundings;
+  final List<String> securityFeatures;
   final bool isActive;
   final int totalUnitsCount;
   final int availableUnitsCount;
@@ -105,6 +116,9 @@ class RentalProperty {
     this.sharedCosts = const {},
     this.sharedRules = const {},
     this.images = const [],
+    this.videoUrl,
+    this.surroundings = const [],
+    this.securityFeatures = const [],
     this.isActive = true,
     this.totalUnitsCount = 0,
     this.availableUnitsCount = 0,
@@ -133,6 +147,9 @@ class RentalProperty {
       sharedCosts: (json['shared_costs'] as Map<String, dynamic>?) ?? {},
       sharedRules: (json['shared_rules'] as Map<String, dynamic>?) ?? {},
       images: (json['images'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+      videoUrl: json['video_url'] as String?,
+      surroundings: (json['surroundings'] as List<dynamic>?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? [],
+      securityFeatures: (json['security_features'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       isActive: json['is_active'] as bool? ?? true,
       totalUnitsCount: json['total_units_count'] as int? ?? rawUnits.length,
       availableUnitsCount: json['available_units_count'] as int? ?? 0,
@@ -158,6 +175,9 @@ class RentalProperty {
       'shared_costs': sharedCosts,
       'shared_rules': sharedRules,
       'images': images,
+      'video_url': videoUrl,
+      'surroundings': surroundings,
+      'security_features': securityFeatures,
       'is_active': isActive,
       'total_units_count': totalUnitsCount,
       'available_units_count': availableUnitsCount,

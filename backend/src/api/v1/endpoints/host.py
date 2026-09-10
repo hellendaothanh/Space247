@@ -151,6 +151,9 @@ def _populate_host_property_response(prop: RentalProperty) -> RentalPropertyResp
         shared_costs=prop.shared_costs or {},
         shared_rules=prop.shared_rules or {},
         images=prop.images or [],
+        video_url=prop.video_url,
+        surroundings=prop.surroundings or [],
+        security_features=prop.security_features or [],
         is_active=prop.is_active,
         total_units_count=total_units,
         available_units_count=len(available_units),
@@ -276,6 +279,9 @@ async def create_rental_property(
         shared_costs=prop_in.shared_costs,
         shared_rules=prop_in.shared_rules,
         images=prop_in.images,
+        video_url=prop_in.video_url,
+        surroundings=prop_in.surroundings,
+        security_features=prop_in.security_features,
         is_active=prop_in.is_active,
     )
     db.add(property_obj)
@@ -296,6 +302,8 @@ async def create_rental_property(
             has_private_bathroom=u_in.has_private_bathroom,
             max_occupants=u_in.max_occupants,
             images=u_in.images,
+            floor_plan_url=u_in.floor_plan_url,
+            room_amenities=u_in.room_amenities,
         )
         db.add(unit)
 

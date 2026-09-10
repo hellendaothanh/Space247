@@ -1652,6 +1652,18 @@ SAMPLE_RENTALS: list[dict[str, Any]] = [
         "latitude": 10.7728,
         "longitude": 106.6578,
         "description": "Nhà trọ sinh viên tiện nghi nằm ngay đối diện cổng trường ĐH Bách Khoa TP.HCM. Có máy giặt chung sân phơi đồ lộng gió, giờ giấc tự do không chung chủ.",
+        "video_url": "https://www.youtube.com/watch?v=Vrh_PG9jYhM",
+        "surroundings": [
+            {"label": "ĐH Bách Khoa TP.HCM (cổng chính)", "category": "university", "distance_meters": 120, "walk_minutes": 2, "note": "Đối diện cổng, qua đường là tới"},
+            {"label": "Ga Hòa Hưng (Metro số 1)", "category": "bus", "distance_meters": 850, "walk_minutes": 10, "note": "Đi xe 3 phút"},
+            {"label": "Chợ Bảy Mẫu", "category": "market", "distance_meters": 500, "walk_minutes": 6, "note": None},
+            {"label": "CVT Phạm Văn Bạch (sân banh)", "category": "supermarket", "distance_meters": 350, "walk_minutes": 4, "note": "Khu vui chơi & ăn vặt sinh viên"},
+        ],
+        "security_features": [
+            "Camera 24/7 sân xe & hành lang",
+            "Cửa vân tay cổng chính",
+            "Báo cháy tự động PCCC từng tầng",
+        ],
         "shared_costs": {
             "electricity_per_kwh": 3800,
             "electricity_billing": "fixed",
@@ -1719,6 +1731,20 @@ SAMPLE_RENTALS: list[dict[str, Any]] = [
         "latitude": 16.0745,
         "longitude": 108.1512,
         "description": "Nhà trọ sinh viên khép kín gần ĐH Bách Khoa và ĐH Sư Phạm Đà Nẵng. Khu dân cư an ninh, có sân để xe rộng rãi có mái che và camera giám sát, giá điện nước chuẩn nhà nước.",
+        "video_url": "https://www.youtube.com/watch?v=Vrh_PG9jYhM",
+        "surroundings": [
+            {"label": "ĐH Bách Khoa Đà Nẵng", "category": "university", "distance_meters": 400, "walk_minutes": 5, "note": "Cổng sau, đi bộ qua cầu Hòa Khánh"},
+            {"label": "ĐH Sư Phạm Đà Nẵng", "category": "university", "distance_meters": 900, "walk_minutes": 11, "note": "Đi xe 3 phút"},
+            {"label": "Chợ Hòa Khánh", "category": "market", "distance_meters": 600, "walk_minutes": 7, "note": "Chợ buổi sáng & tối, rau cá tươi"},
+            {"label": "Trạm xe buýt 01 Ngô Thì Nhậm", "category": "bus", "distance_meters": 150, "walk_minutes": 2, "note": "Tuyến về trung tâm & biển Mỹ Khê"},
+            {"label": "Siêu thị Điện Máy Xanh", "category": "supermarket", "distance_meters": 450, "walk_minutes": 6, "note": None},
+        ],
+        "security_features": [
+            "Camera 24/7 sân xe & lối vào",
+            "Cửa vân tay 2 lớp cổng chính",
+            "Báo cháy tự động PCCC mỗi tầng",
+            "Chủ nhà trực 24h tầng trệt",
+        ],
         "shared_costs": {
             "electricity_per_kwh": 3000,
             "electricity_billing": "fixed",
@@ -1736,10 +1762,31 @@ SAMPLE_RENTALS: list[dict[str, Any]] = [
         "images": [
             "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
             "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80",
+            "https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=1200&q=80",
         ],
         "units": [
-            {"unit_number": "P.101", "floor": 1, "area_sqm": 18.0, "price": 2200000, "deposit": 2200000, "status": "available", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 2},
-            {"unit_number": "P.102", "floor": 1, "area_sqm": 18.0, "price": 2200000, "deposit": 2200000, "status": "available", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 2},
+            {
+                "unit_number": "P.101", "floor": 1, "area_sqm": 18.0, "price": 2200000, "deposit": 2200000, "status": "available", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 2,
+                "floor_plan_url": "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1200&q=80",
+                "room_amenities": ["ac_inverter", "water_heater", "bed_mattress", "study_desk", "wardrobe"],
+                "images": [
+                    "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=1200&q=80",
+                    "https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=1200&q=80",
+                    "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=1200&q=80",
+                ],
+            },
+            {
+                "unit_number": "P.102", "floor": 1, "area_sqm": 18.0, "price": 2200000, "deposit": 2200000, "status": "available", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 2,
+                "floor_plan_url": "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1200&q=80",
+                "room_amenities": ["ac_inverter", "fridge", "water_heater", "bed_mattress", "balcony"],
+                "images": [
+                    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80",
+                    "https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd?auto=format&fit=crop&w=1200&q=80",
+                    "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=1200&q=80",
+                ],
+            },
             {"unit_number": "P.203", "floor": 2, "area_sqm": 22.0, "price": 2600000, "deposit": 2600000, "status": "occupied", "furnishing": "basic", "has_mezzanine": True, "has_private_bathroom": True, "max_occupants": 3},
         ],
     },
@@ -1753,6 +1800,16 @@ SAMPLE_RENTALS: list[dict[str, Any]] = [
         "latitude": 10.0285,
         "longitude": 105.7694,
         "description": "Khu nhà trọ sinh viên sạch đẹp nằm trong hẻm ẩm thực sinh viên 51 đường 3/2 quận Ninh Kiều. Đi bộ sang Khu 2 Đại học Cần Thơ chỉ 5 phút, khu trọ yên tĩnh học tập.",
+        "surroundings": [
+            {"label": "ĐH Cần Thơ Khu 2", "category": "university", "distance_meters": 350, "walk_minutes": 5, "note": "Cổng sau Nguyễn Văn Cừ"},
+            {"label": "Chợ Xuân Khánh", "category": "market", "distance_meters": 800, "walk_minutes": 10, "note": "Đi xe 3 phút"},
+            {"label": "Trạm xe buýt đường 3/2", "category": "bus", "distance_meters": 200, "walk_minutes": 3, "note": None},
+        ],
+        "security_features": [
+            "Camera 24/7 lối vào",
+            "Cửa vân tay cổng",
+            "Đèn cảm ứng cầu thang",
+        ],
         "shared_costs": {
             "electricity_per_kwh": 3000,
             "electricity_billing": "fixed",
@@ -2131,6 +2188,9 @@ async def seed_rental_properties(
                 shared_costs=item["shared_costs"],
                 shared_rules=item["shared_rules"],
                 images=item["images"],
+                video_url=item.get("video_url"),
+                surroundings=item.get("surroundings") or [],
+                security_features=item.get("security_features") or [],
                 is_active=True,
             )
             session.add(r_prop)
@@ -2161,6 +2221,8 @@ async def seed_rental_properties(
                 has_private_bathroom=u.get("has_private_bathroom", True),
                 max_occupants=u.get("max_occupants", 2),
                 images=u.get("images") or (item.get("images") or [])[:2],
+                floor_plan_url=u.get("floor_plan_url"),
+                room_amenities=u.get("room_amenities") or [],
             )
             session.add(unit)
             created_units += 1

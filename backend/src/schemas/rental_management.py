@@ -48,6 +48,11 @@ class RentalUnitBase(BaseModel):
     has_private_bathroom: bool = Field(default=True, description="Vệ sinh khép kín")
     max_occupants: int | None = Field(default=2, ge=1, description="Số người ở tối đa")
     images: list[str] = Field(default_factory=list, description="Hình ảnh riêng của phòng")
+    floor_plan_url: str | None = Field(default=None, max_length=500, description="Sơ đồ mặt bằng phòng")
+    room_amenities: list[str] = Field(
+        default_factory=list,
+        description="Khóa tiện nghi trong phòng: ac_inverter, fridge, water_heater, bed_mattress, study_desk, wardrobe, balcony, washing_machine, kitchen",
+    )
 
 
 class RentalUnitCreate(RentalUnitBase):
@@ -66,6 +71,8 @@ class RentalUnitUpdate(BaseModel):
     has_private_bathroom: bool | None = None
     max_occupants: int | None = Field(default=None, ge=1)
     images: list[str] | None = None
+    floor_plan_url: str | None = Field(default=None, max_length=500)
+    room_amenities: list[str] | None = None
 
 
 class RentalUnitStatusUpdate(BaseModel):
@@ -101,6 +108,15 @@ class RentalPropertyBase(BaseModel):
         description="Nội quy chung: {curfew, curfew_time, allow_pets, fingerprint_lock, elevator, live_with_owner, washing_machine}",
     )
     images: list[str] = Field(default_factory=list, description="Hình ảnh tổng thể khu nhà")
+    video_url: str | None = Field(default=None, max_length=500, description="Video review khu trọ (YouTube/TikTok)")
+    surroundings: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Cự ly tiện ích xung quanh: [{label, category, distance_meters, walk_minutes, note}]",
+    )
+    security_features: list[str] = Field(
+        default_factory=list,
+        description="Cam kết an ninh: Camera 24/7, cửa vân tay, báo cháy PCCC...",
+    )
     is_active: bool = Field(default=True)
 
 
@@ -124,6 +140,9 @@ class RentalPropertyUpdate(BaseModel):
     shared_costs: dict[str, Any] | None = None
     shared_rules: dict[str, Any] | None = None
     images: list[str] | None = None
+    video_url: str | None = Field(default=None, max_length=500)
+    surroundings: list[dict[str, Any]] | None = None
+    security_features: list[str] | None = None
     is_active: bool | None = None
 
 
@@ -402,3 +421,32 @@ class RentalSearchFilter(BaseModel):
     fingerprint_lock: bool | None = None
     curfew: bool | None = None
     only_available: bool = True
+
+
+# Smart Living Cost Calculator (transparent monthly budget estimation)
+class CostLineItem(BaseModel):
+    key: str
+    label: str
+    amount: float = Field(..., ge=0, description="Số tiền ước tính (VND/tháng)")
+    note: str | None = Field(default=None, description="Ghi chú cách tính")
+
+
+class ElectricityBreakdown(BaseModel):
+    ac_kwh: float = Field(default=0.0, ge=0, description="Điện năng ước tính cho máy lạnh (kWh/tháng)")
+    fridge_kwh: float = Field(default=0.0, ge=0, description="Điện năng ước tính cho tủ lạnh (kWh/tháng)")
+    general_kwh: float = Field(default=0.0, ge=0, description="Điện năng sinh hoạt chung (kWh/tháng)")
+    total_kwh: float = Field(..., ge=0, description="Tổng điện năng ước tính (kWh/tháng)")
+    unit_price: float = Field(..., ge=0, description="Đơn giá điện (VND/kWh)")
+
+
+class MonthlyCostEstimate(BaseModel):
+    property_id: uuid.UUID | None = None
+    unit_id: uuid.UUID | None = None
+    unit_number: str
+    occupants: int = Field(..., ge=1, description="Số người ở dùng để tính nước & bình quân")
+    currency: str = "VND"
+    electricity: ElectricityBreakdown
+    fixed_costs: list[CostLineItem] = Field(default_factory=list, description="Chi phí cố định hàng tháng")
+    variable_costs: list[CostLineItem] = Field(default_factory=list, description="Chi phí biến đổi theo mức sử dụng")
+    estimated_total_monthly: float = Field(..., ge=0, description="Tổng chi phí dự kiến / tháng (VND)")
+    per_person_monthly: float = Field(..., ge=0, description="Bình quân / người / tháng (VND)")

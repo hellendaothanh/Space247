@@ -122,3 +122,6 @@ Thư viện dùng chung từ thư mục cấp cha:
 5. **Cửa sổ Trợ lý AI (ChatAssistantWidget)**: Khung chat nổi hỗ trợ tương tác tự nhiên, trích xuất nhu cầu và gợi ý thẻ bài đăng trực quan.
 6. **So sánh Bất động sản AI**: Cho phép đối chiếu từ 2 đến 3 căn nhà theo đơn giá trên một mét vuông, vị trí địa lý, tiện ích và tiềm năng tăng trưởng.
 7. **Công cụ Định giá Thông minh (AVM Price Advisor)**: Hỗ trợ môi giới ước tính khoảng giá thị trường tối ưu khi đăng tin.
+# Rental detail experience
+
+`/rentals/[id]` displays a multi-layer gallery, safe YouTube/TikTok review tab, room media/floor plans, amenity and occupancy badges, an API-backed monthly cost calculator, commute cards and security/PCCC commitments. The calculator keeps the latest request result when users change room or options quickly.

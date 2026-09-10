@@ -68,3 +68,114 @@ def rental_text(rental_type=None, rental_costs=None, rental_rules=None):
             display = "Có" if value is True else "Không" if value is False else value
             parts.append(f"{names.get(key, key)} ({key}): {display}")
     return ". ".join(parts)
+
+
+# Smart Living Cost Calculator — transparent monthly budget estimation.
+AC_KWH_PER_MONTH = 120.0
+FRIDGE_KWH_PER_MONTH = 30.0
+GENERAL_KWH_PER_MONTH = 30.0
+DEFAULT_ELECTRICITY_PRICE = 3000.0
+ESTIMATED_WATER_M3_PER_PERSON = 2.0
+
+
+def estimate_monthly_living_cost(
+    *,
+    unit_number: str,
+    unit_price: float,
+    shared_costs: dict | None,
+    occupants: int = 1,
+    has_ac: bool = True,
+    has_fridge: bool = True,
+    property_id=None,
+    unit_id=None,
+):
+    """Estimate a transparent monthly cost sheet for one rental unit.
+
+    Pure function (no DB) so it stays unit-testable:
+    - Electricity: appliance-based kWh estimate × unit price from shared_costs.
+    - Water: per-person billing multiplies occupants; per-m³ assumes ~2 m³/person.
+    - Fixed costs: room rent + wifi/parking/cleaning from shared_costs.
+    """
+    from src.schemas.rental_management import (
+        CostLineItem,
+        ElectricityBreakdown,
+        MonthlyCostEstimate,
+    )
+
+    costs = shared_costs or {}
+    occupants = max(1, occupants)
+
+    ac_kwh = AC_KWH_PER_MONTH if has_ac else 0.0
+    fridge_kwh = FRIDGE_KWH_PER_MONTH if has_fridge else 0.0
+    general_kwh = GENERAL_KWH_PER_MONTH
+    total_kwh = ac_kwh + fridge_kwh + general_kwh
+    published_electricity_price = costs.get("electricity_per_kwh")
+    unit_price_per_kwh = float(DEFAULT_ELECTRICITY_PRICE if published_electricity_price is None else published_electricity_price)
+
+    electricity_amount = total_kwh * unit_price_per_kwh
+
+    water_unit = costs.get("water_unit")
+    water_cost = costs.get("water_cost")
+    if water_cost is not None and water_unit == "per_person":
+        water_amount = float(water_cost) * occupants
+        water_note = f"{water_cost:,.0f} đ × {occupants} người"
+    elif water_cost is not None:
+        estimated_m3 = ESTIMATED_WATER_M3_PER_PERSON * occupants
+        water_amount = float(water_cost) * estimated_m3
+        water_note = f"{water_cost:,.0f} đ × ~{estimated_m3:.0f} m³ (ước tính {ESTIMATED_WATER_M3_PER_PERSON:.0f} m³/người)"
+    else:
+        water_amount = 0.0
+        water_note = "Chưa công bố giá nước; chưa tính vào tổng dự kiến"
+
+    fixed_costs = [
+        CostLineItem(key="room", label="Tiền phòng", amount=float(unit_price), note=None),
+    ]
+    wifi_fee = costs.get("wifi_fee")
+    if wifi_fee is not None:
+        fixed_costs.append(CostLineItem(key="wifi", label="Internet/Wifi", amount=float(wifi_fee), note=None))
+    parking_fee = costs.get("parking_fee_monthly")
+    if parking_fee is not None:
+        fixed_costs.append(CostLineItem(key="parking", label="Phí gửi xe", amount=float(parking_fee), note=None))
+    cleaning_fee = costs.get("cleaning_fee")
+    if cleaning_fee is not None:
+        fixed_costs.append(CostLineItem(key="cleaning", label="Phí vệ sinh", amount=float(cleaning_fee), note=None))
+    service_fee = costs.get("service_fee_monthly")
+    if service_fee is not None:
+        fixed_costs.append(CostLineItem(key="service", label="Phí dịch vụ", amount=float(service_fee), note=None))
+
+    appliance_notes = []
+    if has_ac:
+        appliance_notes.append(f"Máy lạnh ~{AC_KWH_PER_MONTH:.0f} kWh")
+    if has_fridge:
+        appliance_notes.append(f"Tủ lạnh ~{FRIDGE_KWH_PER_MONTH:.0f} kWh")
+    appliance_notes.append(f"Sinh hoạt chung ~{GENERAL_KWH_PER_MONTH:.0f} kWh")
+
+    variable_costs = [
+        CostLineItem(
+            key="electricity",
+            label="Tiền điện (dự tính)",
+            amount=electricity_amount,
+            note=f"{' + '.join(appliance_notes)} × {unit_price_per_kwh:,.0f} đ/kWh" + (" (giả định khi chưa công bố giá điện)" if published_electricity_price is None else ""),
+        ),
+        CostLineItem(key="water", label="Tiền nước (dự tính)", amount=water_amount, note=water_note),
+    ]
+
+    estimated_total = sum(item.amount for item in fixed_costs) + sum(item.amount for item in variable_costs)
+
+    return MonthlyCostEstimate(
+        property_id=property_id,
+        unit_id=unit_id,
+        unit_number=unit_number,
+        occupants=occupants,
+        electricity=ElectricityBreakdown(
+            ac_kwh=ac_kwh,
+            fridge_kwh=fridge_kwh,
+            general_kwh=general_kwh,
+            total_kwh=total_kwh,
+            unit_price=unit_price_per_kwh,
+        ),
+        fixed_costs=fixed_costs,
+        variable_costs=variable_costs,
+        estimated_total_monthly=estimated_total,
+        per_person_monthly=estimated_total / occupants,
+    )

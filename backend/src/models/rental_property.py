@@ -80,6 +80,16 @@ class RentalProperty(Base):
         default=list,
         server_default="{}",
     )
+    video_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Nearby commute cards: [{label, category, distance_meters, walk_minutes, note}]
+    surroundings: Mapped[list | None] = mapped_column(JSONB, nullable=True, default=list)
+    # Safety commitments: ["Camera 24/7 sân xe", "Cửa vân tay 2 lớp", "Báo cháy tự động PCCC"]
+    security_features: Mapped[list[str]] = mapped_column(
+        ARRAY(Text),
+        nullable=False,
+        default=list,
+        server_default="{}",
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
 
     created_at: Mapped[datetime] = mapped_column(
@@ -110,6 +120,10 @@ class RentalProperty(Base):
             kwargs["shared_costs"] = {}
         if "shared_rules" not in kwargs or kwargs["shared_rules"] is None:
             kwargs["shared_rules"] = {}
+        if "security_features" not in kwargs or kwargs["security_features"] is None:
+            kwargs["security_features"] = []
+        if "surroundings" not in kwargs or kwargs["surroundings"] is None:
+            kwargs["surroundings"] = []
         now = datetime.now(timezone.utc)
         if "created_at" not in kwargs or kwargs["created_at"] is None:
             kwargs["created_at"] = now
@@ -167,6 +181,9 @@ class RentalUnit(Base):
         default=list,
         server_default="{}",
     )
+    floor_plan_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Per-room amenity keys: ["ac_inverter", "fridge", "water_heater", "bed_mattress", "study_desk"]
+    room_amenities: Mapped[list | None] = mapped_column(JSONB, nullable=True, default=list)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -194,6 +211,8 @@ class RentalUnit(Base):
             kwargs["id"] = uuid.uuid4()
         if "images" not in kwargs or kwargs["images"] is None:
             kwargs["images"] = []
+        if "room_amenities" not in kwargs or kwargs["room_amenities"] is None:
+            kwargs["room_amenities"] = []
         if "status" not in kwargs or kwargs["status"] is None:
             kwargs["status"] = "available"
         if "furnishing" not in kwargs or kwargs["furnishing"] is None:

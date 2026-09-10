@@ -156,6 +156,9 @@ async def test_host_property_and_unit_lifecycle(host_user: User, tenant_user: Us
             "shared_costs": {"electricity_per_kwh": 3500, "water_cost": 30000},
             "shared_rules": {"curfew": False, "allow_pets": True},
             "images": ["https://example.com/prop.jpg"],
+            "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "surroundings": [{"label": "Trạm xe buýt", "category": "bus", "distance_meters": 150, "walk_minutes": 2}],
+            "security_features": ["Camera 24/7"],
             "initial_units": [
                 {
                     "unit_number": "P.101",
@@ -168,6 +171,8 @@ async def test_host_property_and_unit_lifecycle(host_user: User, tenant_user: Us
                     "has_mezzanine": True,
                     "has_private_bathroom": True,
                     "max_occupants": 2,
+                    "floor_plan_url": "https://example.com/floor-plan.jpg",
+                    "room_amenities": ["ac_inverter", "water_heater"],
                 }
             ],
         }
@@ -178,6 +183,10 @@ async def test_host_property_and_unit_lifecycle(host_user: User, tenant_user: Us
         unit1_id = uuid.UUID(prop_data["units"][0]["id"])
         assert prop_data["name"] == "Nhà Trọ Xanh Bách Khoa"
         assert prop_data["total_units_count"] == 1
+        assert prop_data["video_url"] == create_payload["video_url"]
+        assert prop_data["surroundings"] == create_payload["surroundings"]
+        assert prop_data["security_features"] == create_payload["security_features"]
+        assert prop_data["units"][0]["room_amenities"] == ["ac_inverter", "water_heater"]
 
         # 2. Host adds a second unit
         unit2_payload = {

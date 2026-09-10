@@ -31,13 +31,13 @@ def test_alembic_configuration_and_paths():
 
 
 def test_alembic_script_directory_and_head_revision():
-    """Verify that migration scripts are discoverable and have a single clean head revision '0004'."""
+    """Verify that migration scripts are discoverable and have a single clean head revision."""
     cfg = get_alembic_config()
     script = ScriptDirectory.from_config(cfg)
 
     heads = script.get_heads()
     assert len(heads) == 1, f"Expected exactly 1 head revision, got {heads}"
-    assert heads[0] == "0014", f"Expected head revision to be '0014', got {heads[0]}"
+    assert heads[0] == "0015", f"Expected head revision to be '0015', got {heads[0]}"
 
     rev1 = script.get_revision("0001")
     assert rev1 is not None
@@ -103,6 +103,11 @@ def test_alembic_script_directory_and_head_revision():
     assert rev14 is not None
     assert "viewing" in rev14.doc.lower()
     assert rev14.down_revision == "0013"
+
+    rev15 = script.get_revision("0015")
+    assert rev15 is not None
+    assert "rental" in rev15.doc.lower()
+    assert rev15.down_revision == "0014"
 
 
 def test_alembic_offline_sql_generation(capsys):

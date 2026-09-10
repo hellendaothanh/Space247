@@ -14,6 +14,7 @@ from src.models.user import User
 from src.schemas.rental_management import (
     DepositApproveRequest,
     DepositTransactionResponse,
+    MonthlyCostEstimate,
     RentalInquiryCreate,
     RentalInquiryResponse,
     RentalPropertyModel,
@@ -26,6 +27,7 @@ from src.schemas.rental_management import (
     ViewingSlot,
 )
 from src.services.payment_service import PaymentService
+from src.services.rental import estimate_monthly_living_cost
 
 logger = logging.getLogger("space247_backend.rentals")
 router = APIRouter()
@@ -66,6 +68,9 @@ def _populate_property_response(prop: RentalProperty) -> RentalPropertyResponse:
         shared_costs=prop.shared_costs or {},
         shared_rules=prop.shared_rules or {},
         images=prop.images or [],
+        video_url=prop.video_url,
+        surroundings=prop.surroundings or [],
+        security_features=prop.security_features or [],
         is_active=prop.is_active,
         total_units_count=total_units,
         available_units_count=len(available_units),
@@ -269,6 +274,39 @@ async def get_viewing_calendar(inquiry_id: uuid.UUID, current_user: User = Depen
 
 
 @router.get(
+    "/{property_id}/cost-breakdown-calculator",
+    response_model=MonthlyCostEstimate,
+    summary="Smart living cost calculator: transparent monthly budget estimate for a room",
+)
+async def get_cost_breakdown_calculator(
+    property_id: uuid.UUID,
+    unit_id: uuid.UUID = Query(..., description="Phòng cần tính chi phí"),
+    occupants: int = Query(1, ge=1, le=8, description="Số người ở dự kiến"),
+    has_ac: bool = Query(True, description="Có sử dụng máy lạnh"),
+    has_fridge: bool = Query(True, description="Có sử dụng tủ lạnh"),
+    db: AsyncSession = Depends(get_db_session),
+) -> MonthlyCostEstimate:
+    unit = await db.get(RentalUnit, unit_id, options=(selectinload(RentalUnit.property),))
+    if not unit or unit.property_id != property_id or not unit.property:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy phòng trong khu trọ này")
+    if not unit.property.is_active:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Khu trọ hiện không còn công khai")
+    if unit.max_occupants is not None and occupants > unit.max_occupants:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Số người ở vượt quá sức chứa phòng")
+
+    return estimate_monthly_living_cost(
+        property_id=property_id,
+        unit_id=unit.id,
+        unit_number=unit.unit_number,
+        unit_price=float(unit.price),
+        shared_costs=unit.property.shared_costs,
+        occupants=occupants,
+        has_ac=has_ac,
+        has_fridge=has_fridge,
+    )
+
+
+@router.get(
     "/{property_id}",
     response_model=RentalPropertyResponse,
     summary="Get rental property details with units",
@@ -284,7 +322,7 @@ async def get_rental_property_details(
     )
     result = await db.execute(stmt)
     prop = result.scalar_one_or_none()
-    if not prop:
+    if not prop or not prop.is_active:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy khu trọ/căn hộ dịch vụ")
 
     return _populate_property_response(prop)

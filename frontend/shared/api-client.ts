@@ -45,6 +45,7 @@ import {
   RentalInquiry,
   RentalInquiryCreate,
   RentalProperty,
+  MonthlyCostEstimate,
   RentalPropertyCreate,
   RentalSearchFilterQuery,
   RentalUnit,
@@ -568,6 +569,11 @@ export class RealEstateApiClient {
 
   async getRentalProperty(id: string): Promise<RentalProperty> {
     return this.request<RentalProperty>(`/api/v1/rentals/${encodeURIComponent(id)}`, { method: "GET" });
+  }
+
+  async calculateRentalLivingCost(unitId: string, params: { property_id: string; occupants: number; has_ac: boolean; has_fridge: boolean }): Promise<MonthlyCostEstimate> {
+    const query = new URLSearchParams({ unit_id: unitId, occupants: String(params.occupants), has_ac: String(params.has_ac), has_fridge: String(params.has_fridge) });
+    return this.request<MonthlyCostEstimate>(`/api/v1/rentals/${encodeURIComponent(params.property_id)}/cost-breakdown-calculator?${query}`, { method: "GET" });
   }
 
   async inquireRentalUnit(unitId: string, data: RentalInquiryCreate): Promise<RentalInquiry> {

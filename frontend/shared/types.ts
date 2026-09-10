@@ -650,6 +650,11 @@ export type RentalUnitFurnishing = "empty" | "basic" | "full";
 export type RentalInquiryType = "view_appointment" | "booking_request";
 export type RentalInquiryStatus = "pending" | "confirmed" | "rejected" | "completed";
 
+export type RoomAmenity = "ac_inverter" | "fridge" | "water_heater" | "bed_mattress" | "study_desk" | "wardrobe" | "balcony" | "washing_machine" | "kitchen";
+export interface SurroundingPlace { label: string; category: string; distance_meters?: number | null; walk_minutes?: number | null; note?: string | null; }
+export interface CostLineItem { key: string; label: string; amount: number; note?: string | null; }
+export interface MonthlyCostEstimate { property_id?: string | null; unit_id?: string | null; unit_number: string; occupants: number; currency: "VND"; electricity: { ac_kwh: number; fridge_kwh: number; general_kwh: number; total_kwh: number; unit_price: number }; fixed_costs: CostLineItem[]; variable_costs: CostLineItem[]; estimated_total_monthly: number; per_person_monthly: number; }
+
 export interface RentalUnit {
   id: string;
   property_id: string;
@@ -664,9 +669,13 @@ export interface RentalUnit {
   has_private_bathroom: boolean;
   max_occupants?: number | null;
   images: string[];
+  floor_plan_url?: string | null;
+  room_amenities: RoomAmenity[];
   created_at: string;
   updated_at: string;
 }
+
+export type RentalUnitDetail = RentalUnit;
 
 export interface RentalUnitCreate {
   unit_number: string;
@@ -680,6 +689,8 @@ export interface RentalUnitCreate {
   has_private_bathroom?: boolean;
   max_occupants?: number | null;
   images?: string[];
+  floor_plan_url?: string | null;
+  room_amenities?: RoomAmenity[];
 }
 
 export interface RentalPropertyHostSummary {
@@ -706,6 +717,9 @@ export interface RentalProperty {
   shared_costs?: Record<string, any>;
   shared_rules?: Record<string, any>;
   images: string[];
+  video_url?: string | null;
+  surroundings: SurroundingPlace[];
+  security_features: string[];
   is_active: boolean;
   total_units_count: number;
   available_units_count: number;
@@ -729,6 +743,9 @@ export interface RentalPropertyCreate {
   shared_costs?: Record<string, any>;
   shared_rules?: Record<string, any>;
   images?: string[];
+  video_url?: string | null;
+  surroundings?: SurroundingPlace[];
+  security_features?: string[];
   is_active?: boolean;
   initial_units?: RentalUnitCreate[];
 }

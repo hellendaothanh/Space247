@@ -23,6 +23,7 @@ import {
 import type { RentalProperty, RentalUnit, ViewingSlot } from "@shared/types";
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { RentalExperience } from "@/components/rentals/RentalExperience";
 
 export default function RentalPropertyDetailPage({
   params,
@@ -195,6 +196,8 @@ export default function RentalPropertyDetailPage({
         )}
       </div>
 
+      <RentalExperience property={property} onBook={setSelectedUnit} />
+
       {/* Grid: Shared Fees & Shared Rules */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Transparent Utility Costs */}
@@ -229,7 +232,7 @@ export default function RentalPropertyDetailPage({
               <strong className="text-slate-900 font-bold">
                 {costs.parking_fee_monthly != null
                   ? `${costs.parking_fee_monthly.toLocaleString("vi-VN")} đ/tháng`
-                  : "Miễn phí / Chưa có"}
+                  : "Chưa cung cấp"}
               </strong>
             </div>
 
@@ -238,7 +241,7 @@ export default function RentalPropertyDetailPage({
               <strong className="text-slate-900 font-bold">
                 {costs.wifi_fee != null
                   ? `${costs.wifi_fee.toLocaleString("vi-VN")} đ/tháng`
-                  : "Miễn phí"}
+                  : "Chưa cung cấp"}
               </strong>
             </div>
           </div>
