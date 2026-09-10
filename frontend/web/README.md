@@ -124,4 +124,4 @@ Thư viện dùng chung từ thư mục cấp cha:
 7. **Công cụ Định giá Thông minh (AVM Price Advisor)**: Hỗ trợ môi giới ước tính khoảng giá thị trường tối ưu khi đăng tin.
 # Rental detail experience
 
-`/rentals/[id]` displays a multi-layer gallery, safe YouTube/TikTok review tab, room media/floor plans, amenity and occupancy badges, an API-backed monthly cost calculator, commute cards and security/PCCC commitments. The calculator keeps the latest request result when users change room or options quickly.
+`/rentals/[id]` displays a multi-layer gallery, safe YouTube/TikTok review tab, and a unified “Bảng Chọn Phòng & Dự Toán Chi Phí”. Selecting one room card updates its gallery, capacity-limited 1–2 person estimate and the corresponding booking action; there is no duplicate room list. The calculator keeps the latest request result when users change room or options quickly.

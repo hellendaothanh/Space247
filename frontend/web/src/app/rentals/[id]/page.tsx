@@ -196,7 +196,11 @@ export default function RentalPropertyDetailPage({
         )}
       </div>
 
-      <RentalExperience property={property} onBook={setSelectedUnit} />
+      <RentalExperience property={property} onAction={(unit, action) => {
+        setSelectedUnit(unit);
+        setInquiryType(action === "deposit" ? "booking_request" : "view_appointment");
+        setSelectedSlot(null);
+      }} />
 
       {/* Grid: Shared Fees & Shared Rules */}
       <div className="grid gap-6 md:grid-cols-2">
@@ -273,106 +277,6 @@ export default function RentalPropertyDetailPage({
           </div>
         </section>
       </div>
-
-      {/* Available Units Section */}
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-xl font-extrabold text-slate-900">
-            Danh sách phòng & căn hộ ({(property.units || []).length} phòng)
-          </h2>
-          <p className="text-slate-500 text-xs">
-            Xem thực tế trạng thái phòng còn trống để đặt lịch hẹn hoặc giữ chỗ
-          </p>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {(property.units || []).map((unit) => {
-            const isAvailable = unit.status === "available";
-
-            return (
-              <div
-                key={unit.id}
-                className={`rounded-3xl border p-5 space-y-4 transition ${
-                  isAvailable
-                    ? "border-slate-200 bg-white shadow-xs hover:border-blue-400 hover:shadow-md"
-                    : "border-slate-100 bg-slate-50 opacity-70"
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <span className="text-xs font-bold text-slate-400">Phòng</span>
-                    <h3 className="text-lg font-extrabold text-slate-900">{unit.unit_number}</h3>
-                    {unit.floor != null && <p className="text-xs text-slate-500">Tầng {unit.floor}</p>}
-                  </div>
-
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-                      unit.status === "available"
-                        ? "bg-emerald-100 text-emerald-800"
-                        : unit.status === "occupied"
-                        ? "bg-slate-200 text-slate-600"
-                        : "bg-amber-100 text-amber-800"
-                    }`}
-                  >
-                    {unit.status === "available"
-                      ? "Còn trống"
-                      : unit.status === "occupied"
-                      ? "Đã thuê"
-                      : "Đang giữ chỗ"}
-                  </span>
-                </div>
-
-                {/* Unit Amenities */}
-                <div className="flex flex-wrap gap-2 text-xs text-slate-600">
-                  <span className="flex items-center gap-1">
-                    <Maximize2 className="h-3.5 w-3.5 text-slate-400" />
-                    {unit.area_sqm} m²
-                  </span>
-                  {unit.has_mezzanine && (
-                    <span className="flex items-center gap-1 text-blue-700 font-medium">
-                      <Layers className="h-3.5 w-3.5" /> Có gác lửng
-                    </span>
-                  )}
-                  {unit.has_private_bathroom && (
-                    <span className="flex items-center gap-1 text-slate-600">
-                      <Bath className="h-3.5 w-3.5" /> WC khép kín
-                    </span>
-                  )}
-                  <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px]">
-                    {unit.furnishing === "full"
-                      ? "Full nội thất"
-                      : unit.furnishing === "basic"
-                      ? "Nội thất cơ bản"
-                      : "Phòng trống"}
-                  </span>
-                </div>
-
-                {/* Unit Price & CTA */}
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <div>
-                    <span className="text-xs text-slate-400">Giá thuê</span>
-                    <div className="text-base font-extrabold text-blue-600">
-                      {unit.price.toLocaleString("vi-VN")} đ
-                      <span className="text-xs font-normal text-slate-500">{priceUnit}</span>
-                    </div>
-                  </div>
-
-                  {isAvailable ? (
-                    <button
-                      onClick={() => setSelectedUnit(unit)}
-                      className="rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-blue-700 transition"
-                    >
-                      Đặt lịch xem
-                    </button>
-                  ) : (
-                    <span className="text-xs text-slate-400 font-medium">Không khả dụng</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
 
       {/* Booking / Appointment Modal */}
       {selectedUnit && (
