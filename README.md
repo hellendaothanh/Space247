@@ -358,3 +358,7 @@ CCCD front/back uploads use private storage only. Development defaults to `backe
 # Rental Experience & Tenant Conversion Suite
 
 Rental detail pages now combine building and room galleries, approved video embeds, room-level amenities/capacity/floor-plan links, monthly cost estimates, nearby commute cards and security commitments. Apply Alembic revision `0015` before serving the new metadata. The cost estimate uses 120 kWh/month for air conditioning, 30 kWh for a refrigerator, 30 kWh general use, and 2 m³/person for per-m³ water; any unpublished rate is explicitly marked as an assumption or excluded from the total.
+
+### Superadmin User Management & KYC Audit Portal
+
+Alembic revision `0016` adds account lock state and its audit reason. `/admin/users` and `/admin/kyc` require the `superadmin` role; account locks invalidate subsequent authenticated access. KYC review returns only masked identity information and keeps document retrieval behind the existing temporary private grants.

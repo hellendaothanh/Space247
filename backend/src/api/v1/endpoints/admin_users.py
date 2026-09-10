@@ -11,6 +11,8 @@ from src.core.security import hash_password
 from src.models.alert import SavedSearchAlert
 from src.models.favorite import FavoriteProperty
 from src.models.property import Property
+from src.models.rental_property import DepositTransaction
+from src.models.kyc import UserKycVerification
 from src.models.user import User, UserRole
 from src.schemas.user import (
     UserAdminDetailResponse,
@@ -18,6 +20,8 @@ from src.schemas.user import (
     UserPaginationResponse,
     UserResponse,
     UserUpdateByAdminRequest,
+    UpdateUserRolePayload,
+    ToggleUserStatusPayload,
 )
 
 logger = logging.getLogger("space247_backend.admin_users")
@@ -31,9 +35,11 @@ router = APIRouter(dependencies=[Depends(get_current_superadmin_user)])
     summary="List users with filtering, search, and pagination (Superadmin only)",
 )
 async def list_users(
-    q: str | None = Query(None, description="Search term for name or email"),
+    q: str | None = Query(None, description="Search term for name, email, or phone"),
     role: str | None = Query(None, description="Filter by user role"),
     is_active: bool | None = Query(None, description="Filter by active status"),
+    is_banned: bool | None = Query(None, description="Filter by banned status"),
+    kyc_status: str | None = Query(None, description="Filter by KYC status"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Page size"),
     db: AsyncSession = Depends(get_db_session),
@@ -49,12 +55,19 @@ async def list_users(
             or_(
                 func.lower(User.email).ilike(search_term),
                 func.lower(User.full_name).ilike(search_term),
+                func.lower(func.coalesce(User.phone, "")).ilike(search_term),
             )
         )
     if role:
         filters.append(User.role == role.strip().lower())
     if is_active is not None:
         filters.append(User.is_active == is_active)
+    if is_banned is not None:
+        filters.append(User.is_banned == is_banned)
+    if kyc_status:
+        stmt = stmt.join(UserKycVerification, UserKycVerification.user_id == User.id)
+        count_stmt = count_stmt.join(UserKycVerification, UserKycVerification.user_id == User.id)
+        filters.append(UserKycVerification.status == kyc_status.strip().lower())
 
     if filters:
         for f in filters:
@@ -153,6 +166,15 @@ async def get_user_detail(
     alert_res = await db.execute(alert_stmt)
     total_alerts = alert_res.scalar() or 0
 
+    properties_res = await db.execute(select(Property).where(Property.user_id == user.id).order_by(Property.created_at.desc()).limit(20))
+    deposits_res = await db.execute(
+        select(DepositTransaction).where(
+            or_(DepositTransaction.tenant_id == user.id, DepositTransaction.host_id == user.id)
+        ).order_by(DepositTransaction.created_at.desc()).limit(20)
+    )
+    kyc_res = await db.execute(select(UserKycVerification).where(UserKycVerification.user_id == user.id))
+    kyc = kyc_res.scalar_one_or_none()
+
     return UserAdminDetailResponse(
         id=user.id,
         email=user.email,
@@ -169,7 +191,50 @@ async def get_user_detail(
         total_properties=total_properties,
         total_favorites=total_favorites,
         total_alerts=total_alerts,
+        properties=[{"id": str(item.id), "title": item.title, "status": item.status, "price": float(item.price)} for item in properties_res.scalars().all()],
+        deposit_transactions=[{"id": str(item.id), "amount": float(item.amount), "status": item.status, "reference_code": item.reference_code, "created_at": item.created_at} for item in deposits_res.scalars().all()],
+        kyc_status=kyc.status if kyc else None,
     )
+
+
+@router.patch("/{user_id}/role", response_model=UserResponse)
+async def update_user_role(
+    user_id: uuid.UUID,
+    payload: UpdateUserRolePayload,
+    current_superadmin: User = Depends(get_current_superadmin_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> UserResponse:
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Không tìm thấy người dùng.")
+    if user.id == current_superadmin.id and payload.role != UserRole.SUPERADMIN:
+        raise HTTPException(status_code=400, detail="Không thể tự giáng quyền tài khoản Superadmin đang đăng nhập.")
+    user.role = payload.role.value
+    await db.flush()
+    await db.refresh(user)
+    return UserResponse.model_validate(user)
+
+
+@router.post("/{user_id}/toggle-status", response_model=UserResponse)
+async def toggle_user_status(
+    user_id: uuid.UUID,
+    payload: ToggleUserStatusPayload,
+    current_superadmin: User = Depends(get_current_superadmin_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> UserResponse:
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Không tìm thấy người dùng.")
+    if user.id == current_superadmin.id and payload.is_banned:
+        raise HTTPException(status_code=400, detail="Không thể khóa tài khoản Superadmin đang đăng nhập.")
+    user.is_banned = payload.is_banned
+    user.is_active = not payload.is_banned
+    user.ban_reason = payload.reason.strip() if payload.is_banned and payload.reason else None
+    await db.flush()
+    await db.refresh(user)
+    return UserResponse.model_validate(user)
 
 
 @router.put(

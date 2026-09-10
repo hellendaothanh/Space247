@@ -49,6 +49,7 @@ export default function AdminUsersPage() {
   const [activeSearch, setActiveSearch] = useState<string>("");
   const [roleFilter, setRoleFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [kycFilter, setKycFilter] = useState<string>("");
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -92,6 +93,7 @@ export default function AdminUsersPage() {
         q: activeSearch.trim() || undefined,
         role: roleFilter || undefined,
         is_active: activeParam,
+        kyc_status: kycFilter || undefined,
         page,
         page_size: pageSize,
       });
@@ -108,7 +110,7 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, activeSearch, roleFilter, statusFilter, page, pageSize]);
+  }, [token, activeSearch, roleFilter, statusFilter, kycFilter, page, pageSize]);
 
   useEffect(() => {
     fetchUsers();
@@ -125,6 +127,7 @@ export default function AdminUsersPage() {
     setActiveSearch("");
     setRoleFilter("");
     setStatusFilter("");
+    setKycFilter("");
     setPage(1);
   };
 
@@ -221,15 +224,16 @@ export default function AdminUsersPage() {
       return;
     }
 
-    const nextState = !targetUser.is_active;
+    const nextState = !targetUser.is_banned;
     const confirmMsg = nextState
       ? `Bạn có chắc chắn muốn kích hoạt lại tài khoản ${targetUser.email}?`
       : `Bạn có chắc chắn muốn khóa tài khoản ${targetUser.email}? Người dùng này sẽ không thể đăng nhập.`;
 
     if (!window.confirm(confirmMsg)) return;
+    const reason = nextState ? undefined : window.prompt("Lý do khóa tài khoản (tùy chọn):")?.trim();
 
     try {
-      await apiClient.updateAdminUser(targetUser.id, { is_active: nextState });
+      await apiClient.toggleUserStatus(targetUser.id, { is_banned: !nextState, reason });
       setFeedback({
         type: "success",
         text: `Đã ${nextState ? "kích hoạt" : "vô hiệu hóa"} tài khoản ${targetUser.email}.`,
@@ -431,6 +435,15 @@ export default function AdminUsersPage() {
                 <option value="">Tất cả trạng thái</option>
                 <option value="active">Đang hoạt động</option>
                 <option value="inactive">Đã vô hiệu hóa</option>
+              </select>
+            </div>
+
+            <div className="sm:col-span-2">
+              <select value={kycFilter} onChange={(e) => { setKycFilter(e.target.value); setPage(1); }} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-700 focus:border-blue-500 focus:outline-none">
+                <option value="">Tất cả KYC</option>
+                <option value="pending">Chờ duyệt KYC</option>
+                <option value="verified">Đã xác thực KYC</option>
+                <option value="rejected">KYC bị từ chối</option>
               </select>
             </div>
 

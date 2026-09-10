@@ -33,6 +33,8 @@ class User(Base):
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     role: Mapped[str] = mapped_column(String(20), nullable=False, default=UserRole.USER.value)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    is_banned: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    ban_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
@@ -74,6 +76,10 @@ class User(Base):
                 kwargs["role"] = kwargs["role"].split(".", 1)[1].lower()
         if "is_active" not in kwargs or kwargs["is_active"] is None:
             kwargs["is_active"] = True
+        if "is_banned" not in kwargs or kwargs["is_banned"] is None:
+            kwargs["is_banned"] = False
+        if "ban_reason" not in kwargs:
+            kwargs["ban_reason"] = None
         if "phone_verified" not in kwargs or kwargs["phone_verified"] is None:
             kwargs["phone_verified"] = False
         if "last_login_at" not in kwargs:

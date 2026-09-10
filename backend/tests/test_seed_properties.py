@@ -279,7 +279,7 @@ async def test_seed_users_idempotency():
     assert len(users_map_second) == 5
     assert users_map_second["host@space247.vn"].role == "host"
     assert users_map_second["superadmin@space247.vn"].role == "superadmin"
-    assert users_map_second["admin@space247.vn"].role == "admin"
+    assert users_map_second["admin@space247.vn"].role == "superadmin"
     assert users_map_second["agent@space247.vn"].role == "agent"
     assert users_map_second["user@space247.vn"].role == "user"
     assert len(added_users) == 0  # No new users added

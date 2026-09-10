@@ -1897,7 +1897,7 @@ DEFAULT_SEED_USERS: list[dict[str, Any]] = [
         "full_name": "Quản Trị Viên Space247",
         "phone": "0901234567",
         "password": "Password123@",
-        "role": UserRole.ADMIN.value,
+        "role": UserRole.SUPERADMIN.value,
         "phone_verified": True,
     },
     {

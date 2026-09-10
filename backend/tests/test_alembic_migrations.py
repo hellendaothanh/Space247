@@ -37,7 +37,7 @@ def test_alembic_script_directory_and_head_revision():
 
     heads = script.get_heads()
     assert len(heads) == 1, f"Expected exactly 1 head revision, got {heads}"
-    assert heads[0] == "0015", f"Expected head revision to be '0015', got {heads[0]}"
+    assert heads[0] == "0016", f"Expected head revision to be '0016', got {heads[0]}"
 
     rev1 = script.get_revision("0001")
     assert rev1 is not None

@@ -200,6 +200,8 @@ export interface UserResponse extends UserBase {
   phone_number?: string | null;
   avatar_url?: string | null;
   is_active: boolean;
+  is_banned?: boolean;
+  ban_reason?: string | null;
   phone_verified: boolean;
   last_login_at?: string | null;
   created_at: string;
@@ -671,6 +673,34 @@ export interface RentalUnit {
   images: string[];
   floor_plan_url?: string | null;
   room_amenities: RoomAmenity[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminUserListItem extends UserResponse {
+  kyc_status?: KycVerificationStatus | null;
+}
+
+export interface AdminUserDetail extends AdminUserListItem {
+  total_properties: number;
+  total_favorites: number;
+  total_alerts: number;
+  properties: Array<{ id: string; title: string; status: string; price: number }>;
+  deposit_transactions: Array<{ id: string; amount: number; status: string; reference_code: string; created_at: string }>;
+}
+
+export interface UpdateUserRolePayload { role: UserRole; }
+export interface ToggleUserStatusPayload { is_banned: boolean; reason?: string; }
+export interface KYCReviewPayload { action: "approve" | "reject"; reason?: string; }
+export interface AdminUserStats { total_users: number; agents: number; banned_users: number; pending_kyc: number; }
+
+export interface PendingKycUser {
+  user_id: string;
+  full_name: string;
+  email: string;
+  phone?: string | null;
+  status: KycVerificationStatus;
+  masked_citizen_id: string;
   created_at: string;
   updated_at: string;
 }

@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from src.api.v1.endpoints import (
     admin_users,
+    admin_kyc,
     agent,
     alerts,
     auth,
@@ -26,6 +27,7 @@ api_router.include_router(health.router, prefix="/health", tags=["health"])
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(admin_users.router, prefix="/admin/users", tags=["admin-users"])
+api_router.include_router(admin_kyc.router, prefix="/admin/kyc", tags=["admin-kyc"])
 api_router.include_router(properties.router, prefix="/properties", tags=["properties"])
 api_router.include_router(rentals.router, prefix="/rentals", tags=["rentals"])
 api_router.include_router(host.router, prefix="/host", tags=["host"])

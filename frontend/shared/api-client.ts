@@ -6,6 +6,11 @@
 
 import {
   AmenityHeatmapQuery,
+  AdminUserDetail,
+  UpdateUserRolePayload,
+  ToggleUserStatusPayload,
+  KYCReviewPayload,
+  PendingKycUser,
   AmenityHeatmapResponse,
   AuthTokenResponse,
   ChangePasswordRequest,
@@ -199,6 +204,8 @@ export class RealEstateApiClient {
     q?: string;
     role?: string;
     is_active?: boolean;
+    is_banned?: boolean;
+    kyc_status?: string;
     page?: number;
     page_size?: number;
   }): Promise<UserPaginationResponse> {
@@ -206,6 +213,8 @@ export class RealEstateApiClient {
     if (params?.q) searchParams.append("q", params.q);
     if (params?.role) searchParams.append("role", params.role);
     if (params?.is_active !== undefined) searchParams.append("is_active", String(params.is_active));
+    if (params?.is_banned !== undefined) searchParams.append("is_banned", String(params.is_banned));
+    if (params?.kyc_status) searchParams.append("kyc_status", params.kyc_status);
     if (params?.page) searchParams.append("page", String(params.page));
     if (params?.page_size) searchParams.append("page_size", String(params.page_size));
 
@@ -569,6 +578,26 @@ export class RealEstateApiClient {
 
   async getRentalProperty(id: string): Promise<RentalProperty> {
     return this.request<RentalProperty>(`/api/v1/rentals/${encodeURIComponent(id)}`, { method: "GET" });
+  }
+
+  async getAdminUserDetail(userId: string): Promise<AdminUserDetail> {
+    return this.request<AdminUserDetail>(`/api/v1/admin/users/${encodeURIComponent(userId)}`);
+  }
+
+  async updateUserRole(userId: string, data: UpdateUserRolePayload): Promise<UserResponse> {
+    return this.request<UserResponse>(`/api/v1/admin/users/${encodeURIComponent(userId)}/role`, { method: "PATCH", body: JSON.stringify(data) });
+  }
+
+  async toggleUserStatus(userId: string, data: ToggleUserStatusPayload): Promise<UserResponse> {
+    return this.request<UserResponse>(`/api/v1/admin/users/${encodeURIComponent(userId)}/toggle-status`, { method: "POST", body: JSON.stringify(data) });
+  }
+
+  async getPendingKYCList(): Promise<PendingKycUser[]> {
+    return this.request<PendingKycUser[]>("/api/v1/admin/kyc/pending");
+  }
+
+  async reviewKYC(userId: string, data: KYCReviewPayload): Promise<{ status: string; message: string }> {
+    return this.request(`/api/v1/admin/kyc/${encodeURIComponent(userId)}/review`, { method: "POST", body: JSON.stringify(data) });
   }
 
   async calculateRentalLivingCost(unitId: string, params: { property_id: string; occupants: number; has_ac: boolean; has_fridge: boolean }): Promise<MonthlyCostEstimate> {

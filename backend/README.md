@@ -196,9 +196,13 @@ uv run alembic revision --autogenerate -m "mo_ta_thay_doi"
 
 | Vai trò | Địa chỉ Email | Mật khẩu mặc định | Quyền hạn |
 |---|---|---|---|
-| Admin | admin@space247.vn | Password123@ | Toàn quyền quản trị hệ thống |
+| Superadmin | admin@space247.vn | Password123@ | Toàn quyền quản trị hệ thống và duyệt KYC |
 | Agent | agent@space247.vn | Password123@ | Quyền đăng tin, cập nhật tin đăng và sử dụng Agent AI Co-Pilot |
 | User | Đăng ký tại `/api/v1/auth/register` | Tùy chọn | Tìm kiếm, lưu yêu thích, tạo cảnh báo và tính vay |
 # Rental experience API
 
 Revision `0015` adds room media/amenities/floor plans and property video, surroundings and security metadata. `GET /api/v1/rentals/{id}/cost-breakdown-calculator?unit_id={unit_id}&occupants=2&has_ac=true&has_fridge=true` returns fixed and variable VND estimates, electricity assumptions, monthly total and per-person total. The endpoint rejects rooms outside the requested property, inactive properties and occupants above room capacity.
+
+# Superadmin user and KYC audit API
+
+Revision `0016` adds `users.is_banned` and `users.ban_reason`. Only `superadmin` can use `/api/v1/admin/users` and `/api/v1/admin/kyc`; banned accounts are rejected by authenticated dependencies. KYC reviews create an in-app notification and preserve private document access through the existing temporary-grant route.

@@ -58,7 +58,7 @@ async def get_current_active_user(
     current_user: User = Depends(get_current_user),
 ) -> User:
     """Ensure the authenticated user account is active."""
-    if not current_user.is_active:
+    if not current_user.is_active or current_user.is_banned:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Inactive user account",
@@ -105,7 +105,18 @@ def require_roles(allowed_roles: list[str]):
     return role_checker
 
 
-get_current_superadmin_user = require_roles(["superadmin"])
+async def get_current_superadmin(
+    current_user: User = Depends(get_current_active_user),
+) -> User:
+    if current_user.role != "superadmin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Yêu cầu quyền truy cập cấp cao.",
+        )
+    return current_user
+
+
+get_current_superadmin_user = get_current_superadmin
 get_current_host_user = require_roles(["host", "agent", "admin", "superadmin"])
 
 

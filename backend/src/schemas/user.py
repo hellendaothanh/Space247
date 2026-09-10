@@ -49,6 +49,8 @@ class UserResponse(UserBase):
     phone_number: str | None = None
     avatar_url: str | None = None
     is_active: bool
+    is_banned: bool = False
+    ban_reason: str | None = None
     phone_verified: bool = False
     last_login_at: datetime | None = None
     created_at: datetime
@@ -88,6 +90,9 @@ class UserAdminDetailResponse(UserResponse):
     total_properties: int = 0
     total_favorites: int = 0
     total_alerts: int = 0
+    properties: list[dict] = []
+    deposit_transactions: list[dict] = []
+    kyc_status: str | None = None
 
 
 class UserPaginationResponse(BaseModel):
@@ -96,6 +101,31 @@ class UserPaginationResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+class UpdateUserRolePayload(BaseModel):
+    role: UserRole
+
+
+class ToggleUserStatusPayload(BaseModel):
+    is_banned: bool
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class KYCReviewPayload(BaseModel):
+    action: str = Field(pattern="^(approve|reject)$")
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class KycPendingUserResponse(BaseModel):
+    user_id: uuid.UUID
+    full_name: str
+    email: EmailStr
+    phone: str | None = None
+    status: str
+    masked_citizen_id: str
+    created_at: datetime
+    updated_at: datetime
 
 
 class Token(BaseModel):

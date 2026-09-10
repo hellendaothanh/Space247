@@ -290,7 +290,16 @@ async def test_superadmin_get_user_detail(superadmin_user, regular_user):
     count_alert = MagicMock()
     count_alert.scalar.return_value = 1
 
-    mock_session.execute.side_effect = [user_result, count_prop, count_fav, count_alert]
+    properties_result = MagicMock()
+    properties_result.scalars.return_value.all.return_value = []
+    deposits_result = MagicMock()
+    deposits_result.scalars.return_value.all.return_value = []
+    kyc_result = MagicMock()
+    kyc_result.scalar_one_or_none.return_value = None
+
+    mock_session.execute.side_effect = [
+        user_result, count_prop, count_fav, count_alert, properties_result, deposits_result, kyc_result,
+    ]
 
     app.dependency_overrides[get_db_session] = lambda: mock_session
     app.dependency_overrides[get_current_active_user] = lambda: superadmin_user

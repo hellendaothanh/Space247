@@ -361,14 +361,10 @@ function NavbarContent() {
                     </Link>
 
                     {user.role === "superadmin" && (
-                      <Link
-                        href="/admin/users"
-                        onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-purple-700 bg-purple-50/50 hover:bg-purple-100/70 transition"
-                      >
-                        <ShieldCheck className="h-4 w-4 text-purple-600" />
-                        <span>Quản lý người dùng (RBAC)</span>
-                      </Link>
+                      <>
+                        <Link href="/admin/users" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-purple-700 bg-purple-50/50 hover:bg-purple-100/70 transition"><ShieldCheck className="h-4 w-4 text-purple-600" /><span>Trang Quản Trị Hệ Thống</span></Link>
+                        <Link href="/admin/kyc" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-purple-700 hover:bg-purple-50 transition"><ShieldCheck className="h-4 w-4 text-purple-600" /><span>Duyệt hồ sơ KYC</span></Link>
+                      </>
                     )}
 
                     <Link
@@ -551,14 +547,7 @@ function NavbarContent() {
                   <span>Hồ sơ tài khoản ({user.full_name})</span>
                 </Link>
                 {user.role === "superadmin" && (
-                  <Link
-                    href="/admin/users"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-purple-700 bg-purple-50/50 hover:bg-purple-100 transition"
-                  >
-                    <ShieldCheck className="h-4 w-4 text-purple-600" />
-                    <span>Quản lý người dùng (RBAC)</span>
-                  </Link>
+                  <><Link href="/admin/users" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-purple-700 bg-purple-50/50 hover:bg-purple-100 transition"><ShieldCheck className="h-4 w-4 text-purple-600" /><span>Trang Quản Trị Hệ Thống</span></Link><Link href="/admin/kyc" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-purple-700 hover:bg-purple-50 transition"><ShieldCheck className="h-4 w-4 text-purple-600" /><span>Duyệt hồ sơ KYC</span></Link></>
                 )}
               </div>
             ) : (
