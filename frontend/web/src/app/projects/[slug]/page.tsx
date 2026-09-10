@@ -428,7 +428,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
-              <MortgageCalculator propertyPrice={project.price_range_min || 3_000_000_000} propertyTitle={project.name} />
             </div>
           </div>
         )}
@@ -568,6 +567,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           </div>
         )}
       </div>
+      <section className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8">
+        <MortgageCalculator propertyPrice={project.price_range_min || 3_000_000_000} propertyTitle={project.name} />
+      </section>
     </div>
   );
 }
