@@ -1,6 +1,7 @@
 /**
  * Space247 - Shared DTOs and Type Definitions
- * Shared between Web (Next.js) and Mobile (React Native / Flutter)
+ * TypeScript DTOs consumed by the Web app (Next.js). The Flutter mobile app
+ * uses its own Dart client (frontend/mobile/lib/core/api_client.dart).
  */
 
 export type ListingType = "sale" | "rent";
@@ -119,23 +120,6 @@ export interface PropertyDetailResponse extends PropertyResponse {
   agent?: PropertyAgent | null;
 }
 
-export interface SemanticSearchQuery extends RentalFilters {
-  query_vector: number[]; // 768 dimensions
-  listing_type?: ListingType;
-  property_type?: PropertyType;
-  address?: string;
-  city?: string;
-  district?: string;
-  num_bedrooms?: number;
-  min_bedrooms?: number;
-  min_price?: number;
-  max_price?: number;
-  min_area_sqm?: number;
-  max_area_sqm?: number;
-  limit?: number;
-  threshold?: number;
-}
-
 export interface PropertySearchQuery extends RentalFilters {
   query: string; // Natural language query text in Vietnamese or English
   listing_type?: ListingType;
@@ -169,25 +153,11 @@ export interface SearchResultItem {
   fts_rank?: number | null;
 }
 
-export interface SemanticSearchResponse {
-  total: number;
-  vector_dim: number;
-  results: SearchResultItem[];
-}
-
 export interface PropertySearchResponse {
   total: number;
   vector_dim: number;
   query?: string | null;
   results: SearchResultItem[];
-}
-
-export interface HealthResponse {
-  status: "healthy" | "unhealthy";
-  database: "connected" | "disconnected";
-  pgvector: "enabled" | "disabled";
-  vector_dim: number;
-  detail?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -210,13 +180,6 @@ export interface UserRegisterRequest extends UserBase {
 export interface UserLoginRequest {
   email: string;
   password: string;
-}
-
-export interface UserUpdate {
-  full_name?: string;
-  phone?: string | null;
-  phone_number?: string | null;
-  avatar_url?: string | null;
 }
 
 export interface UserProfileUpdateRequest {
@@ -283,12 +246,6 @@ export interface UserUpdateByAdminRequest {
   is_active?: boolean;
   phone_verified?: boolean;
   reset_password?: string;
-}
-
-export interface UserAdminDetailResponse extends UserResponse {
-  total_properties: number;
-  total_favorites: number;
-  total_alerts: number;
 }
 
 export interface UserPaginationResponse {
@@ -637,14 +594,6 @@ export interface ProjectBase {
   amenities?: string[];
 }
 
-export interface ProjectCreate extends ProjectBase {
-  embedding?: number[] | null;
-}
-
-export interface ProjectUpdate extends Partial<ProjectBase> {
-  embedding?: number[] | null;
-}
-
 export interface ProjectSummary {
   id: string;
   name: string;
@@ -851,22 +800,6 @@ export interface RentalContract {
   unit?: RentalUnit | null;
 }
 
-export interface RentalContractCreate {
-  unit_id: string;
-  tenant_id: string;
-  tenant_name: string;
-  tenant_phone: string;
-  start_date: string;
-  end_date?: string | null;
-  rental_price: number;
-  deposit_amount?: number;
-  payment_cycle_months?: number;
-  electricity_rate?: number;
-  water_rate?: number;
-  water_billing_type?: string;
-  service_fee?: number;
-}
-
 export interface MeterReadingInput {
   contract_id: string;
   electricity_previous: number;
@@ -938,16 +871,6 @@ export interface DepositTransaction {
   created_at: string;
 }
 
-export interface PaymentWebhookPayload {
-  provider?: string;
-  reference_code: string;
-  amount: number;
-  transaction_id?: string | null;
-  transaction_date?: string | null;
-  status?: string;
-  data?: Record<string, any> | null;
-}
-
 export interface RentalSearchFilterQuery {
   skip?: number;
   limit?: number;
@@ -986,28 +909,6 @@ export interface ViewingBookingRequest {
   tenant_name?: string;
   tenant_phone?: string;
   message?: string;
-}
-
-export interface HostSchedule {
-  day_of_week: number;
-  start_time: string;
-  end_time: string;
-  slot_duration_minutes: number;
-  is_active: boolean;
-}
-
-export type TimeSlot = ViewingSlot;
-export type AppointmentBookingPayload = ViewingBookingRequest;
-
-export interface AvailableSlotsResponse {
-  date: string;
-  slots: TimeSlot[];
-}
-
-export interface ViewingCalendarResponse {
-  inquiry_id: string;
-  google_calendar_url: string;
-  ical_uid: string;
 }
 
 

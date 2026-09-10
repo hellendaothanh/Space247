@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { SearchResultItem, PropertyResponse, ListingType } from "@shared/types";
 import { apiClient } from "@/lib/api";
 import SearchSection, { FilterState } from "@/components/SearchSection";
-import PropertyCard from "@/components/PropertyCard";
+import PropertyCard from "@/components/common/PropertyCard";
 import PropertyMap from "@/components/PropertyMap";
 import { Compass, Building, AlertCircle, RefreshCw, LayoutGrid, Map as MapIcon } from "lucide-react";
 

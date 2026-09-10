@@ -3,13 +3,13 @@ import re
 import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from pydantic import ValidationError
-from sqlalchemy import func, or_, select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.alert_service import background_evaluate_property_alerts
 
-from src.api.deps import get_current_active_user, get_optional_current_user
+from src.api.deps import get_current_active_user
 from src.core.cache import (
     generate_property_cache_key,
     generate_search_cache_key,
@@ -26,7 +26,6 @@ from src.models.user import User
 from src.schemas.property import (
     ListingType,
     RentalFilters,
-    PropertyAgentResponse,
     PropertyCreate,
     PropertyDetailResponse,
     PropertyResponse,

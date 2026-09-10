@@ -1,6 +1,5 @@
 import json
 import logging
-from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from geoalchemy2.functions import ST_GeomFromGeoJSON, ST_SetSRID, ST_Within
 from sqlalchemy import func, select
@@ -10,7 +9,6 @@ from src.core.database import get_db_session
 from src.models.property import Property
 from src.schemas.property import PropertyResponse, PropertyStatus
 from src.schemas.spatial import (
-    AmenityCategory,
     AmenityHeatmapResponse,
     IsochronePropertyItem,
     IsochroneSearchRequest,

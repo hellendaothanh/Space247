@@ -1,14 +1,13 @@
 from datetime import date, datetime, time, timedelta, timezone
 import logging
-from typing import Any
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.deps import get_current_active_user, get_current_host_user, get_optional_current_user
+from src.api.deps import get_current_active_user, get_current_host_user
 from src.core.database import get_db_session
 from src.models.rental_property import DepositTransaction, HostViewingBlockedDate, HostViewingSchedule, RentalInquiry, RentalProperty, RentalUnit
 from src.models.user import User
@@ -19,7 +18,6 @@ from src.schemas.rental_management import (
     RentalInquiryResponse,
     RentalPropertyModel,
     RentalPropertyResponse,
-    RentalSearchFilter,
     RentalUnitFurnishing,
     RentalUnitResponse,
     RentalUnitStatus,
@@ -28,7 +26,6 @@ from src.schemas.rental_management import (
     ViewingSlot,
 )
 from src.services.payment_service import PaymentService
-from src.services.viewing_calendar import calendar_values
 
 logger = logging.getLogger("space247_backend.rentals")
 router = APIRouter()

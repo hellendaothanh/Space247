@@ -1,5 +1,5 @@
 "use client";
-import RentalForm, { rentalSchema, type RentalValue } from "@/components/RentalForm";
+import RentalForm, { rentalSchema, type RentalValue } from "@/components/common/RentalForm";
 
 import { useState, useEffect, useTransition, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -29,8 +29,8 @@ import { apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { ListingType, PropertyType, ProjectResponse } from "@shared/types";
 import { parseCoordinates } from "@/lib/utils";
-import AiListingGeneratorModal from "@/components/AiListingGeneratorModal";
-import AvmPriceAdvisor from "@/components/AvmPriceAdvisor";
+import AiListingGeneratorModal from "@/components/common/AiListingGeneratorModal";
+import AvmPriceAdvisor from "@/components/common/AvmPriceAdvisor";
 
 // Client-side Zod validation schema matching backend constraints
 const propertyFormSchema = z.object({

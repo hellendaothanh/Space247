@@ -124,7 +124,21 @@ class PropertyDetailResponse(PropertyResponse):
     model_config = ConfigDict(from_attributes=True)
 
 
-class SemanticSearchQuery(RentalFilters):
+class _PriceAreaRangeValidation:
+    """Shared cross-field rule: min price/area bounds must not exceed max bounds."""
+
+    @model_validator(mode="after")
+    def validate_ranges(self):
+        if self.min_price is not None and self.max_price is not None:
+            if self.min_price > self.max_price:
+                raise ValueError("min_price cannot exceed max_price")
+        if self.min_area_sqm is not None and self.max_area_sqm is not None:
+            if self.min_area_sqm > self.max_area_sqm:
+                raise ValueError("min_area_sqm cannot exceed max_area_sqm")
+        return self
+
+
+class SemanticSearchQuery(_PriceAreaRangeValidation, RentalFilters):
     query_vector: list[float] = Field(..., description="768-dimensional embedding vector")
     listing_type: ListingType | None = Field(default=None, description="Filter by listing type (sale/rent)")
     property_type: PropertyType | None = Field(default=None, description="Filter by property type")
@@ -144,16 +158,6 @@ class SemanticSearchQuery(RentalFilters):
     limit: int = Field(default=10, ge=1, le=100, description="Maximum number of results to return")
     threshold: float | None = Field(default=None, ge=0.0, le=1.0, description="Minimum cosine similarity threshold")
 
-    @model_validator(mode="after")
-    def validate_ranges(self) -> "SemanticSearchQuery":
-        if self.min_price is not None and self.max_price is not None:
-            if self.min_price > self.max_price:
-                raise ValueError("min_price cannot exceed max_price")
-        if self.min_area_sqm is not None and self.max_area_sqm is not None:
-            if self.min_area_sqm > self.max_area_sqm:
-                raise ValueError("min_area_sqm cannot exceed max_area_sqm")
-        return self
-
 
 class SearchResultItem(BaseModel):
     property: PropertyResponse
@@ -169,7 +173,7 @@ class SemanticSearchResponse(BaseModel):
     results: list[SearchResultItem]
 
 
-class PropertySearchQuery(RentalFilters):
+class PropertySearchQuery(_PriceAreaRangeValidation, RentalFilters):
     query: str = Field(
         ...,
         min_length=1,
@@ -221,16 +225,6 @@ class PropertySearchQuery(RentalFilters):
         description="Reciprocal Rank Fusion smoothing constant k (default 60)",
     )
 
-
-    @model_validator(mode="after")
-    def validate_ranges(self) -> "PropertySearchQuery":
-        if self.min_price is not None and self.max_price is not None:
-            if self.min_price > self.max_price:
-                raise ValueError("min_price cannot exceed max_price")
-        if self.min_area_sqm is not None and self.max_area_sqm is not None:
-            if self.min_area_sqm > self.max_area_sqm:
-                raise ValueError("min_area_sqm cannot exceed max_area_sqm")
-        return self
 
 
 class PropertySearchResponse(BaseModel):

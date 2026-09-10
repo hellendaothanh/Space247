@@ -7,7 +7,7 @@ import { PropertyResponse } from "@shared/types";
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useFavorites } from "@/lib/favorites";
-import PropertyCard from "@/components/PropertyCard";
+import PropertyCard from "@/components/common/PropertyCard";
 
 export default function FavoritesPage() {
   const { user, isLoading: authLoading } = useAuth();

@@ -9,6 +9,12 @@
 *.cert
 :memory:.ses
 .vscode
+
+# ==============================================================================
+# Agent tooling local state (Mimosa security-scan plugin: reports, hook state,
+# finding ledger — machine-generated, per-session, regenerable. Never commit.)
+# ==============================================================================
+.mimosa/
 # ==============================================================================
 # Python & Backend
 # ==============================================================================

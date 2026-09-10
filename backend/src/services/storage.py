@@ -26,7 +26,7 @@ class KycStorage:
     def _validate(self, upload: UploadFile, data: SpooledTemporaryFile) -> str:
         extension = ALLOWED_CONTENT_TYPES.get(upload.content_type or "")
         if not extension:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="KYC documents must be JPEG, PNG, or WebP images within the size limit")
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="KYC documents must be JPEG, PNG, or WebP images within the size limit")
         try:
             data.seek(0)
             with Image.open(data) as image:
@@ -35,12 +35,12 @@ class KycStorage:
                 image.verify()
             data.seek(0)
         except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="KYC document is not a safe, valid image") from exc
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="KYC document is not a safe, valid image") from exc
         return extension
 
     async def store(self, user_id: UUID, side: str, upload: UploadFile) -> tuple[str, str]:
         if side not in {"front", "back"}:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="KYC document side must be front or back")
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="KYC document side must be front or back")
         backend = self._backend()
         data = SpooledTemporaryFile(max_size=min(settings.KYC_MAX_FILE_SIZE_BYTES, 1024 * 1024), mode="w+b")
         try:
@@ -48,7 +48,7 @@ class KycStorage:
             while chunk := await upload.read(1024 * 1024):
                 total += len(chunk)
                 if total > settings.KYC_MAX_FILE_SIZE_BYTES:
-                    raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="KYC document exceeds the size limit")
+                    raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="KYC document exceeds the size limit")
                 data.write(chunk)
             extension = self._validate(upload, data)
             key = f"{user_id}/{side}/{uuid4().hex}{extension}"

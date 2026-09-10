@@ -23,9 +23,9 @@ import {
 import { apiClient } from "@/lib/api";
 import { ProjectDetailResponse, PropertyResponse } from "@shared/types";
 import { formatPrice, formatProjectStatus } from "@/lib/utils";
-import PropertyCard from "@/components/PropertyCard";
-import PropertyDetailMap from "@/components/PropertyDetailMap";
-import MediaSuite from "@/components/MediaSuite";
+import PropertyCard from "@/components/common/PropertyCard";
+import PropertyDetailMap from "@/components/common/PropertyDetailMap";
+import MediaSuite from "@/components/common/MediaSuite";
 
 interface ProjectDetailPageProps {
   params: Promise<{ slug: string }>;

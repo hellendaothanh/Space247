@@ -27,8 +27,7 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { useComparison } from "@/lib/comparison";
-import { formatPrice, formatPropertyType, getPlaceholderImage } from "@/lib/utils";
-import { sanitizeUrl } from "@/utils/security";
+import { formatPrice, formatPropertyType, getPlaceholderImage, sanitizeUrl } from "@/lib/utils";
 import type { ChatMessage, PropertyResponse, ExtractedCriteria, LivingCostBreakdown } from "@shared/types";
 
 interface DisplayMessage {

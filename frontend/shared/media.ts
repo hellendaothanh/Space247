@@ -19,8 +19,6 @@ export function getVideoEmbedInfo(value?: string | null): VideoEmbed | null {
   return null;
 }
 
-export const getVideoEmbed = getVideoEmbedInfo;
-
 export function getVirtualTourEmbed(value?: string | null): string | null {
   if (!value) return null;
   try {

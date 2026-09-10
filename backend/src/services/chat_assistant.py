@@ -1,12 +1,10 @@
 import logging
 import re
 import uuid
-from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import settings
 from src.models.property import Property
 from src.schemas.chat import (
     ChatMessage,
@@ -20,7 +18,6 @@ from src.schemas.property import (
     PropertyResponse,
     PropertyStatus,
     PropertyType,
-    SearchResultItem,
 )
 from src.services.embedding import EmbeddingService, get_embedding_service
 

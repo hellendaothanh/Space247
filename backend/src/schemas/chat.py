@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
 from src.schemas.property import ListingType, PropertyResponse, PropertyType

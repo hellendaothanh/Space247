@@ -1,15 +1,37 @@
-import type { RentalFilters } from "./types";
 /**
  * Space247 - Shared API Client
- * Compatible with Next.js (Web) and React Native / Mobile
+ * Typed HTTP client consumed by the Web app (Next.js). The Flutter mobile app
+ * uses its own Dart client (frontend/mobile/lib/core/api_client.dart).
  */
 
 import {
+  AmenityHeatmapQuery,
+  AmenityHeatmapResponse,
   AuthTokenResponse,
+  ChangePasswordRequest,
   ChatAssistantRequest,
   ChatAssistantResponse,
-  HealthResponse,
+  ComparePropertiesRequest,
+  ComparePropertiesResponse,
+  CreateAlertRequest,
+  DebtReminderResponse,
+  DepositTransaction,
+  GenerateInvoicesRequest,
+  GenerateListingRequest,
+  GenerateListingResponse,
+  HostDashboardStats,
+  IsochroneSearchRequest,
+  IsochroneSearchResponse,
+  KycDocumentsResponse,
+  LandlordDashboardStats,
   ListingType,
+  MonthlyInvoice,
+  MortgageCalcRequest,
+  MortgageCalcResponse,
+  NotificationListResponse,
+  PaginatedProjectResponse,
+  ProjectDetailResponse,
+  ProjectFilterQuery,
   PropertyCreate,
   PropertyDetailResponse,
   PropertyResponse,
@@ -18,67 +40,32 @@ import {
   PropertyStatus,
   PropertyType,
   PropertyUpdate,
-  SemanticSearchQuery,
-  SemanticSearchResponse,
-  ToggleFavoriteResponse,
-  UserLoginRequest,
-  UserRegisterRequest,
-  UserResponse,
-  UserUpdate,
-  ComparePropertiesRequest,
-  ComparePropertiesResponse,
-  IsochroneSearchRequest,
-  IsochroneSearchResponse,
-  AmenityHeatmapQuery,
-  AmenityHeatmapResponse,
-  GenerateListingRequest,
-  GenerateListingResponse,
-  ValuationRequest,
-  ValuationResponse,
-  SavedSearchAlert,
-  CreateAlertRequest,
-  UpdateAlertRequest,
-  UserNotification,
-  NotificationListResponse,
-  MortgageCalcRequest,
-  MortgageCalcResponse,
-  ProjectCreate,
-  ProjectUpdate,
-  ProjectResponse,
-  ProjectDetailResponse,
-  PaginatedProjectResponse,
-  ProjectFilterQuery,
-  UserProfileUpdateRequest,
-  ChangePasswordRequest,
-  UserProfileDetailResponse,
-  UserCreateByAdminRequest,
-  UserUpdateByAdminRequest,
-  UserAdminDetailResponse,
-  UserPaginationResponse,
-  RentalProperty,
-  RentalPropertyCreate,
-  RentalUnit,
-  RentalUnitCreate,
+  RentalFilters,
+  RentalContract,
   RentalInquiry,
   RentalInquiryCreate,
-  LandlordDashboardStats,
-  HostDashboardStats,
-  RentalContract,
-  RentalContractCreate,
-  MonthlyInvoice,
-  GenerateInvoicesRequest,
-  DebtReminderResponse,
-  DepositTransaction,
-  PaymentWebhookPayload,
+  RentalProperty,
+  RentalPropertyCreate,
   RentalSearchFilterQuery,
-  KycDocumentsResponse,
+  RentalUnit,
+  SavedSearchAlert,
+  ToggleFavoriteResponse,
+  UpdateAlertRequest,
+  UserCreateByAdminRequest,
+  UserLoginRequest,
+  UserNotification,
+  UserPaginationResponse,
+  UserProfileDetailResponse,
+  UserProfileUpdateRequest,
+  UserRegisterRequest,
+  UserResponse,
+  UserUpdateByAdminRequest,
+  ValuationRequest,
+  ValuationResponse,
   ViewingBookingRequest,
-  ViewingCalendarResponse,
   ViewingScheduleWindow,
   ViewingSlot,
-  HostSchedule,
 } from "./types";
-
 
 export interface ApiClientConfig {
   baseUrl: string;
@@ -182,13 +169,6 @@ export class RealEstateApiClient {
     return this.request<UserResponse>("/api/v1/auth/me");
   }
 
-  async updateCurrentUser(data: UserUpdate): Promise<UserResponse> {
-    return this.request<UserResponse>("/api/v1/auth/me", {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
   // User Profile Self-Management
   async getMyProfile(): Promise<UserProfileDetailResponse> {
     return this.request<UserProfileDetailResponse>("/api/v1/users/me");
@@ -211,14 +191,6 @@ export class RealEstateApiClient {
   async getMyKycDocuments(userId?: string): Promise<KycDocumentsResponse> {
     const query = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
     return this.request<KycDocumentsResponse>(`/api/v1/kyc/my-documents${query}`);
-  }
-
-  async uploadKycVerification(citizenId: string, front: File, back: File): Promise<KycDocumentsResponse> {
-    const form = new FormData();
-    form.append("citizen_id", citizenId);
-    form.append("front", front);
-    form.append("back", back);
-    return this.request<KycDocumentsResponse>("/api/v1/kyc/verification", { method: "POST", body: form });
   }
 
   // Superadmin User Management
@@ -247,26 +219,11 @@ export class RealEstateApiClient {
     });
   }
 
-  async getAdminUserDetail(userId: string): Promise<UserAdminDetailResponse> {
-    return this.request<UserAdminDetailResponse>(`/api/v1/admin/users/${userId}`);
-  }
-
   async updateAdminUser(userId: string, data: UserUpdateByAdminRequest): Promise<UserResponse> {
     return this.request<UserResponse>(`/api/v1/admin/users/${userId}`, {
       method: "PUT",
       body: JSON.stringify(data),
     });
-  }
-
-  async deleteAdminUser(userId: string): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/api/v1/admin/users/${userId}`, {
-      method: "DELETE",
-    });
-  }
-
-  // Health
-  async getHealth(): Promise<HealthResponse> {
-    return this.request<HealthResponse>("/api/v1/health");
   }
 
   // Properties CRUD
@@ -363,16 +320,6 @@ export class RealEstateApiClient {
     query: PropertySearchQuery
   ): Promise<PropertySearchResponse> {
     return this.request<PropertySearchResponse>("/api/v1/properties/search", {
-      method: "POST",
-      body: JSON.stringify(query),
-    });
-  }
-
-  // Semantic Vector Search
-  async searchSemantic(
-    query: SemanticSearchQuery
-  ): Promise<SemanticSearchResponse> {
-    return this.request<SemanticSearchResponse>("/api/v1/search/semantic", {
       method: "POST",
       body: JSON.stringify(query),
     });
@@ -478,12 +425,6 @@ export class RealEstateApiClient {
     });
   }
 
-  async getAlert(id: string): Promise<SavedSearchAlert> {
-    return this.request<SavedSearchAlert>(`/api/v1/alerts/${id}`, {
-      method: "GET",
-    });
-  }
-
   async updateAlert(
     id: string,
     request: UpdateAlertRequest
@@ -568,23 +509,6 @@ export class RealEstateApiClient {
     );
   }
 
-  async createProject(data: ProjectCreate): Promise<ProjectResponse> {
-    return this.request<ProjectResponse>("/api/v1/projects", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateProject(
-    id: string,
-    data: ProjectUpdate
-  ): Promise<ProjectResponse> {
-    return this.request<ProjectResponse>(`/api/v1/projects/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
   async getProjectProperties(
     idOrSlug: string,
     params?: {
@@ -665,18 +589,6 @@ export class RealEstateApiClient {
     return this.request<RentalInquiry>(`/api/v1/rentals/units/${encodeURIComponent(unitId)}/book-appointment`, { method: "POST", body: JSON.stringify(data) });
   }
 
-  async getHostAvailableSlots(unitId: string, date: string): Promise<ViewingSlot[]> {
-    return this.getViewingSlots(unitId, date);
-  }
-
-  async bookAppointment(unitId: string, data: ViewingBookingRequest): Promise<RentalInquiry> {
-    return this.bookViewingSlot(unitId, data);
-  }
-
-  async getViewingCalendar(inquiryId: string): Promise<ViewingCalendarResponse> {
-    return this.request<ViewingCalendarResponse>(`/api/v1/rentals/inquiries/${encodeURIComponent(inquiryId)}/calendar`, { method: "GET" });
-  }
-
   // Host API
   async getLandlordStats(): Promise<LandlordDashboardStats> {
     return this.request<LandlordDashboardStats>("/api/v1/host/stats", { method: "GET" });
@@ -688,13 +600,6 @@ export class RealEstateApiClient {
 
   async createRentalProperty(data: RentalPropertyCreate): Promise<RentalProperty> {
     return this.request<RentalProperty>("/api/v1/host/properties", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async addRentalUnit(propertyId: string, data: RentalUnitCreate): Promise<RentalUnit> {
-    return this.request<RentalUnit>(`/api/v1/host/properties/${encodeURIComponent(propertyId)}/units`, {
       method: "POST",
       body: JSON.stringify(data),
     });
@@ -731,14 +636,6 @@ export class RealEstateApiClient {
     return this.request<RentalInquiry>(`/api/v1/host/appointments/${encodeURIComponent(inquiryId)}/confirm`, { method: "POST" });
   }
 
-  async updateHostSchedule(windows: HostSchedule[]): Promise<ViewingScheduleWindow[]> {
-    return this.replaceViewingSchedule(windows.map((window) => ({ ...window, weekday: window.day_of_week })));
-  }
-
-  async confirmAppointment(inquiryId: string): Promise<RentalInquiry> {
-    return this.confirmViewing(inquiryId);
-  }
-
   async getHostDashboardStats(): Promise<HostDashboardStats> {
     return this.request<HostDashboardStats>("/api/v1/host/dashboard/stats", { method: "GET" });
   }
@@ -749,13 +646,6 @@ export class RealEstateApiClient {
     if (status) searchParams.append("status_filter", status);
     const qs = searchParams.toString();
     return this.request<RentalContract[]>(`/api/v1/host/contracts${qs ? `?${qs}` : ""}`, { method: "GET" });
-  }
-
-  async createRentalContract(data: RentalContractCreate): Promise<RentalContract> {
-    return this.request<RentalContract>("/api/v1/host/contracts", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
   }
 
   async getHostInvoices(billingMonth?: string, status?: string): Promise<MonthlyInvoice[]> {
@@ -791,12 +681,4 @@ export class RealEstateApiClient {
       method: "GET",
     });
   }
-
-  async triggerPaymentWebhook(provider: string, payload: PaymentWebhookPayload): Promise<any> {
-    return this.request<any>(`/api/v1/payments/webhook/${encodeURIComponent(provider)}`, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-  }
 }
-

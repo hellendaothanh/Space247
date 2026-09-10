@@ -1,4 +1,4 @@
-import RentalDetails from "@/components/RentalDetails";
+import RentalDetails from "@/components/common/RentalDetails";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -21,9 +21,9 @@ import { PropertyDetailResponse } from "@shared/types";
 import { apiClient } from "@/lib/api";
 import { formatPrice, formatPropertyType } from "@/lib/utils";
 import PropertyFavoriteButton from "@/components/PropertyFavoriteButton";
-import PropertyDetailMap from "@/components/PropertyDetailMap";
+import PropertyDetailMap from "@/components/common/PropertyDetailMap";
 import MortgageCalculator from "@/components/MortgageCalculator";
-import MediaSuite from "@/components/MediaSuite";
+import MediaSuite from "@/components/common/MediaSuite";
 import PropertyShareButton from "@/components/PropertyShareButton";
 import PropertyBookingModal from "@/components/PropertyBookingModal";
 
