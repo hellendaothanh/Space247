@@ -25,6 +25,8 @@ class PropertyStatus(str, Enum):
     SOLD = "sold"
     RENTED = "rented"
     INACTIVE = "inactive"
+    DRAFT = "draft"
+    HIDDEN = "hidden"
 
 
 class PropertyBase(BaseModel):
@@ -91,6 +93,7 @@ class PropertyUpdate(BaseModel):
     virtual_tour_url: str | None = Field(default=None, max_length=500)
     project_id: uuid.UUID | None = None
     status: PropertyStatus | None = None
+    is_visible: bool | None = None
     embedding: list[float] | None = None
 
 
@@ -110,6 +113,9 @@ class PropertyResponse(PropertyBase):
     id: uuid.UUID
     user_id: uuid.UUID | None = None
     status: PropertyStatus
+    is_visible: bool = True
+    view_count: int = 0
+    refreshed_at: datetime | None = None
     agent: PropertyAgentResponse | None = None
     project: ProjectSummary | None = None
     created_at: datetime
@@ -300,4 +306,59 @@ class MarketPulseResponse(BaseModel):
     hot_areas: list[HotArea]
     national_avg_sqm: float
     updated_at: datetime
+
+
+class MyListingItem(BaseModel):
+    id: uuid.UUID
+    title: str
+    description: str
+    property_type: str
+    listing_type: str
+    rental_type: str | None = None
+    price: float
+    currency: str = "VND"
+    area_sqm: float
+    num_bedrooms: int | None = None
+    num_bathrooms: int | None = None
+    address: str
+    ward: str | None = None
+    district: str | None = None
+    city: str
+    images: list[str] = []
+    status: str
+    is_visible: bool = True
+    refreshed_at: datetime
+    view_count: int = 0
+    favorites_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MyListingsStats(BaseModel):
+    total_listings: int = 0
+    active_listings: int = 0
+    sold_or_rented_count: int = 0
+    hidden_listings: int = 0
+    total_views: int = 0
+    total_favorites: int = 0
+
+
+class MyListingsResponse(BaseModel):
+    items: list[MyListingItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    stats: MyListingsStats
+
+
+class UpdateListingVisibilityPayload(BaseModel):
+    is_visible: bool | None = None
+
+
+class MarkListingSoldPayload(BaseModel):
+    status: str = Field("sold", pattern="^(sold|rented)$")
+
 

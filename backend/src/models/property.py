@@ -4,6 +4,7 @@ from typing import Any
 from geoalchemy2 import Geometry
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
+    Boolean,
     DateTime,
     Float,
     ForeignKey,
@@ -27,6 +28,8 @@ class Property(Base):
     __tablename__ = "properties"
     __table_args__ = (
         Index("ix_properties_rental_price", "listing_type", "rental_type", "price"),
+        Index("ix_properties_user_status", "user_id", "status"),
+        Index("ix_properties_refreshed_at", "refreshed_at"),
         Index(
             "ix_properties_embedding_hnsw",
             "embedding",
@@ -76,6 +79,18 @@ class Property(Base):
 
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="active", server_default="active", index=True
+    )
+    is_visible: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true", index=True
+    )
+    view_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    refreshed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+        nullable=False,
     )
 
     # Owner user id
@@ -143,6 +158,10 @@ class Property(Base):
             kwargs["id"] = uuid.uuid4()
         if "status" not in kwargs or kwargs["status"] is None:
             kwargs["status"] = "active"
+        if "is_visible" not in kwargs or kwargs["is_visible"] is None:
+            kwargs["is_visible"] = True
+        if "view_count" not in kwargs or kwargs["view_count"] is None:
+            kwargs["view_count"] = 0
         if "currency" not in kwargs or kwargs["currency"] is None:
             kwargs["currency"] = "VND"
         if "images" not in kwargs or kwargs["images"] is None:
@@ -152,6 +171,8 @@ class Property(Base):
             kwargs["created_at"] = now
         if "updated_at" not in kwargs or kwargs["updated_at"] is None:
             kwargs["updated_at"] = now
+        if "refreshed_at" not in kwargs or kwargs["refreshed_at"] is None:
+            kwargs["refreshed_at"] = now
         super().__init__(**kwargs)
 
     def __repr__(self) -> str:

@@ -263,7 +263,7 @@ export default function ProfilePage() {
         {/* Overview Stats Cards */}
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Link
-            href={user?.role === "user" ? "/properties" : "/properties/my"}
+            href={user?.role === "user" ? "/properties" : "/my-listings"}
             className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:border-blue-500 hover:shadow-md transition"
           >
             <div className="flex items-center justify-between">

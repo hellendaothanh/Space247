@@ -18,7 +18,9 @@ export type PropertyStatus =
   | "pending"
   | "sold"
   | "rented"
-  | "inactive";
+  | "inactive"
+  | "draft"
+  | "hidden";
 
 export type RentalType = "room" | "serviced_apartment" | "house_share" | "entire_house";
 export interface RentalCosts {
@@ -90,6 +92,7 @@ export interface PropertyCreate extends PropertyBase {
 
 export interface PropertyUpdate extends Partial<PropertyBase> {
   status?: PropertyStatus;
+  is_visible?: boolean;
   embedding?: number[] | null;
 }
 
@@ -107,6 +110,9 @@ export interface PropertyResponse extends PropertyBase {
   id: string; // UUID
   user_id?: string | null; // UUID of owner user
   status: PropertyStatus;
+  is_visible?: boolean;
+  refreshed_at?: string;
+  view_count?: number;
   images: string[];
   video_url?: string | null;
   virtual_tour_url?: string | null;
@@ -1057,5 +1063,55 @@ export interface ArticlePaginationResponse {
   page_size: number;
   total_pages: number;
 }
+
+export interface MyListingItem {
+  id: string;
+  title: string;
+  description: string;
+  property_type: PropertyType | string;
+  listing_type: ListingType | string;
+  rental_type?: RentalType | string | null;
+  price: number;
+  currency: string;
+  area_sqm: number;
+  num_bedrooms?: number | null;
+  num_bathrooms?: number | null;
+  address: string;
+  ward?: string | null;
+  district?: string | null;
+  city: string;
+  images: string[];
+  status: PropertyStatus | string;
+  is_visible: boolean;
+  refreshed_at: string;
+  view_count: number;
+  favorites_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MyListingsStats {
+  total_listings: number;
+  active_listings: number;
+  sold_or_rented_count: number;
+  hidden_listings: number;
+  total_views: number;
+  total_favorites: number;
+}
+
+export interface MyListingsResponse {
+  items: MyListingItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  stats: MyListingsStats;
+}
+
+export interface UpdateListingStatusPayload {
+  status?: string;
+  is_visible?: boolean;
+}
+
 
 

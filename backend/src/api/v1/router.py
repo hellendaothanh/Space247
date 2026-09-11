@@ -43,3 +43,5 @@ api_router.include_router(notifications.router, prefix="/notifications", tags=["
 api_router.include_router(financial.router, prefix="/financial", tags=["financial"])
 api_router.include_router(kyc.router, prefix="/kyc", tags=["kyc"])
 api_router.include_router(news.router, prefix="/news", tags=["news"])
+api_router.include_router(properties.router, prefix="/my-properties", tags=["my-properties"])
+

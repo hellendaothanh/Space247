@@ -218,3 +218,184 @@ async def test_update_and_delete_property_ownership():
         assert admin_del_resp.status_code == 204
 
     app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_my_listings_dashboard_kpis_and_pagination():
+    """Verify GET /properties/my-listings computes KPI stats, filters by status, and paginates correctly."""
+    user_id = uuid.uuid4()
+    user = User(
+        id=user_id,
+        email="lister@space247.vn",
+        hashed_password="hash",
+        full_name="Listing Pro",
+        role="agent",
+        is_active=True,
+    )
+
+    prop_active = Property(
+        id=uuid.uuid4(),
+        title="Active Apartment Listing",
+        description="Mô tả căn hộ trung tâm 1",
+        property_type="apartment",
+        listing_type="sale",
+        price=4500000000.0,
+        currency="VND",
+        area_sqm=80.0,
+        address="12 Hoàn Kiếm",
+        city="Hà Nội",
+        status="active",
+        is_visible=True,
+        view_count=120,
+        user_id=user_id,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+        refreshed_at=datetime.now(timezone.utc),
+    )
+
+    prop_hidden = Property(
+        id=uuid.uuid4(),
+        title="Hidden Property",
+        description="Mô tả căn hộ tạm ẩn",
+        property_type="house",
+        listing_type="rent",
+        price=15000000.0,
+        currency="VND",
+        area_sqm=50.0,
+        address="34 Cầu Giấy",
+        city="Hà Nội",
+        status="hidden",
+        is_visible=False,
+        view_count=50,
+        user_id=user_id,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+        refreshed_at=datetime.now(timezone.utc),
+    )
+
+    mock_session = AsyncMock()
+
+    # 1. all_props_res
+    all_props_mock = MagicMock()
+    all_props_mock.scalars.return_value.all.return_value = [prop_active, prop_hidden]
+
+    # 2. fav_count_res
+    fav_mock = MagicMock()
+    fav_mock.scalar.return_value = 8
+
+    # 3. count_res (filtered)
+    count_mock = MagicMock()
+    count_mock.scalar.return_value = 2
+
+    # 4. paged_res
+    paged_mock = MagicMock()
+    paged_mock.scalars.return_value.all.return_value = [prop_active, prop_hidden]
+
+    # 5. p_fav_res (per property favorites)
+    p_fav_mock = MagicMock()
+    p_fav_mock.all.return_value = [(prop_active.id, 5), (prop_hidden.id, 3)]
+
+    mock_session.execute.side_effect = [all_props_mock, fav_mock, count_mock, paged_mock, p_fav_mock]
+
+    async def override_get_db():
+        yield mock_session
+
+    app.dependency_overrides[get_db_session] = override_get_db
+    app.dependency_overrides[get_current_active_user] = lambda: user
+
+    token = create_access_token(subject=str(user_id))
+    headers = {"Authorization": f"Bearer {token}"}
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.get("/api/v1/properties/my-listings?page=1&page_size=10", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 2
+        assert len(data["items"]) == 2
+        stats = data["stats"]
+        assert stats["total_listings"] == 2
+        assert stats["active_listings"] == 1
+        assert stats["hidden_listings"] == 1
+        assert stats["total_views"] == 170
+        assert stats["total_favorites"] == 8
+
+        # First item has favorites_count 5
+        assert data["items"][0]["favorites_count"] == 5
+
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_my_listings_actions():
+    """Verify toggle-visibility, mark-sold, and refresh endpoints."""
+    user_id = uuid.uuid4()
+    user = User(
+        id=user_id,
+        email="owner_actions@space247.vn",
+        hashed_password="hash",
+        full_name="Action Owner",
+        role="agent",
+        is_active=True,
+    )
+
+    prop = Property(
+        id=uuid.uuid4(),
+        title="Action Test Property",
+        description="Mô tả căn hộ để test action",
+        property_type="apartment",
+        listing_type="sale",
+        price=3000000000.0,
+        currency="VND",
+        area_sqm=65.0,
+        address="99 Phố Huế",
+        city="Hà Nội",
+        status="active",
+        is_visible=True,
+        view_count=10,
+        user_id=user_id,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+        refreshed_at=datetime.now(timezone.utc),
+    )
+
+    mock_session = AsyncMock()
+
+    def get_scalar():
+        m = MagicMock()
+        m.scalar_one_or_none.return_value = prop
+        return m
+
+    mock_session.execute.side_effect = [get_scalar(), get_scalar(), get_scalar()]
+    mock_session.commit = AsyncMock()
+    mock_session.refresh = AsyncMock()
+
+    async def override_get_db():
+        yield mock_session
+
+    app.dependency_overrides[get_db_session] = override_get_db
+    app.dependency_overrides[get_current_active_user] = lambda: user
+
+    token = create_access_token(subject=str(user_id))
+    headers = {"Authorization": f"Bearer {token}"}
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 1. Toggle visibility -> switches to False and status='hidden'
+        toggle_resp = await client.patch(f"/api/v1/properties/{prop.id}/toggle-visibility", headers=headers)
+        assert toggle_resp.status_code == 200
+        assert prop.is_visible is False
+        assert prop.status == "hidden"
+
+        # 2. Mark sold -> status='sold', is_visible=False
+        sold_resp = await client.post(f"/api/v1/properties/{prop.id}/mark-sold", json={"status": "sold"}, headers=headers)
+        assert sold_resp.status_code == 200
+        assert prop.status == "sold"
+        assert prop.is_visible is False
+
+        # 3. Refresh listing -> refreshed_at updated
+        refresh_resp = await client.post(f"/api/v1/properties/{prop.id}/refresh", headers=headers)
+        assert refresh_resp.status_code == 200
+        assert mock_session.commit.called
+
+    app.dependency_overrides.clear()

@@ -357,7 +357,7 @@ function HeaderContent() {
                     </Link>
 
                     <Link
-                      href="/properties/my"
+                      href="/my-listings"
                       onClick={() => setDropdownOpen(false)}
                       className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-blue-50 hover:text-blue-700"
                     >
@@ -483,6 +483,14 @@ function HeaderContent() {
                 >
                   <UserIcon className="h-4 w-4 text-blue-600" />
                   <span>Trang cá nhân ({user.full_name})</span>
+                </Link>
+                <Link
+                  href="/my-listings"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-blue-50"
+                >
+                  <LayoutDashboard className="h-4 w-4 text-blue-600" />
+                  <span>Quản lý tin đăng</span>
                 </Link>
                 <button
                   type="button"

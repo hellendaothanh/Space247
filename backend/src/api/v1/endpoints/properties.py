@@ -3,7 +3,7 @@ import re
 import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from pydantic import ValidationError
-from sqlalchemy import func, select, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,6 +44,11 @@ from src.schemas.property import (
     MarketPulseResponse,
     CityMarketStats,
     HotArea,
+    MyListingItem,
+    MyListingsStats,
+    MyListingsResponse,
+    UpdateListingVisibilityPayload,
+    MarkListingSoldPayload,
 )
 from datetime import datetime, timezone
 from src.schemas.rental import RentalRuleSchema
@@ -436,6 +441,250 @@ async def list_my_properties(
     stmt = stmt.order_by(Property.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(stmt)
     return list(result.scalars().all())
+
+
+@router.get(
+    "/my-listings",
+    response_model=MyListingsResponse,
+    summary="Get paginated listings owned by authenticated user with KPI stats",
+)
+async def get_my_listings(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(10, ge=1, le=50, description="Items per page"),
+    status: str | None = Query(None, description="Status filter: active, sold, rented, hidden, draft, all"),
+    q: str | None = Query(None, description="Search query across title and address"),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> MyListingsResponse:
+    """
+    Fetch current user's listings with filtering, search, pagination, and real-time KPI metrics.
+    """
+    import math
+
+    base_user_filter = (Property.user_id == current_user.id)
+
+    # Compute aggregate KPI stats across all user's listings
+    all_props_stmt = select(Property).where(base_user_filter)
+    all_props_res = await db.execute(all_props_stmt)
+    all_user_props = all_props_res.scalars().all()
+
+    total_listings = len(all_user_props)
+    active_listings = sum(1 for p in all_user_props if p.status == "active" and getattr(p, "is_visible", True) is not False)
+    sold_or_rented_count = sum(1 for p in all_user_props if p.status in ("sold", "rented"))
+    hidden_listings = sum(1 for p in all_user_props if p.status == "hidden" or getattr(p, "is_visible", True) is False)
+    total_views = sum(getattr(p, "view_count", 0) or 0 for p in all_user_props)
+
+    # Total favorites across user's listings
+    fav_count_stmt = (
+        select(func.count(FavoriteProperty.id))
+        .join(Property, FavoriteProperty.property_id == Property.id)
+        .where(Property.user_id == current_user.id)
+    )
+    fav_count_res = await db.execute(fav_count_stmt)
+    total_favorites = fav_count_res.scalar() or 0
+
+    stats = MyListingsStats(
+        total_listings=total_listings,
+        active_listings=active_listings,
+        sold_or_rented_count=sold_or_rented_count,
+        hidden_listings=hidden_listings,
+        total_views=total_views,
+        total_favorites=total_favorites,
+    )
+
+    # Query with filters
+    query = select(Property).where(base_user_filter)
+
+    if status and status.lower() != "all":
+        st = status.lower()
+        if st == "active":
+            query = query.where(Property.status == "active", Property.is_visible.is_(True))
+        elif st == "hidden":
+            query = query.where(or_(Property.status == "hidden", Property.is_visible.is_(False)))
+        elif st in ("sold", "rented"):
+            query = query.where(Property.status == st)
+        elif st == "sold_or_rented":
+            query = query.where(Property.status.in_(["sold", "rented"]))
+        elif st in ("draft", "inactive", "pending"):
+            query = query.where(Property.status == st)
+
+    if q and q.strip():
+        search_kw = f"%{q.strip()}%"
+        query = query.where(or_(Property.title.ilike(search_kw), Property.address.ilike(search_kw)))
+
+    # Total filtered count
+    count_stmt = query.with_only_columns(func.count(Property.id)).order_by(None)
+    count_res = await db.execute(count_stmt)
+    filtered_total = count_res.scalar() or 0
+
+    # Sort by refreshed_at desc, created_at desc
+    offset = (page - 1) * page_size
+    paged_stmt = (
+        query.order_by(Property.refreshed_at.desc(), Property.created_at.desc())
+        .offset(offset)
+        .limit(page_size)
+    )
+    paged_res = await db.execute(paged_stmt)
+    paged_props = paged_res.scalars().all()
+
+    # Pre-fetch favorites count per property
+    prop_ids = [p.id for p in paged_props]
+    fav_map = {}
+    if prop_ids:
+        p_fav_stmt = (
+            select(FavoriteProperty.property_id, func.count(FavoriteProperty.id))
+            .where(FavoriteProperty.property_id.in_(prop_ids))
+            .group_by(FavoriteProperty.property_id)
+        )
+        p_fav_res = await db.execute(p_fav_stmt)
+        for pid, cnt in p_fav_res.all():
+            fav_map[pid] = cnt
+
+    total_pages = math.ceil(filtered_total / page_size) if filtered_total > 0 else 0
+
+    items = []
+    for p in paged_props:
+        items.append(
+            MyListingItem(
+                id=p.id,
+                title=p.title,
+                description=p.description,
+                property_type=p.property_type,
+                listing_type=p.listing_type,
+                rental_type=p.rental_type,
+                price=float(p.price) if p.price is not None else 0.0,
+                currency=p.currency or "VND",
+                area_sqm=float(p.area_sqm) if p.area_sqm is not None else 0.0,
+                num_bedrooms=p.num_bedrooms,
+                num_bathrooms=p.num_bathrooms,
+                address=p.address,
+                ward=p.ward,
+                district=p.district,
+                city=p.city,
+                images=p.images or [],
+                status=p.status,
+                is_visible=getattr(p, "is_visible", True) if getattr(p, "is_visible", None) is not None else True,
+                refreshed_at=getattr(p, "refreshed_at", p.created_at) or p.created_at,
+                view_count=getattr(p, "view_count", 0) or 0,
+                favorites_count=fav_map.get(p.id, 0),
+                created_at=p.created_at,
+                updated_at=p.updated_at,
+            )
+        )
+
+    return MyListingsResponse(
+        items=items,
+        total=filtered_total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+        stats=stats,
+    )
+
+
+@router.patch(
+    "/{property_id}/toggle-visibility",
+    response_model=PropertyResponse,
+    summary="Toggle listing visibility on search and homepage",
+)
+async def toggle_property_visibility(
+    property_id: uuid.UUID,
+    payload: UpdateListingVisibilityPayload | None = None,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> Property:
+    """
+    Hide or unhide a property listing from public discoverability.
+    """
+    stmt = select(Property).where(Property.id == property_id)
+    res = await db.execute(stmt)
+    prop = res.scalar_one_or_none()
+    if not prop:
+        raise HTTPException(status_code=404, detail="Tin đăng không tồn tại")
+    if prop.user_id != current_user.id and current_user.role not in ("admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Bạn không có quyền chỉnh sửa tin đăng này")
+
+    if payload and payload.is_visible is not None:
+        prop.is_visible = payload.is_visible
+    else:
+        prop.is_visible = not getattr(prop, "is_visible", True)
+
+    if not prop.is_visible and prop.status == "active":
+        prop.status = "hidden"
+    elif prop.is_visible and prop.status == "hidden":
+        prop.status = "active"
+
+    prop.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(prop)
+    await invalidate_property_caches(prop.id)
+    return prop
+
+
+@router.post(
+    "/{property_id}/mark-sold",
+    response_model=PropertyResponse,
+    summary="Mark listing as sold or rented",
+)
+async def mark_property_sold(
+    property_id: uuid.UUID,
+    payload: MarkListingSoldPayload | None = None,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> Property:
+    """
+    Mark property listing as sold or rented, turning off new inquiries.
+    """
+    stmt = select(Property).where(Property.id == property_id)
+    res = await db.execute(stmt)
+    prop = res.scalar_one_or_none()
+    if not prop:
+        raise HTTPException(status_code=404, detail="Tin đăng không tồn tại")
+    if prop.user_id != current_user.id and current_user.role not in ("admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Bạn không có quyền chỉnh sửa tin đăng này")
+
+    target_status = "sold"
+    if payload and payload.status:
+        target_status = payload.status
+    elif prop.listing_type == "rent":
+        target_status = "rented"
+
+    prop.status = target_status
+    prop.is_visible = False
+    prop.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(prop)
+    await invalidate_property_caches(prop.id)
+    return prop
+
+
+@router.post(
+    "/{property_id}/refresh",
+    response_model=PropertyResponse,
+    summary="Refresh listing timestamp to push it to the top",
+)
+async def refresh_property_listing(
+    property_id: uuid.UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> Property:
+    """
+    Refresh property refreshed_at timestamp to push it to the top of listings.
+    """
+    stmt = select(Property).where(Property.id == property_id)
+    res = await db.execute(stmt)
+    prop = res.scalar_one_or_none()
+    if not prop:
+        raise HTTPException(status_code=404, detail="Tin đăng không tồn tại")
+    if prop.user_id != current_user.id and current_user.role not in ("admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Bạn không có quyền thao tác trên tin đăng này")
+
+    prop.refreshed_at = datetime.now(timezone.utc)
+    prop.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(prop)
+    await invalidate_property_caches(prop.id)
+    return prop
 
 
 @router.get(

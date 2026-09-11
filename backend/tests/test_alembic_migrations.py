@@ -37,7 +37,7 @@ def test_alembic_script_directory_and_head_revision():
 
     heads = script.get_heads()
     assert len(heads) == 1, f"Expected exactly 1 head revision, got {heads}"
-    assert heads[0] == "0017", f"Expected head revision to be '0017', got {heads[0]}"
+    assert heads[0] == "0018", f"Expected head revision to be '0018', got {heads[0]}"
 
     rev1 = script.get_revision("0001")
     assert rev1 is not None
@@ -117,6 +117,11 @@ def test_alembic_script_directory_and_head_revision():
     assert rev17 is not None
     assert "news" in rev17.doc.lower()
     assert rev17.down_revision == "0016"
+
+    rev18 = script.get_revision("0018")
+    assert rev18 is not None
+    assert "listings" in rev18.doc.lower() or "visible" in rev18.doc.lower()
+    assert rev18.down_revision == "0017"
 
 
 def test_alembic_offline_sql_generation(capsys):
@@ -222,6 +227,9 @@ def test_models_metadata_aligned_with_properties():
     assert "project_id" in prop_table.c
     assert "video_url" in prop_table.c
     assert "virtual_tour_url" in prop_table.c
+    assert "is_visible" in prop_table.c
+    assert "refreshed_at" in prop_table.c
+    assert "view_count" in prop_table.c
 
     project_table = Base.metadata.tables["projects"]
     assert "name" in project_table.c

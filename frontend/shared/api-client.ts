@@ -40,6 +40,10 @@ import {
   ArticlePaginationResponse,
   CreateArticlePayload,
   NewsCategory,
+  MyListingItem,
+  MyListingsStats,
+  MyListingsResponse,
+  UpdateListingStatusPayload,
   NotificationListResponse,
   PaginatedProjectResponse,
   ProjectDetailResponse,
@@ -767,6 +771,50 @@ export class RealEstateApiClient {
     return this.request<ArticleDetail>("/api/v1/news", {
       method: "POST",
       body: JSON.stringify(payload),
+    });
+  }
+
+  // My Listings Management Hub
+  async getMyListings(params?: {
+    page?: number;
+    page_size?: number;
+    status?: string;
+    q?: string;
+  }): Promise<MyListingsResponse> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append("page", params.page.toString());
+    if (params?.page_size) searchParams.append("page_size", params.page_size.toString());
+    if (params?.status && params.status !== "all") searchParams.append("status", params.status);
+    if (params?.q) searchParams.append("q", params.q);
+    const qs = searchParams.toString();
+    return this.request<MyListingsResponse>(`/api/v1/properties/my-listings${qs ? `?${qs}` : ""}`, {
+      method: "GET",
+    });
+  }
+
+  async toggleListingVisibility(id: string, is_visible?: boolean): Promise<PropertyResponse> {
+    return this.request<PropertyResponse>(`/api/v1/properties/${encodeURIComponent(id)}/toggle-visibility`, {
+      method: "PATCH",
+      body: is_visible !== undefined ? JSON.stringify({ is_visible }) : undefined,
+    });
+  }
+
+  async markListingSold(id: string, status: "sold" | "rented" = "sold"): Promise<PropertyResponse> {
+    return this.request<PropertyResponse>(`/api/v1/properties/${encodeURIComponent(id)}/mark-sold`, {
+      method: "POST",
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async refreshListing(id: string): Promise<PropertyResponse> {
+    return this.request<PropertyResponse>(`/api/v1/properties/${encodeURIComponent(id)}/refresh`, {
+      method: "POST",
+    });
+  }
+
+  async deleteListing(id: string): Promise<void> {
+    return this.request<void>(`/api/v1/properties/${encodeURIComponent(id)}`, {
+      method: "DELETE",
     });
   }
 }
