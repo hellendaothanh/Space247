@@ -1,9 +1,70 @@
-export function formatPrice(price: number, currency: string = "VND", listingType?: string): string {
+export interface FormatPriceOptions {
+  propertyType?: string | null;
+  rentalType?: string | null;
+  title?: string | null;
+  description?: string | null;
+  period?: "month" | "night" | "day" | string | null;
+  isDaily?: boolean;
+}
+
+export function isDailyRental(
+  options?: FormatPriceOptions | null,
+  price?: number
+): boolean {
+  if (options?.isDaily) return true;
+  if (options?.period === "night" || options?.period === "day") return true;
+
+  const rentalType = options?.rentalType?.toLowerCase() || "";
+  if (rentalType === "homestay" || rentalType === "daily") return true;
+
+  const propType = options?.propertyType?.toLowerCase() || "";
+  // In rental listings, villas are vacation/resort rentals charged per night
+  if (propType === "villa") return true;
+
+  const title = (options?.title || "").toLowerCase();
+  const desc = (options?.description || "").toLowerCase();
+
+  const dailyKeywords = [
+    "homestay",
+    "nghỉ dưỡng",
+    "du lịch",
+    "retreat",
+    "resort",
+    "theo đêm",
+    "theo ngày",
+    "check-in",
+    "đêm",
+  ];
+  if (dailyKeywords.some((kw) => title.includes(kw) || desc.includes(kw))) {
+    return true;
+  }
+
+  // A rental price under 1,000,000 VND is standard daily rate (e.g. 650.000, 750.000, 800.000, 950.000 đ/đêm)
+  if (typeof price === "number" && price > 0 && price < 1_000_000) {
+    return true;
+  }
+
+  return false;
+}
+
+export function formatPrice(
+  price: number,
+  currency: string = "VND",
+  listingType?: string,
+  options?: FormatPriceOptions
+): string {
   if (listingType === "rent") {
-    if (price >= 1_000_000) {
-      return `${(price / 1_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} triệu/tháng`;
+    const daily = isDailyRental(options, price);
+    if (daily) {
+      return `${price.toLocaleString("vi-VN")} đ/đêm`;
     }
-    return `${price.toLocaleString("vi-VN")} ${currency}/tháng`;
+
+    // Monthly rental (căn hộ dịch vụ, phòng trọ, nhà nguyên căn,...)
+    if (price >= 1_000_000) {
+      const millions = price / 1_000_000;
+      return `${millions.toLocaleString("vi-VN", { maximumFractionDigits: 1 })} triệu/tháng`;
+    }
+    return `${price.toLocaleString("vi-VN")} đ/tháng`;
   }
 
   // Sale
@@ -13,7 +74,7 @@ export function formatPrice(price: number, currency: string = "VND", listingType
   if (price >= 1_000_000) {
     return `${(price / 1_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} triệu`;
   }
-  return `${price.toLocaleString("vi-VN")} ${currency}`;
+  return `${price.toLocaleString("vi-VN")} ${currency === "VND" ? "đ" : currency}`;
 }
 
 export function formatPropertyType(type: string): string {

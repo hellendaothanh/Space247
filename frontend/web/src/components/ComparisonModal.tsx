@@ -182,7 +182,12 @@ export default function ComparisonModal({ onClose }: { onClose: () => void }) {
                     <td className="p-4 font-medium text-slate-600 bg-slate-50/50">Giá tổng</td>
                     {selectedProperties.map((p) => (
                       <td key={p.id} className="p-4 font-bold text-base text-blue-700">
-                        {formatPrice(p.price, p.currency, p.listing_type)}
+                        {formatPrice(p.price, p.currency, p.listing_type, {
+                          propertyType: p.property_type,
+                          rentalType: p.rental_type,
+                          title: p.title,
+                          description: p.description,
+                        })}
                       </td>
                     ))}
                   </tr>

@@ -419,7 +419,11 @@ export default function MyPropertiesPage() {
 
                       <div className="mt-1 flex items-center gap-3 text-xs flex-wrap">
                         <span className="font-extrabold text-blue-600 text-sm">
-                          {formatPrice(prop.price, prop.currency, prop.listing_type)}
+                          {formatPrice(prop.price, prop.currency, prop.listing_type, {
+                            propertyType: prop.property_type,
+                            rentalType: prop.rental_type,
+                            title: prop.title,
+                          })}
                         </span>
                         <span className="text-slate-300">•</span>
                         <span className="font-medium text-slate-600">{prop.area_sqm} m²</span>

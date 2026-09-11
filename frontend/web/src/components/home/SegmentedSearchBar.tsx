@@ -198,11 +198,11 @@ export default function SegmentedSearchBar({ onSearch, isLoading = false, initia
         </label>
 
         {/* Compartment 4: Actions */}
-        <div className="flex items-center gap-2 md:col-span-2">
+        <div className="flex items-center gap-1.5 md:col-span-2">
           <button
             type="button"
             onClick={() => setFiltersOpen((prev) => !prev)}
-            className={`inline-flex flex-1 items-center justify-center gap-1 rounded-full border px-3 py-2.5 text-xs font-bold transition ${
+            className={`inline-flex flex-1 items-center justify-center gap-1 rounded-full border px-2.5 py-2.5 text-xs font-bold transition ${
               filtersOpen
                 ? "border-blue-200 bg-blue-50 text-blue-700"
                 : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
@@ -211,6 +211,24 @@ export default function SegmentedSearchBar({ onSearch, isLoading = false, initia
             <SlidersHorizontal className="h-3.5 w-3.5" />
             <span>Bộ lọc</span>
           </button>
+
+          {/* AI Semantic Search toggle — compact, inside the pill bar */}
+          <button
+            type="button"
+            onClick={() => setAiEnabled((prev) => !prev)}
+            title="Tìm kiếm thông minh bằng AI"
+            aria-pressed={aiEnabled}
+            aria-label="Tìm kiếm thông minh bằng AI"
+            className={`inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-bold transition cursor-pointer ${
+              aiEnabled
+                ? "border-purple-300 bg-purple-50 text-purple-700 shadow-sm shadow-purple-500/20"
+                : "border-slate-200 bg-white text-slate-500 hover:border-purple-200 hover:text-purple-600"
+            }`}
+          >
+            <Sparkles className={`h-4 w-4 ${aiEnabled ? "animate-pulse text-purple-600" : "text-slate-400"}`} />
+            <span>AI</span>
+          </button>
+
           <button
             type="button"
             onClick={submit}
@@ -256,25 +274,6 @@ export default function SegmentedSearchBar({ onSearch, isLoading = false, initia
           </label>
         </div>
       )}
-
-      {/* AI Semantic Search Toggle */}
-      <div className="flex justify-center">
-        <button
-          type="button"
-          onClick={() => setAiEnabled((prev) => !prev)}
-          className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-            aiEnabled ? "border-purple-200 bg-purple-50 text-purple-700" : "border-slate-200 bg-white/80 text-slate-500 hover:text-slate-700"
-          }`}
-        >
-          <span
-            className={`relative inline-flex h-4 w-7 items-center rounded-full transition ${aiEnabled ? "bg-purple-600" : "bg-slate-300"}`}
-          >
-            <span className={`absolute h-3 w-3 rounded-full bg-white shadow transition-all ${aiEnabled ? "left-3.5" : "left-0.5"}`} />
-          </span>
-          <Sparkles className={`h-3.5 w-3.5 ${aiEnabled ? "text-purple-600" : "text-slate-400"}`} />
-          <span>Tìm kiếm thông minh bằng AI</span>
-        </button>
-      </div>
     </div>
   );
 }

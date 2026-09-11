@@ -2,7 +2,7 @@ import { RentalBadges } from "./RentalDetails";
 import Link from "next/link";
 import { Bed, Bath, Maximize2, MapPin, BadgeCheck, ArrowUpRight, Heart, FileCheck2 } from "lucide-react";
 import { PropertyResponse, SearchResultItem } from "@shared/types";
-import { formatPrice, formatPropertyType, getPlaceholderImage } from "@/lib/utils";
+import { formatPrice, formatPropertyType, getPlaceholderImage, isDailyRental } from "@/lib/utils";
 import { useFavorites } from "@/lib/favorites";
 import { useComparison } from "@/lib/comparison";
 
@@ -23,6 +23,17 @@ export default function PropertyCard({ item, index = 0 }: PropertyCardProps) {
   const similarityScore = isSearchResult ? (item as SearchResultItem).similarity_score : null;
 
   const isRent = property.listing_type === "rent";
+  const isDaily =
+    isRent &&
+    isDailyRental(
+      {
+        propertyType: property.property_type,
+        rentalType: property.rental_type,
+        title: property.title,
+        description: property.description,
+      },
+      property.price
+    );
   const favorited = isFavorite(property.id);
   const imageUrl = property.images?.length
     ? property.images[0]
@@ -53,14 +64,14 @@ export default function PropertyCard({ item, index = 0 }: PropertyCardProps) {
           loading="lazy"
         />
 
-        {/* Listing Type Tag (Mở bán / Cho thuê) */}
+        {/* Listing Type Tag (Mở bán / Cho thuê / Homestay) */}
         <div className="absolute left-3 top-3 flex items-center gap-1.5">
           <span
             className={`rounded-full px-2.5 py-1 text-xs font-semibold shadow-xs backdrop-blur-md ${
               isRent ? "bg-emerald-600/90 text-white" : "bg-blue-600/90 text-white"
             }`}
           >
-            {isRent ? "Cho thuê" : "Mở bán"}
+            {isRent ? (isDaily ? "Homestay / Nghỉ dưỡng" : "Cho thuê") : "Mở bán"}
           </span>
           <span className="rounded-full bg-slate-900/70 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-md">
             {formatPropertyType(property.property_type)}
@@ -96,7 +107,12 @@ export default function PropertyCard({ item, index = 0 }: PropertyCardProps) {
         <div className="flex items-baseline justify-between gap-2">
           <span className={`text-xl font-extrabold ${isRent ? "text-emerald-600" : "text-blue-700"}`}>
             {isRent
-              ? formatPrice(property.price, property.currency, "rent")
+              ? formatPrice(property.price, property.currency, "rent", {
+                  propertyType: property.property_type,
+                  rentalType: property.rental_type,
+                  title: property.title,
+                  description: property.description,
+                })
               : formatPrice(property.price, property.currency)}
           </span>
           {!isRent && pricePerSqm != null && (

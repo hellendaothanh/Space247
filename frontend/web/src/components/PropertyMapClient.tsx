@@ -159,7 +159,13 @@ export default function PropertyMapClient({
         const priceFormatted = formatPrice(
           property.price,
           property.currency,
-          property.listing_type
+          property.listing_type,
+          {
+            propertyType: property.property_type,
+            rentalType: property.rental_type,
+            title: property.title,
+            description: property.description,
+          }
         );
         const typeLabel = formatPropertyType(property.property_type);
         const imageUrl =

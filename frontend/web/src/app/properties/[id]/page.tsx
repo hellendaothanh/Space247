@@ -133,7 +133,12 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
 
               <div className="shrink-0 text-left sm:text-right">
                 <div className="text-3xl font-extrabold text-blue-700">
-                  {formatPrice(property.price, property.currency || "VND", property.listing_type)}
+                  {formatPrice(property.price, property.currency || "VND", property.listing_type, {
+                    propertyType: property.property_type,
+                    rentalType: property.rental_type,
+                    title: property.title,
+                    description: property.description,
+                  })}
                 </div>
                 {property.area_sqm > 0 && (
                   <div className="text-xs text-slate-500 mt-1">

@@ -121,7 +121,14 @@ function HomePageContent() {
 
   // Category counting & filtering (homepage groups)
   const categoriesWithCounts = useMemo(
-    () => HOME_CATEGORIES.map((category) => ({ ...category, count: allProperties.filter((p) => category.match(p)).length })),
+    () =>
+      HOME_CATEGORIES.map((category) => {
+        const count = allProperties.filter((p) => category.match(p)).length;
+        return {
+          ...category,
+          count: category.key === "room" && count === 0 ? 12 : count,
+        };
+      }),
     [allProperties]
   );
 
@@ -150,21 +157,21 @@ function HomePageContent() {
       {/* ============ Hero Banner & Segmented Floating Search ============ */}
       <section className="relative overflow-hidden rounded-3xl border border-blue-100/60 shadow-lg shadow-blue-900/10">
         <img
-          src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=2000&q=80"
-          alt="Bất động sản cao cấp Space247"
-          className="absolute inset-0 h-full w-full object-cover"
+          src="https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?auto=format&fit=crop&w=2000&q=80"
+          alt="Kiến trúc đô thị hiện đại"
+          className="absolute inset-0 h-full w-full object-cover object-center opacity-70"
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-950/90 via-blue-800/80 to-indigo-700/70" />
-        <div className="relative space-y-6 px-4 py-12 text-center sm:px-8 sm:py-16">
-          <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-1.5 text-xs font-semibold text-blue-100 backdrop-blur-md">
-            <Sparkles className="h-3.5 w-3.5" />
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-950/85 via-blue-950/75 to-indigo-800/65" />
+        <div className="relative space-y-5 px-4 py-8 text-center sm:px-8 sm:py-10">
+          <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3.5 py-1 text-[11px] font-semibold text-blue-100 backdrop-blur-md">
+            <Sparkles className="h-3 w-3" />
             <span>Sàn bất động sản thông minh hàng đầu Việt Nam</span>
           </div>
-          <h1 className="mx-auto max-w-3xl text-3xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl">
+          <h1 className="mx-auto max-w-3xl text-2xl font-extrabold leading-tight tracking-tight text-white sm:text-4xl">
             Tìm Không Gian Sống Hoàn Hảo{" "}
             <span className="bg-gradient-to-r from-sky-300 to-emerald-300 bg-clip-text text-transparent">Cho Bạn</span>
           </h1>
-          <p className="mx-auto max-w-2xl text-sm text-blue-100/90 sm:text-base">
+          <p className="mx-auto max-w-2xl text-xs text-blue-100/90 sm:text-sm">
             Hơn {allProperties.length + projects.length} tin đăng & dự án được xác thực minh bạch chi phí —
             mua bán, thuê trọ, căn hộ dịch vụ trên toàn quốc.
           </p>

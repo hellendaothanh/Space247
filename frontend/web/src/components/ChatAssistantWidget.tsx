@@ -501,7 +501,11 @@ export default function ChatAssistantWidget() {
 
                                     <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100">
                                       <span className="font-bold text-xs text-rose-600">
-                                        {formatPrice(prop.price, prop.currency, prop.listing_type)}
+                                        {formatPrice(prop.price, prop.currency, prop.listing_type, {
+                                          propertyType: prop.property_type,
+                                          rentalType: prop.rental_type,
+                                          title: prop.title,
+                                        })}
                                       </span>
                                       <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
                                         <span>{prop.area_sqm} m²</span>

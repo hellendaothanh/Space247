@@ -41,7 +41,11 @@ export default function StickyComparisonBar() {
                       {p.title}
                     </p>
                     <p className="text-blue-600 font-semibold">
-                      {formatPrice(p.price, p.currency, p.listing_type)}
+                      {formatPrice(p.price, p.currency, p.listing_type, {
+                        propertyType: p.property_type,
+                        rentalType: p.rental_type,
+                        title: p.title,
+                      })}
                     </p>
                   </div>
                   <button

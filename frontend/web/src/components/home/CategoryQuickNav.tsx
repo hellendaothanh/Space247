@@ -8,7 +8,7 @@ export interface HomeCategory {
   icon: typeof Building2;
   iconClass: string;
   /** Filter definition applied to the listing groups below */
-  match: (p: { property_type: string; listing_type: string; rental_type?: string | null }) => boolean;
+  match: (p: { property_type: string; listing_type: string; rental_type?: string | null; title?: string; rental_rules?: any }) => boolean;
   count: number;
 }
 
@@ -46,7 +46,9 @@ export default function CategoryQuickNav({ categories, activeKey, onSelect }: Pr
               <span className={`text-[11px] font-bold leading-tight ${isActive ? "text-blue-800" : "text-slate-800"}`}>
                 {category.label}
               </span>
-              <span className="text-[10px] font-medium text-slate-400">{category.count > 0 ? `${category.count}+ tin` : "Đang cập nhật"}</span>
+              <span className="text-[10px] font-medium text-slate-400">
+                {category.count > 0 ? `${category.count}+ tin` : `${category.count} tin`}
+              </span>
             </button>
           );
         })}
@@ -58,7 +60,17 @@ export default function CategoryQuickNav({ categories, activeKey, onSelect }: Pr
 export const HOME_CATEGORIES: Omit<HomeCategory, "count">[] = [
   { key: "apartment", label: "Căn hộ chung cư", icon: Building, iconClass: "bg-blue-100 text-blue-600", match: (p) => p.property_type === "apartment" },
   { key: "house", label: "Nhà phố mặt tiền", icon: Home, iconClass: "bg-emerald-100 text-emerald-600", match: (p) => p.property_type === "house" },
-  { key: "room", label: "Phòng trọ & Gác lửng", icon: Layers, iconClass: "bg-amber-100 text-amber-600", match: (p) => p.listing_type === "rent" && p.rental_type === "room" },
+  {
+    key: "room",
+    label: "Phòng trọ & Gác lửng",
+    icon: Layers,
+    iconClass: "bg-amber-100 text-amber-600",
+    match: (p) =>
+      p.listing_type === "rent" &&
+      (p.rental_type === "room" ||
+        !!p.rental_rules?.has_mezzanine ||
+        /phòng trọ|gác lửng|nhà trọ|phòng sinh viên/i.test(p.title || "")),
+  },
   { key: "serviced", label: "Căn hộ dịch vụ Studio", icon: KeyRound, iconClass: "bg-purple-100 text-purple-600", match: (p) => p.listing_type === "rent" && p.rental_type === "serviced_apartment" },
   { key: "villa", label: "Biệt thự nghỉ dưỡng", icon: Trees, iconClass: "bg-teal-100 text-teal-600", match: (p) => p.property_type === "villa" },
   { key: "land", label: "Đất nền thổ cư", icon: Map, iconClass: "bg-orange-100 text-orange-600", match: (p) => p.property_type === "land" },
