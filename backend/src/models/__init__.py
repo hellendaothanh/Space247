@@ -14,13 +14,16 @@ from src.models.rental_property import (
 )
 from src.models.user import User, UserRole
 from src.models.kyc import UserKycVerification, KycVerificationStatus
+from src.models.news import NewsCategory, Article
 
 __all__ = [
+    "Article",
     "DepositTransaction",
     "FavoriteProperty",
     "HostViewingBlockedDate",
     "HostViewingSchedule",
     "MonthlyInvoice",
+    "NewsCategory",
     "Project",
     "Property",
     "RentalContract",

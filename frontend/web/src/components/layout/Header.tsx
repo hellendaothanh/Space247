@@ -18,6 +18,7 @@ import {
   X,
   MapPin,
   Compass,
+  Newspaper,
   User as UserIcon,
   ShieldCheck,
 } from "lucide-react";
@@ -40,6 +41,7 @@ function HeaderContent() {
   const view = searchParams.get("view");
 
   const isExploreActive = pathname.startsWith("/explore");
+  const isNewsActive = pathname.startsWith("/news");
   const isSaleActive = pathname === "/" && listingType === "sale";
   const isRentActive = pathname === "/rentals" || (pathname === "/" && listingType === "rent");
   const isMapActive = pathname === "/" && (view === "map" || (typeof window !== "undefined" && window.location.hash === "#map-view"));
@@ -134,6 +136,7 @@ function HeaderContent() {
     { label: "Mua bán", href: "/?listing_type=sale", active: isSaleActive },
     { label: "Cho thuê", href: "/rentals", active: isRentActive },
     { label: "Dự án", href: "/projects", active: pathname.startsWith("/projects") },
+    { label: "Tin tức", href: "/news", active: isNewsActive },
     { label: "Bản đồ thông minh", href: "/#map-view", active: isMapActive, icon: true },
   ];
 
@@ -451,6 +454,8 @@ function HeaderContent() {
               >
                 {item.label === "Bản đồ thông minh" ? (
                   <MapPin className="h-4 w-4 text-blue-600" />
+                ) : item.label === "Tin tức" ? (
+                  <Newspaper className="h-4 w-4 text-blue-600" />
                 ) : (
                   <Compass className="h-4 w-4 text-blue-600" />
                 )}

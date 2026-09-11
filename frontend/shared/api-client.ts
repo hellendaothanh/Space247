@@ -35,6 +35,11 @@ import {
   MortgageCalcResponse,
   MarketPulseResponse,
   CollectionsResponse,
+  ArticleDetail,
+  ArticleListItem,
+  ArticlePaginationResponse,
+  CreateArticlePayload,
+  NewsCategory,
   NotificationListResponse,
   PaginatedProjectResponse,
   ProjectDetailResponse,
@@ -725,6 +730,43 @@ export class RealEstateApiClient {
   async getDepositTransactionStatus(referenceCode: string): Promise<DepositTransaction> {
     return this.request<DepositTransaction>(`/api/v1/payments/deposit-transactions/${encodeURIComponent(referenceCode)}`, {
       method: "GET",
+    });
+  }
+
+  // Editorial News & Insights Hub
+  async getNewsCategories(): Promise<NewsCategory[]> {
+    return this.request<NewsCategory[]>("/api/v1/news/categories", { method: "GET" });
+  }
+
+  async getFeaturedArticles(limit: number = 5): Promise<ArticleListItem[]> {
+    return this.request<ArticleListItem[]>(`/api/v1/news/featured?limit=${limit}`, { method: "GET" });
+  }
+
+  async getArticles(params?: {
+    page?: number;
+    page_size?: number;
+    category_slug?: string;
+    tag?: string;
+    q?: string;
+  }): Promise<ArticlePaginationResponse> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append("page", params.page.toString());
+    if (params?.page_size) searchParams.append("page_size", params.page_size.toString());
+    if (params?.category_slug) searchParams.append("category_slug", params.category_slug);
+    if (params?.tag) searchParams.append("tag", params.tag);
+    if (params?.q) searchParams.append("q", params.q);
+    const qs = searchParams.toString();
+    return this.request<ArticlePaginationResponse>(`/api/v1/news${qs ? `?${qs}` : ""}`, { method: "GET" });
+  }
+
+  async getArticleBySlug(slug: string): Promise<ArticleDetail> {
+    return this.request<ArticleDetail>(`/api/v1/news/${encodeURIComponent(slug)}`, { method: "GET" });
+  }
+
+  async createArticle(payload: CreateArticlePayload): Promise<ArticleDetail> {
+    return this.request<ArticleDetail>("/api/v1/news", {
+      method: "POST",
+      body: JSON.stringify(payload),
     });
   }
 }

@@ -1000,3 +1000,62 @@ export interface MarketPulseResponse {
   updated_at: string;
 }
 
+export interface NewsCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  icon?: string | null;
+  display_order: number;
+  article_count: number;
+}
+
+export interface ArticleAuthor {
+  id: string;
+  full_name?: string | null;
+  email: string;
+  avatar_url?: string | null;
+}
+
+export interface ArticleListItem {
+  id: string;
+  title: string;
+  slug: string;
+  summary: string;
+  thumbnail_url?: string | null;
+  category_id: string;
+  category?: NewsCategory | null;
+  author_id?: string | null;
+  author?: ArticleAuthor | null;
+  tags: string[];
+  view_count: number;
+  is_published: boolean;
+  published_at?: string | null;
+  created_at: string;
+}
+
+export interface ArticleDetail extends ArticleListItem {
+  content: string;
+  related_articles: ArticleListItem[];
+}
+
+export interface CreateArticlePayload {
+  title: string;
+  slug?: string | null;
+  summary: string;
+  content: string;
+  thumbnail_url?: string | null;
+  category_id: string;
+  tags?: string[];
+  is_published?: boolean;
+}
+
+export interface ArticlePaginationResponse {
+  items: ArticleListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+
