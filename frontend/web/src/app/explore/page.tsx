@@ -199,7 +199,7 @@ const MEDIA_SHOWCASE_ITEMS: MediaShowcaseItem[] = [
     thumbnail: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80",
     creator: "Reviewer Quang Huy",
     highlight: "View trọn sông Sài Gòn & ban công Panorama 30m²",
-    propertyLink: "/properties",
+    propertyLink: "/?listing_type=sale",
   },
   {
     id: "media-2",
@@ -212,7 +212,7 @@ const MEDIA_SHOWCASE_ITEMS: MediaShowcaseItem[] = [
     thumbnail: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80",
     creator: "Space247 3D Studio",
     highlight: "Thiết kế gác lửng thông minh, ánh sáng tự nhiên",
-    propertyLink: "/properties",
+    propertyLink: "/?listing_type=sale",
   },
   {
     id: "media-3",
@@ -225,7 +225,7 @@ const MEDIA_SHOWCASE_ITEMS: MediaShowcaseItem[] = [
     thumbnail: "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=800&q=80",
     creator: "BĐS Miền Trung 24/7",
     highlight: "Sân vườn nhiệt đới, hồ bơi điện phân muối riêng",
-    propertyLink: "/properties",
+    propertyLink: "/?listing_type=sale",
   },
   {
     id: "media-4",
@@ -238,7 +238,7 @@ const MEDIA_SHOWCASE_ITEMS: MediaShowcaseItem[] = [
     thumbnail: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80",
     creator: "Kiều Oanh Realtor",
     highlight: "Cầu đi bộ trực tiếp nối thẳng vào ga Metro số 1",
-    propertyLink: "/properties",
+    propertyLink: "/?listing_type=sale",
   },
 ];
 

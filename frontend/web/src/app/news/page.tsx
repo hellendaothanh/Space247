@@ -674,7 +674,7 @@ function NewsHubContent() {
                 Tính toán chính xác lịch trả nợ theo phương thức dư nợ giảm dần với lãi suất ưu đãi cập nhật mới nhất từ 15+ ngân hàng.
               </p>
               <Link
-                href="/properties"
+                href="/tools/mortgage"
                 className="mt-4 flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-indigo-700"
               >
                 <span>Mở bảng tính tài chính</span>

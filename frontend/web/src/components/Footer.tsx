@@ -18,8 +18,8 @@ const serviceLinks: FooterLink[] = [
   { label: "Tin tức & Thị trường", href: "/news" },
   { label: "Cổng Chủ nhà (Host Portal)", href: "/host/dashboard" },
   { label: "Bản đồ tra cứu quy hoạch", href: "/?view=map" },
-  { label: "Bảng tính lãi suất vay", href: "/properties" },
-  { label: "Định giá thông minh AVM", href: "/properties" },
+  { label: "Bảng tính lãi suất vay", href: "/tools/mortgage" },
+  { label: "Định giá thông minh AVM", href: "/explore" },
 ];
 
 export default function Footer() {
