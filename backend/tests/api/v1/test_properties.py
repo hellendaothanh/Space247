@@ -257,3 +257,54 @@ async def test_list_rentals_binds_false_zero_and_landmark_filters(client, mock_d
     sql = str(statement.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
     assert "allow_pets" in sql and "= false" in sql and "deposit_months" in sql and "ST_DWithin" in sql
 
+
+@pytest.mark.asyncio
+async def test_get_curated_collections(client, mock_db_session):
+    prop1 = Property(
+        id=uuid.uuid4(),
+        title="Biệt thự ven hồ sinh thái Ecopark",
+        description="Không gian xanh ven hồ thoáng đãng trong lành.",
+        price=12000000000,
+        area_sqm=220.0,
+        address="Khu Thảo Nguyên Ecopark",
+        city="Hưng Yên",
+        property_type="villa",
+        listing_type="sale",
+        images=["https://images.unsplash.com/photo-1.jpg"],
+        status="active",
+        user_id=None,
+    )
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = [prop1]
+    mock_db_session.execute.return_value = result
+
+    response = await client.get("/api/v1/properties/collections")
+    assert response.status_code == 200
+    data = response.json()
+    assert "collections" in data
+    assert len(data["collections"]) == 4
+    collection_ids = [c["id"] for c in data["collections"]]
+    assert "eco" in collection_ids
+    assert "metro" in collection_ids
+    assert "high_yield" in collection_ids
+    assert "young_creative" in collection_ids
+
+
+@pytest.mark.asyncio
+async def test_get_market_pulse(client, mock_db_session):
+    result = MagicMock()
+    result.all.return_value = []
+    mock_db_session.execute.return_value = result
+
+    response = await client.get("/api/v1/properties/market-pulse")
+    assert response.status_code == 200
+    data = response.json()
+    assert "cities" in data
+    assert len(data["cities"]) == 4
+    city_names = [c["short_name"] for c in data["cities"]]
+    assert "Hà Nội" in city_names
+    assert "TP.HCM" in city_names
+    assert "hot_areas" in data
+    assert data["national_avg_sqm"] > 0
+
+

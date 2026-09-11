@@ -24,6 +24,8 @@ interface Props {
   onSearch: (payload: HomeSearchPayload) => void;
   isLoading?: boolean;
   initialMode?: SearchMode;
+  mode?: SearchMode;
+  onModeChange?: (mode: SearchMode) => void;
 }
 
 const MODE_TABS: { key: SearchMode; label: string }[] = [
@@ -94,8 +96,14 @@ const LOCATION_PLACEHOLDER: Record<SearchMode, string> = {
   projects: "Tên dự án hoặc thành phố...",
 };
 
-export default function SegmentedSearchBar({ onSearch, isLoading = false, initialMode = "sale" }: Props) {
-  const [mode, setMode] = useState<SearchMode>(initialMode);
+export default function SegmentedSearchBar({
+  onSearch,
+  isLoading = false,
+  initialMode = "sale",
+  mode: controlledMode,
+  onModeChange,
+}: Props) {
+  const [internalMode, setInternalMode] = useState<SearchMode>(controlledMode ?? initialMode);
   const [location, setLocation] = useState("");
   const [typeValue, setTypeValue] = useState("");
   const [priceIndex, setPriceIndex] = useState(0);
@@ -105,10 +113,13 @@ export default function SegmentedSearchBar({ onSearch, isLoading = false, initia
   const [bedrooms, setBedrooms] = useState("");
   const [area, setArea] = useState("");
 
+  const mode = controlledMode ?? internalMode;
+
   const selectMode = (next: SearchMode) => {
-    setMode(next);
+    setInternalMode(next);
     setTypeValue("");
     setPriceIndex(0);
+    onModeChange?.(next);
   };
 
   const submit = () => {
@@ -120,8 +131,8 @@ export default function SegmentedSearchBar({ onSearch, isLoading = false, initia
       propertyType: mode === "rent" ? (typeValue === "commercial" ? "commercial" : undefined) : (typeValue as PropertyType | undefined) || undefined,
       rentalType: mode === "rent" && typeValue !== "commercial" ? (typeValue as HomeSearchPayload["rentalType"]) : undefined,
       projectKeyword: mode === "projects" ? type?.value || undefined : undefined,
-      minPrice: price.min,
-      maxPrice: price.max,
+      minPrice: price?.min,
+      maxPrice: price?.max,
       city: city || undefined,
       minBedrooms: bedrooms ? Number(bedrooms) : undefined,
       minAreaSqm: area ? Number(area) : undefined,

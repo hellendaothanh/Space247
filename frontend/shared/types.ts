@@ -958,4 +958,45 @@ export interface ViewingBookingRequest {
   message?: string;
 }
 
+export interface CuratedCollection {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  tag: string;
+  icon: string;
+  cover_image?: string;
+  item_count?: number;
+  properties: PropertyResponse[];
+}
+
+export interface CollectionsResponse {
+  collections: CuratedCollection[];
+}
+
+export interface CityMarketStats {
+  city: string;
+  short_name: string;
+  avg_price_per_sqm: number;
+  min_price_per_sqm: number;
+  max_price_per_sqm: number;
+  total_listings: number;
+  change_pct: number;
+  trending_district: string;
+}
+
+export interface HotArea {
+  district: string;
+  city: string;
+  search_volume_score: number;
+  avg_price_million: number;
+  highlight: string;
+}
+
+export interface MarketPulseResponse {
+  cities: CityMarketStats[];
+  hot_areas: HotArea[];
+  national_avg_sqm: number;
+  updated_at: string;
+}
 

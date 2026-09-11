@@ -1,19 +1,46 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, Suspense, use } from "react";
+import { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Compass, Building, AlertCircle, RefreshCw, LayoutGrid, Map as MapIcon, Sparkles, TrendingUp, Home as HomeIcon, Building2 } from "lucide-react";
+import dynamic from "next/dynamic";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  Compass,
+  Building,
+  AlertCircle,
+  RefreshCw,
+  LayoutGrid,
+  Map as MapIcon,
+  Sparkles,
+  TrendingUp,
+  Home as HomeIcon,
+  Building2,
+  X,
+  ArrowRight,
+  Loader2,
+} from "lucide-react";
 import { ProjectResponse, PropertyResponse, SearchResultItem } from "@shared/types";
 import { apiClient } from "@/lib/api";
 import PropertyCard from "@/components/common/PropertyCard";
-import PropertyMap from "@/components/PropertyMap";
 import ProjectCard from "@/components/project/ProjectCard";
 import SegmentedSearchBar, { HomeSearchPayload, SearchMode } from "@/components/home/SegmentedSearchBar";
 import CategoryQuickNav, { HOME_CATEGORIES } from "@/components/home/CategoryQuickNav";
 
+// Dynamic import for InteractiveMap with SSR disabled
+const InteractiveMap = dynamic(() => import("@/components/map/InteractiveMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[500px] md:h-[600px] w-full flex-col items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 text-slate-400">
+      <Loader2 className="h-8 w-8 animate-spin text-blue-600 mb-2" />
+      <span className="text-sm font-medium">Đang tải bản đồ thông minh Space247...</span>
+    </div>
+  ),
+});
+
 function HomePageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const listingTypeParam = searchParams.get("listing_type"); // "sale" | "rent" | null
   const viewParam = searchParams.get("view");
 
   const [allProperties, setAllProperties] = useState<PropertyResponse[]>([]);
@@ -21,9 +48,24 @@ function HomePageContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Search state
+  // Active search tab mode
+  const initialMode: SearchMode =
+    listingTypeParam === "rent" ? "rent" : listingTypeParam === "projects" ? "projects" : "sale";
+  const [searchMode, setSearchMode] = useState<SearchMode>(initialMode);
+
+  // Sync mode whenever URL listing_type param changes
+  useEffect(() => {
+    if (listingTypeParam === "rent") {
+      setSearchMode("rent");
+    } else if (listingTypeParam === "projects") {
+      setSearchMode("projects");
+    } else if (listingTypeParam === "sale") {
+      setSearchMode("sale");
+    }
+  }, [listingTypeParam]);
+
+  // Search execution state
   const [searchActive, setSearchActive] = useState(false);
-  const [searchMode, setSearchMode] = useState<SearchMode>("sale");
   const [searchResults, setSearchResults] = useState<(SearchResultItem | PropertyResponse)[]>([]);
   const [searchProjects, setSearchProjects] = useState<ProjectResponse[]>([]);
   const [searchTotal, setSearchTotal] = useState(0);
@@ -34,15 +76,26 @@ function HomePageContent() {
   const [viewMode, setViewMode] = useState<"grid" | "map">(viewParam === "map" ? "map" : "grid");
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
 
+  // Effective listing filter: strictly "sale", strictly "rent", or null for default homepage
+  const effectiveListingType: "sale" | "rent" | null = useMemo(() => {
+    if (listingTypeParam === "sale") return "sale";
+    if (listingTypeParam === "rent") return "rent";
+    return null;
+  }, [listingTypeParam]);
+
   const loadInitial = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     setSearchActive(false);
     setSearchLabel("");
     try {
+      const fetchType =
+        listingTypeParam === "sale" ? "sale" : listingTypeParam === "rent" ? "rent" : undefined;
       const [propertyData, projectData] = await Promise.all([
-        apiClient.listProperties({ limit: 100 }),
-        apiClient.getProjects({ limit: 6 }),
+        apiClient.listProperties({ listing_type: fetchType, limit: 100 }),
+        listingTypeParam === "rent"
+          ? Promise.resolve({ items: [], total: 0 })
+          : apiClient.getProjects({ limit: 6 }),
       ]);
       setAllProperties(propertyData);
       setProjects(projectData.items ?? []);
@@ -52,18 +105,43 @@ function HomePageContent() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [listingTypeParam]);
 
   useEffect(() => {
     loadInitial();
   }, [loadInitial]);
 
-  // Scroll to map when opened via header link
-  useEffect(() => {
-    if (viewParam === "map" || (typeof window !== "undefined" && window.location.hash === "#map-view")) {
-      setViewMode("map");
-      setTimeout(() => document.getElementById("map-view")?.scrollIntoView({ behavior: "smooth" }), 150);
+  // Handle mode tab click in search bar
+  const handleModeChange = (newMode: SearchMode) => {
+    setSearchMode(newMode);
+    setActiveCategory(null);
+    if (newMode === "sale") {
+      router.push("/?listing_type=sale", { scroll: false });
+    } else if (newMode === "rent") {
+      router.push("/?listing_type=rent", { scroll: false });
+    } else if (newMode === "projects") {
+      router.push("/projects");
     }
+  };
+
+  // Scroll to map when opened via header link or hash #map-view
+  useEffect(() => {
+    const handleScrollToMap = () => {
+      if (
+        viewParam === "map" ||
+        (typeof window !== "undefined" && window.location.hash === "#map-view")
+      ) {
+        setTimeout(() => {
+          const mapEl = document.getElementById("map-view");
+          if (mapEl) {
+            mapEl.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }, 150);
+      }
+    };
+    handleScrollToMap();
+    window.addEventListener("hashchange", handleScrollToMap);
+    return () => window.removeEventListener("hashchange", handleScrollToMap);
   }, [viewParam]);
 
   const handleSearch = async (payload: HomeSearchPayload) => {
@@ -119,19 +197,36 @@ function HomePageContent() {
     }
   };
 
-  // Category counting & filtering (homepage groups)
-  const categoriesWithCounts = useMemo(
-    () =>
-      HOME_CATEGORIES.map((category) => {
-        const count = allProperties.filter((p) => category.match(p)).length;
+  // Filtered categories according to listing type
+  const categoriesWithCounts = useMemo(() => {
+    let pool = allProperties;
+    if (effectiveListingType === "sale") {
+      pool = allProperties.filter((p) => p.listing_type === "sale");
+    } else if (effectiveListingType === "rent") {
+      pool = allProperties.filter((p) => p.listing_type === "rent");
+    }
+    return HOME_CATEGORIES
+      .filter((category) => {
+        // In sale mode, hide rent-only categories
+        if (effectiveListingType === "sale" && (category.key === "room" || category.key === "serviced")) {
+          return false;
+        }
+        // In rent mode, hide land
+        if (effectiveListingType === "rent" && category.key === "land") {
+          return false;
+        }
+        return true;
+      })
+      .map((category) => {
+        const count = pool.filter((p) => category.match(p)).length;
         return {
           ...category,
-          count: category.key === "room" && count === 0 ? 12 : count,
+          count: category.key === "room" && count === 0 && effectiveListingType !== "sale" ? 12 : count,
         };
-      }),
-    [allProperties]
-  );
+      });
+  }, [allProperties, effectiveListingType]);
 
+  // Strictly separated listing groups
   const saleProperties = useMemo(() => {
     const category = categoriesWithCounts.find((c) => c.key === activeCategory);
     return allProperties.filter(
@@ -146,11 +241,38 @@ function HomePageContent() {
     );
   }, [allProperties, activeCategory, categoriesWithCounts]);
 
-  const mapItems: (SearchResultItem | PropertyResponse)[] = searchActive
-    ? searchMode === "projects"
-      ? []
-      : searchResults
-    : [...saleProperties, ...rentProperties];
+  // Strictly filter search results to ensure zero leakage between sale and rent
+  const filteredSearchResults = useMemo(() => {
+    return searchResults.filter((item) => {
+      const p = "property" in item ? item.property : item;
+      if (effectiveListingType === "sale" || searchMode === "sale") {
+        return p.listing_type === "sale";
+      }
+      if (effectiveListingType === "rent" || searchMode === "rent") {
+        return p.listing_type === "rent";
+      }
+      return true;
+    });
+  }, [searchResults, effectiveListingType, searchMode]);
+
+  const mapItems: (SearchResultItem | PropertyResponse)[] = useMemo(() => {
+    if (searchActive) {
+      return searchMode === "projects" ? [] : filteredSearchResults;
+    }
+    if (effectiveListingType === "sale") {
+      return saleProperties;
+    }
+    if (effectiveListingType === "rent") {
+      return rentProperties;
+    }
+    return [...saleProperties, ...rentProperties];
+  }, [searchActive, searchMode, filteredSearchResults, effectiveListingType, saleProperties, rentProperties]);
+
+  // Display conditions
+  const showProjectsSection =
+    (effectiveListingType === "sale" || effectiveListingType === null) && projects.length > 0;
+  const showSaleSection = effectiveListingType === "sale" || effectiveListingType === null;
+  const showRentSection = effectiveListingType === "rent" || effectiveListingType === null;
 
   return (
     <div className="space-y-10">
@@ -176,14 +298,71 @@ function HomePageContent() {
             mua bán, thuê trọ, căn hộ dịch vụ trên toàn quốc.
           </p>
 
-          <SegmentedSearchBar onSearch={handleSearch} isLoading={isLoading} />
+          <SegmentedSearchBar
+            onSearch={handleSearch}
+            isLoading={isLoading}
+            mode={searchMode}
+            onModeChange={handleModeChange}
+          />
         </div>
       </section>
+
+      {/* ============ Active Listing Type Filter Alert ============ */}
+      {effectiveListingType && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-blue-900">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 text-white shadow-xs">
+              {effectiveListingType === "sale" ? <HomeIcon className="h-4 w-4" /> : <Building2 className="h-4 w-4" />}
+            </span>
+            <div>
+              <p className="text-sm font-bold">
+                {effectiveListingType === "sale"
+                  ? "Đang xem danh mục: Mua Bán Nhà Đất & Dự Án Đô Thị"
+                  : "Đang xem danh mục: Cho Thuê Nhà & Phòng Trọ Tiện Nghi"}
+              </p>
+              <p className="text-xs text-blue-700">
+                {effectiveListingType === "sale"
+                  ? "Tất cả tin đăng cho thuê/phòng trọ đã được lọc để bạn tập trung tìm mua BĐS."
+                  : "Tất cả tin mua bán đã được ẩn để bạn dễ dàng tìm kiếm không gian thuê phù hợp."}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {effectiveListingType === "rent" && (
+              <Link
+                href="/rentals"
+                className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700"
+              >
+                <span>Bộ lọc trọ chi tiết</span>
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            )}
+            <Link
+              href="/"
+              onClick={() => {
+                setSearchMode("sale");
+                setActiveCategory(null);
+              }}
+              className="inline-flex items-center gap-1 rounded-xl border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 shadow-xs transition hover:bg-blue-100/60"
+            >
+              <X className="h-3.5 w-3.5" />
+              <span>Xem tất cả danh mục</span>
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* ============ Category Quick-Nav ============ */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">Khám phá theo loại hình</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+            {effectiveListingType === "sale"
+              ? "Khám phá loại hình mua bán"
+              : effectiveListingType === "rent"
+              ? "Khám phá loại hình cho thuê"
+              : "Khám phá theo loại hình"}
+          </h2>
           {activeCategory && (
             <button
               type="button"
@@ -232,7 +411,7 @@ function HomePageContent() {
         <>
           {/* ============ Search Results Mode ============ */}
           {searchActive ? (
-            <section id="map-view" className="space-y-6 scroll-mt-24">
+            <section className="space-y-6 scroll-mt-24">
               <div className="flex flex-col justify-between gap-4 border-b border-slate-200 pb-4 sm:flex-row sm:items-center">
                 <div>
                   <div className="flex items-center gap-2">
@@ -242,11 +421,15 @@ function HomePageContent() {
                       <Sparkles className="h-5 w-5 text-purple-600" />
                     )}
                     <h2 className="text-xl font-bold text-slate-900">
-                      {searchMode === "projects" ? "Dự án phù hợp" : searchLabel ? `Kết quả cho "${searchLabel}"` : "Kết quả tìm kiếm"}
+                      {searchMode === "projects"
+                        ? "Dự án phù hợp"
+                        : searchLabel
+                        ? `Kết quả cho "${searchLabel}"`
+                        : "Kết quả tìm kiếm"}
                     </h2>
                   </div>
                   <p className="mt-1 text-xs text-slate-500">
-                    Tìm thấy {searchTotal} kết quả phù hợp theo tiêu chí của bạn
+                    Tìm thấy {searchMode === "projects" ? searchTotal : filteredSearchResults.length} kết quả phù hợp theo tiêu chí của bạn
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -298,10 +481,12 @@ function HomePageContent() {
                   </p>
                 )
               ) : viewMode === "map" ? (
-                <PropertyMap items={mapItems} selectedId={selectedPropertyId} onSelectProperty={setSelectedPropertyId} />
-              ) : searchResults.length > 0 ? (
+                <div className="h-[500px] md:h-[600px] w-full rounded-2xl overflow-hidden border border-slate-200 shadow-md">
+                  <InteractiveMap items={mapItems} selectedId={selectedPropertyId} onSelectProperty={setSelectedPropertyId} />
+                </div>
+              ) : filteredSearchResults.length > 0 ? (
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {searchResults.map((item, index) => {
+                  {filteredSearchResults.map((item, index) => {
                     const id = "property" in item ? item.property.id : item.id;
                     return <PropertyCard key={id} item={item} index={index} />;
                   })}
@@ -327,14 +512,14 @@ function HomePageContent() {
             </section>
           ) : (
             <>
-              {/* ============ Group 1: Dự Án Đô Thị Nổi Bật ============ */}
-              {projects.length > 0 && (
+              {/* ============ Group 1: Dự Án Đô Thị Mở Bán (Only on Sale or Default) ============ */}
+              {showProjectsSection && (
                 <section className="space-y-5">
                   <div className="flex items-end justify-between border-b border-slate-200 pb-4">
                     <div>
                       <div className="flex items-center gap-2">
                         <Building className="h-5 w-5 text-blue-600" />
-                        <h2 className="text-xl font-bold text-slate-900">Dự Án Đô Thị Nổi Bật</h2>
+                        <h2 className="text-xl font-bold text-slate-900">Dự Án Đô Thị Mở Bán</h2>
                       </div>
                       <p className="mt-1 text-xs text-slate-500">Tổng quan tiến độ bàn giao, khoảng giá và chủ đầu tư uy tín</p>
                     </div>
@@ -350,59 +535,105 @@ function HomePageContent() {
                 </section>
               )}
 
-              {/* ============ Group 2: Bất Động Sản Bán Mới Nhất ============ */}
-              <section id="map-view" className="space-y-5 scroll-mt-24">
-                <div className="flex items-end justify-between border-b border-slate-200 pb-4">
+              {/* ============ Interactive Smart Map Section (Always visible, positioned right above property listings) ============ */}
+              <section id="map-view" className="space-y-4 scroll-mt-24">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
                   <div>
                     <div className="flex items-center gap-2">
-                      <HomeIcon className="h-5 w-5 text-blue-600" />
-                      <h2 className="text-xl font-bold text-slate-900">Bất Động Sản Bán Mới Nhất</h2>
+                      <MapIcon className="h-5 w-5 text-blue-600" />
+                      <h2 className="text-xl font-bold text-slate-900">
+                        {effectiveListingType === "sale"
+                          ? "Bản Đồ Bất Động Sản Mua Bán & Quy Hoạch"
+                          : effectiveListingType === "rent"
+                          ? "Bản Đồ Phòng Trọ & Tiện Ích Sinh Viên"
+                          : "Bản Đồ Bất Động Sản & Tiện Ích Thông Minh"}
+                      </h2>
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">{saleProperties.length} tin đăng bán được cập nhật liên tục</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Khám phá vị trí thực địa, bán kính di chuyển (isochrone) và lớp nhiệt tiện ích (trường học, bệnh viện, metro...)
+                    </p>
                   </div>
-                  <Link href="/?listing_type=sale" className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800">
-                    Xem tất cả <TrendingUp className="h-3.5 w-3.5" />
-                  </Link>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 font-semibold text-blue-700">
+                      <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
+                      {mapItems.length} toạ độ hiển thị
+                    </span>
+                  </div>
                 </div>
-                {saleProperties.length > 0 ? (
-                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    {saleProperties.slice(0, 6).map((property, index) => (
-                      <PropertyCard key={property.id} item={property} index={index} />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">
-                    Chưa có tin bán nào phù hợp danh mục đang chọn.
-                  </p>
-                )}
+
+                <div className="h-[500px] md:h-[600px] w-full rounded-2xl overflow-hidden border border-slate-200 shadow-md">
+                  <InteractiveMap
+                    items={mapItems}
+                    selectedId={selectedPropertyId}
+                    onSelectProperty={setSelectedPropertyId}
+                  />
+                </div>
               </section>
 
-              {/* ============ Group 3: Cho Thuê & Phòng Trọ Tiện Nghi ============ */}
-              <section className="space-y-5">
-                <div className="flex items-end justify-between border-b border-slate-200 pb-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-5 w-5 text-emerald-600" />
-                      <h2 className="text-xl font-bold text-slate-900">Cho Thuê & Phòng Trọ Tiện Nghi</h2>
+              {/* ============ Group 2: Bất Động Sản Mua Bán Mới Nhất (Only on Sale or Default) ============ */}
+              {showSaleSection && (
+                <section className="space-y-5">
+                  <div className="flex items-end justify-between border-b border-slate-200 pb-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <HomeIcon className="h-5 w-5 text-blue-600" />
+                        <h2 className="text-xl font-bold text-slate-900">
+                          {effectiveListingType === "sale" ? "Bất Động Sản Mua Bán Được Xác Thực" : "Bất Động Sản Mua Bán Mới Nhất"}
+                        </h2>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">{saleProperties.length} tin đăng bán nhà đất & căn hộ được cập nhật liên tục</p>
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">{rentProperties.length} tin cho thuê — điện nước minh bạch, không phí ẩn</p>
+                    <Link href="/?listing_type=sale" className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800">
+                      Xem tất cả BĐS Mua bán <TrendingUp className="h-3.5 w-3.5" />
+                    </Link>
                   </div>
-                  <Link href="/rentals" className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-800">
-                    Khám phá khu trọ <TrendingUp className="h-3.5 w-3.5" />
-                  </Link>
-                </div>
-                {rentProperties.length > 0 ? (
-                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    {rentProperties.slice(0, 6).map((property, index) => (
-                      <PropertyCard key={property.id} item={property} index={index} />
-                    ))}
+                  {saleProperties.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                      {saleProperties.slice(0, 6).map((property, index) => (
+                        <PropertyCard key={property.id} item={property} index={index} />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">
+                      Chưa có tin bán nào phù hợp danh mục đang chọn.
+                    </p>
+                  )}
+                </section>
+              )}
+
+              {/* ============ Group 3: Cho Thuê & Phòng Trọ Tiện Nghi (Only on Rent or Default) ============ */}
+              {showRentSection && (
+                <section className="space-y-5">
+                  <div className="flex items-end justify-between border-b border-slate-200 pb-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-5 w-5 text-emerald-600" />
+                        <h2 className="text-xl font-bold text-slate-900">Cho Thuê Nhà & Phòng Trọ Tiện Nghi</h2>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">{rentProperties.length} tin cho thuê — phòng trọ, căn hộ dịch vụ, minh bạch chi phí</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Link href="/rentals" className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-800">
+                        Khám phá khu trọ <TrendingUp className="h-3.5 w-3.5" />
+                      </Link>
+                      <Link href="/?listing_type=rent" className="hidden sm:inline-flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-slate-900">
+                        Lọc danh sách thuê &rarr;
+                      </Link>
+                    </div>
                   </div>
-                ) : (
-                  <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">
-                    Chưa có tin thuê nào phù hợp danh mục đang chọn.
-                  </p>
-                )}
-              </section>
+                  {rentProperties.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                      {rentProperties.slice(0, 6).map((property, index) => (
+                        <PropertyCard key={property.id} item={property} index={index} />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">
+                      Chưa có tin thuê nào phù hợp danh mục đang chọn.
+                    </p>
+                  )}
+                </section>
+              )}
             </>
           )}
         </>

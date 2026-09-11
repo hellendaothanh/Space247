@@ -259,3 +259,45 @@ class ComparePropertiesResponse(BaseModel):
     properties: list[ComparisonData]
     analysis_markdown: str
 
+
+class CuratedCollection(BaseModel):
+    id: str
+    title: str
+    subtitle: str
+    description: str
+    tag: str
+    icon: str
+    cover_image: str
+    item_count: int
+    properties: list[PropertyResponse]
+
+
+class CollectionsResponse(BaseModel):
+    collections: list[CuratedCollection]
+
+
+class CityMarketStats(BaseModel):
+    city: str
+    short_name: str
+    avg_price_per_sqm: float
+    min_price_per_sqm: float
+    max_price_per_sqm: float
+    total_listings: int
+    change_pct: float
+    trending_district: str
+
+
+class HotArea(BaseModel):
+    district: str
+    city: str
+    search_volume_score: int
+    avg_price_million: float
+    highlight: str
+
+
+class MarketPulseResponse(BaseModel):
+    cities: list[CityMarketStats]
+    hot_areas: list[HotArea]
+    national_avg_sqm: float
+    updated_at: datetime
+

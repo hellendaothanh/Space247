@@ -37,6 +37,7 @@ interface PropertyMapClientProps {
   items: (SearchResultItem | PropertyResponse)[];
   selectedId?: string | null;
   onSelectProperty?: (id: string) => void;
+  className?: string;
 }
 
 function escapeHtml(str: string | null | undefined): string {
@@ -53,6 +54,7 @@ export default function PropertyMapClient({
   items,
   selectedId,
   onSelectProperty,
+  className,
 }: PropertyMapClientProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -466,7 +468,7 @@ export default function PropertyMapClient({
   };
 
   return (
-    <div className="relative h-[650px] w-full overflow-hidden rounded-3xl border border-slate-200/90 shadow-md">
+    <div className={`relative h-[500px] md:h-[600px] w-full overflow-hidden rounded-2xl border border-slate-200 shadow-md ${className || ""}`}>
       {/* 1. Top Isochrone Advanced Search Bar */}
       <div className="absolute top-4 left-4 right-4 z-20 flex flex-col gap-2 max-w-2xl bg-white/95 backdrop-blur-md p-3.5 rounded-2xl shadow-xl border border-slate-200/80">
         <form onSubmit={handleIsochroneSearch} className="flex flex-wrap items-center gap-2">

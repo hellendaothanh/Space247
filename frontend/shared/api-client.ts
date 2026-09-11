@@ -33,6 +33,8 @@ import {
   MonthlyInvoice,
   MortgageCalcRequest,
   MortgageCalcResponse,
+  MarketPulseResponse,
+  CollectionsResponse,
   NotificationListResponse,
   PaginatedProjectResponse,
   ProjectDetailResponse,
@@ -353,6 +355,15 @@ export class RealEstateApiClient {
       method: "POST",
       body: JSON.stringify(request),
     });
+  }
+
+  // Curated Collections & Market Pulse
+  async getCuratedCollections(): Promise<CollectionsResponse> {
+    return this.request<CollectionsResponse>("/api/v1/properties/collections");
+  }
+
+  async getMarketPulse(): Promise<MarketPulseResponse> {
+    return this.request<MarketPulseResponse>("/api/v1/properties/market-pulse");
   }
 
   // Spatial & Geo-Intelligence: Isochrone Travel-Time Search

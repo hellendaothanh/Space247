@@ -39,10 +39,10 @@ function HeaderContent() {
   const listingType = searchParams.get("listing_type");
   const view = searchParams.get("view");
 
-  const isExploreActive = pathname === "/" && !listingType && view !== "map";
+  const isExploreActive = pathname.startsWith("/explore");
   const isSaleActive = pathname === "/" && listingType === "sale";
   const isRentActive = pathname === "/rentals" || (pathname === "/" && listingType === "rent");
-  const isMapActive = pathname === "/" && view === "map";
+  const isMapActive = pathname === "/" && (view === "map" || (typeof window !== "undefined" && window.location.hash === "#map-view"));
 
   const { user, logout } = useAuth();
   const { favoriteIds } = useFavorites();
@@ -118,12 +118,23 @@ function HeaderContent() {
     setNotifDropdownOpen(false);
   };
 
+  const handleMapNavClick = (e: React.MouseEvent) => {
+    if (pathname === "/") {
+      e.preventDefault();
+      const mapEl = document.getElementById("map-view");
+      if (mapEl) {
+        mapEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        window.history.replaceState(null, "", "/#map-view");
+      }
+    }
+  };
+
   const navItems = [
-    { label: "Khám phá", href: "/", active: isExploreActive },
+    { label: "Khám phá", href: "/explore", active: isExploreActive },
     { label: "Mua bán", href: "/?listing_type=sale", active: isSaleActive },
     { label: "Cho thuê", href: "/rentals", active: isRentActive },
     { label: "Dự án", href: "/projects", active: pathname.startsWith("/projects") },
-    { label: "Bản đồ thông minh", href: "/?view=map#map-view", active: isMapActive, icon: true },
+    { label: "Bản đồ thông minh", href: "/#map-view", active: isMapActive, icon: true },
   ];
 
   return (
@@ -150,6 +161,7 @@ function HeaderContent() {
             <Link
               key={item.label}
               href={item.href}
+              onClick={item.label === "Bản đồ thông minh" ? handleMapNavClick : undefined}
               className={`group relative rounded-full px-3.5 py-2 text-sm transition ${
                 item.active
                   ? "bg-blue-50 font-semibold text-blue-700"
@@ -427,7 +439,12 @@ function HeaderContent() {
               <Link
                 key={item.label}
                 href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={(e) => {
+                  setMobileMenuOpen(false);
+                  if (item.label === "Bản đồ thông minh") {
+                    handleMapNavClick(e);
+                  }
+                }}
                 className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm transition ${
                   item.active ? "bg-blue-50 font-semibold text-blue-700" : "font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600"
                 }`}
