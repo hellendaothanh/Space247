@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/Navbar";
+import Header from "@/components/layout/Header";
 import Footer from "@/components/Footer";
 import ChatAssistantWidget from "@/components/ChatAssistantWidget";
 import { AuthProvider } from "@/lib/auth";
@@ -29,7 +29,7 @@ export default function RootLayout({
         <AuthProvider>
           <FavoritesProvider>
             <ComparisonProvider>
-              <Navbar />
+              <Header />
               <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8 py-8 pb-24">
                 {children}
               </main>
